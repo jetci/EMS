@@ -1,4 +1,24 @@
-# Emergency Medical Services (EMS) Web Application
+# WeCare Platform - EMS System
+
+**ระบบจัดการรถพยาบาลฉุกเฉิน (Emergency Medical Services Management System)**
+
+## 🎯 ภาพรวมโปรเจค
+
+WeCare Platform เป็นระบบจัดการรถพยาบาลฉุกเฉินแบบครบวงจร ที่ออกแบบมาเพื่อเชื่อมโยงชุมชน คนขับรถพยาบาล และเจ้าหน้าที่ปฏิบัติการเข้าด้วยกันอย่างมีประสิทธิภาพ
+
+## ✅ สถานะปัจจุบัน
+
+**🟢 PRODUCTION READY - White Screen Issue RESOLVED**
+
+- ✅ React UI ทำงานสมบูรณ์ตามการออกแบบ
+- ✅ Authentication system พร้อมใช้งาน
+- ✅ Role-based access control
+- ✅ API integration เสร็จสมบูรณ์
+- ✅ Database connectivity ปกติ
+
+## 🌐 การเข้าใช้งาน
+
+**Production URL:** https://ogh5izc6oo8z.manus.space
 
 A comprehensive web application for managing emergency medical services, built with React frontend and Flask backend.
 
