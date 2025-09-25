@@ -52,21 +52,26 @@ def serve(path):
     if static_folder_path is None:
         return "Static folder not configured", 404
 
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-        # Set correct MIME types for TypeScript and JavaScript modules
-        if path.endswith(('.tsx', '.ts', '.jsx', '.js')):
-            with open(os.path.join(static_folder_path, path), 'r', encoding='utf-8') as f:
-                content = f.read()
-            response = Response(content, mimetype='application/javascript')
-            return response
-        else:
+    # Try to serve from React build (dist folder) first
+    dist_path = os.path.join(static_folder_path, 'dist')
+    
+    if path != "":
+        # Check if file exists in dist folder
+        dist_file_path = os.path.join(dist_path, path)
+        if os.path.exists(dist_file_path):
+            return send_from_directory(dist_path, path)
+        
+        # Check if file exists in static folder
+        static_file_path = os.path.join(static_folder_path, path)
+        if os.path.exists(static_file_path):
             return send_from_directory(static_folder_path, path)
+    
+    # Serve index.html from dist folder (React build)
+    dist_index_path = os.path.join(dist_path, 'index.html')
+    if os.path.exists(dist_index_path):
+        return send_from_directory(dist_path, 'index.html')
     else:
-        index_path = os.path.join(static_folder_path, 'index.html')
-        if os.path.exists(index_path):
-            return send_from_directory(static_folder_path, 'index.html')
-        else:
-            return "index.html not found", 404
+        return "React build not found. Please run 'npm run build' in static folder.", 404
 
 
 if __name__ == '__main__':
