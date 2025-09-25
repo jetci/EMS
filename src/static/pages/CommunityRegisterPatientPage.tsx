@@ -165,8 +165,9 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
             
             console.log("Sending patient registration data:", requestData);
             
-            // Call API
-            const response = await fetch('/api/community/patients/register', {
+            // Call API with proper base URL
+            const API_BASE = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+            const response = await fetch(`${API_BASE}/api/community/patients/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
