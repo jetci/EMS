@@ -144,11 +144,50 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         setFormData(prev => ({ ...prev, latitude: coords.lat.toString(), longitude: coords.lng.toString() }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Saving new patient:", { formData, patientTypes, chronicDiseases, allergies });
-        alert('บันทึกข้อมูลผู้ป่วยใหม่สำเร็จ!');
-        setActiveView('patients');
+        
+        try {
+            // Get JWT token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('กรุณาเข้าสู่ระบบใหม่');
+                return;
+            }
+            
+            // Prepare data for API
+            const requestData = {
+                formData,
+                patientTypes,
+                chronicDiseases,
+                allergies
+            };
+            
+            console.log("Sending patient registration data:", requestData);
+            
+            // Call API
+            const response = await fetch('/api/community/patients/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                alert(`บันทึกข้อมูลผู้ป่วยใหม่สำเร็จ!\nรหัสผู้ป่วย: ${result.patient_id}\nชื่อ: ${result.patient.full_name}`);
+                setActiveView('patients');
+            } else {
+                throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
+            
+        } catch (error: any) {
+            console.error('Error registering patient:', error);
+            alert('เกิดข้อผิดพลาด: ' + error.message);
+        }
     };
     
     const today = new Date().toISOString().split('T')[0];

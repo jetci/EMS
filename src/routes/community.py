@@ -122,6 +122,92 @@ def get_patient(current_user, patient_id):
     except Exception as e:
         return jsonify({'message': 'Failed to get patient', 'error': str(e)}), 500
 
+@community_bp.route('/patients/register', methods=['POST'])
+@token_required
+@role_required(['community'])
+def register_patient(current_user):
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data:
+            return jsonify({'message': 'No data provided'}), 400
+        
+        # Extract form data from frontend
+        form_data = data.get('formData', {})
+        patient_types = data.get('patientTypes', [])
+        chronic_diseases = data.get('chronicDiseases', [])
+        allergies = data.get('allergies', [])
+        
+        # Validate required fields
+        if not form_data.get('firstName') or not form_data.get('lastName'):
+            return jsonify({'message': 'First name and last name are required'}), 400
+        
+        # Create full name
+        full_name = f"{form_data.get('title', '')} {form_data.get('firstName', '')} {form_data.get('lastName', '')}".strip()
+        
+        # Create new patient
+        patient = Patient(
+            full_name=full_name,
+            title=form_data.get('title', ''),
+            first_name=form_data.get('firstName'),
+            last_name=form_data.get('lastName'),
+            gender=form_data.get('gender'),
+            national_id=form_data.get('nationalId'),
+            age=form_data.get('age'),
+            blood_type=form_data.get('bloodType'),
+            rh_factor=form_data.get('rhFactor'),
+            health_coverage=form_data.get('healthCoverage'),
+            contact_phone=form_data.get('contactPhone', ''),
+            landmark=form_data.get('landmark', ''),
+            latitude=form_data.get('latitude'),
+            longitude=form_data.get('longitude'),
+            registered_by_id=current_user.id,
+            registered_date=datetime.now().date()
+        )
+        
+        # Handle date of birth
+        if form_data.get('dob'):
+            try:
+                patient.dob = datetime.strptime(form_data['dob'], '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'message': 'Invalid date format for date of birth'}), 400
+        
+        # Handle JSON fields
+        if patient_types:
+            patient.set_patient_types(patient_types)
+        if chronic_diseases:
+            patient.set_chronic_diseases(chronic_diseases)
+        if allergies:
+            patient.set_allergies(allergies)
+        if form_data.get('idCardAddress'):
+            patient.set_id_card_address(form_data['idCardAddress'])
+        if form_data.get('currentAddress'):
+            patient.set_current_address(form_data['currentAddress'])
+        
+        db.session.add(patient)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'ลงทะเบียนผู้ป่วยสำเร็จ',
+            'patient_id': patient.id,
+            'patient': {
+                'id': patient.id,
+                'full_name': patient.full_name,
+                'national_id': patient.national_id,
+                'created_at': patient.registered_date.isoformat() if patient.registered_date else None
+            }
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': 'เกิดข้อผิดพลาดในการลงทะเบียนผู้ป่วย',
+            'error': str(e)
+        }), 500
+
 @community_bp.route('/patients', methods=['POST'])
 @token_required
 @role_required(['community'])
