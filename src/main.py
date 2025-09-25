@@ -3,8 +3,9 @@ import sys
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, Response
 from flask_cors import CORS
+import mimetypes
 from src.models.ems_models import db
 from src.routes.auth import auth_bp
 from src.routes.community import community_bp
@@ -37,10 +38,21 @@ with app.app_context():
 def serve(path):
     static_folder_path = app.static_folder
     if static_folder_path is None:
-            return "Static folder not configured", 404
+        return "Static folder not configured", 404
 
     if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-        return send_from_directory(static_folder_path, path)
+        # Set correct MIME types for TypeScript and JavaScript modules
+        if path.endswith('.tsx') or path.endswith('.ts'):
+            mimetype = 'application/javascript'
+        elif path.endswith('.jsx') or path.endswith('.js'):
+            mimetype = 'application/javascript'
+        else:
+            mimetype = mimetypes.guess_type(path)[0]
+        
+        response = send_from_directory(static_folder_path, path)
+        if mimetype:
+            response.headers['Content-Type'] = mimetype
+        return response
     else:
         index_path = os.path.join(static_folder_path, 'index.html')
         if os.path.exists(index_path):
