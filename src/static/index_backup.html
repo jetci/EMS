@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WeCare Platform - EMS System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --wecare-blue: #2563EB;
+        --wecare-green: #10B981;
+        --wecare-blue-light: #EFF6FF;
+        --text-primary: #1F2937;
+        --text-secondary: #4B5563;
+        --bg-main: #F9FAFB;
+        --bg-card: #FFFFFF;
+        --border-color: #E5E7EB;
+      }
+      body {
+        font-family: 'Inter', 'Sarabun', sans-serif;
+        background-color: var(--bg-main);
+        color: var(--text-primary);
+      }
+      .login-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        width: 100%;
+        max-width: 400px;
+      }
+      .btn-primary {
+        background: var(--wecare-blue);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+      }
+      .btn-primary:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+      }
+      .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+      }
+      .form-input:focus {
+        outline: none;
+        border-color: var(--wecare-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div class="login-card animate-fade-in-up">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">WeCare Platform</h1>
+            <p class="text-gray-600">ระบบจัดการรถพยาบาลฉุกเฉิน</p>
+        </div>
+
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
+                <input type="email" id="email" class="form-input" placeholder="กรุณาใส่อีเมล" required>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
+                <input type="password" id="password" class="form-input" placeholder="กรุณาใส่รหัสผ่าน" required>
+            </div>
+
+            <button type="submit" class="btn-primary">เข้าสู่ระบบ</button>
+        </form>
+
+        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-medium text-gray-900 mb-2">บัญชีทดสอบ:</h3>
+            <div class="text-sm text-gray-600 space-y-1">
+                <div><strong>Community:</strong> community1@wecare.dev</div>
+                <div><strong>Driver:</strong> driver1@wecare.dev</div>
+                <div><strong>Office:</strong> office1@wecare.dev</div>
+                <div><strong>Admin:</strong> admin@wecare.dev</div>
+                <div class="mt-2"><strong>รหัสผ่าน:</strong> password</div>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <div class="text-sm text-gray-500">
+                API Status: <span id="apiStatus" class="text-yellow-600">กำลังตรวจสอบ...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test API connection
+        async function checkAPI() {
+            try {
+                const response = await fetch('/api/news/');
+                if (response.ok) {
+                    document.getElementById('apiStatus').textContent = 'เชื่อมต่อสำเร็จ';
+                    document.getElementById('apiStatus').className = 'text-green-600';
+                } else {
+                    throw new Error('API Error');
+                }
+            } catch (error) {
+                document.getElementById('apiStatus').textContent = 'เชื่อมต่อไม่สำเร็จ';
+                document.getElementById('apiStatus').className = 'text-red-600';
+            }
+        }
+
+        // Handle login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    alert(`เข้าสู่ระบบสำเร็จ!\nบทบาท: ${data.user.role}\nชื่อ: ${data.user.name}`);
+                    
+                    // Show user info
+                    document.querySelector('.login-card').innerHTML = `
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-xl font-bold text-gray-900 mb-2">เข้าสู่ระบบสำเร็จ!</h2>
+                            <div class="bg-gray-50 p-4 rounded-lg text-left">
+                                <p><strong>ชื่อ:</strong> ${data.user.name}</p>
+                                <p><strong>อีเมล:</strong> ${data.user.email}</p>
+                                <p><strong>บทบาท:</strong> ${data.user.role}</p>
+                                <p><strong>สถานะ:</strong> ${data.user.status}</p>
+                            </div>
+                            <div class="mt-4 text-sm text-gray-600">
+                                <p>✅ Backend API ทำงานปกติ</p>
+                                <p>✅ Authentication สำเร็จ</p>
+                                <p>✅ Database เชื่อมต่อสำเร็จ</p>
+                            </div>
+                            <button onclick="location.reload()" class="btn-primary mt-4">
+                                กลับไปหน้าเข้าสู่ระบบ
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    alert('เข้าสู่ระบบไม่สำเร็จ: ' + data.message);
+                }
+            } catch (error) {
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        });
+
+        // Check API on load
+        checkAPI();
+
+        // Add fade-in animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fade-in-up {
+                0% {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                100% {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            .animate-fade-in-up {
+                animation: fade-in-up 0.5s ease-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
