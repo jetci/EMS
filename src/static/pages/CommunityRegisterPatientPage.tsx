@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommunityView } from '../types';
-import MapTest from '../components/MapTest';
+import OpenStreetMapTest from '../components/OpenStreetMapTest';
 import { formatDateToThai } from '../utils/dateUtils';
 import CameraIcon from '../components/icons/CameraIcon';
 import UploadIcon from '../components/icons/UploadIcon';
@@ -334,7 +334,7 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                            <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">ปักหมุดตำแหน่งที่อยู่ปัจจุบัน</label>
                                 <div className="border rounded-lg overflow-hidden">
-                                    <MapTest position={currentPosition} onLocationChange={handleLocationChange} />
+                                    <OpenStreetMapTest position={currentPosition} onLocationChange={handleLocationChange} />
                                 </div>
                            </div>
                         </div>
