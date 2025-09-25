@@ -19,6 +19,18 @@ app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
 # Enable CORS for all routes
 CORS(app)
 
+# Configure MIME types for TypeScript and JavaScript modules
+@app.after_request
+def after_request(response):
+    # Set correct MIME types for module scripts
+    if response.headers.get('Content-Type') == 'application/octet-stream':
+        if hasattr(response, 'direct_passthrough') and response.direct_passthrough:
+            # This is a file response, check the path
+            path = getattr(response, '_file_path', '')
+            if path.endswith(('.tsx', '.ts', '.jsx', '.js')):
+                response.headers['Content-Type'] = 'application/javascript'
+    return response
+
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(community_bp, url_prefix='/api/community')
@@ -42,17 +54,13 @@ def serve(path):
 
     if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
         # Set correct MIME types for TypeScript and JavaScript modules
-        if path.endswith('.tsx') or path.endswith('.ts'):
-            mimetype = 'application/javascript'
-        elif path.endswith('.jsx') or path.endswith('.js'):
-            mimetype = 'application/javascript'
+        if path.endswith(('.tsx', '.ts', '.jsx', '.js')):
+            with open(os.path.join(static_folder_path, path), 'r', encoding='utf-8') as f:
+                content = f.read()
+            response = Response(content, mimetype='application/javascript')
+            return response
         else:
-            mimetype = mimetypes.guess_type(path)[0]
-        
-        response = send_from_directory(static_folder_path, path)
-        if mimetype:
-            response.headers['Content-Type'] = mimetype
-        return response
+            return send_from_directory(static_folder_path, path)
     else:
         index_path = os.path.join(static_folder_path, 'index.html')
         if os.path.exists(index_path):
