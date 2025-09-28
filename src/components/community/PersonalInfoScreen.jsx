@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
+import CommunityLayout from '../layouts/CommunityLayout.jsx'
 
 const PersonalInfoScreen = ({ user, onNavigate, onSave }) => {
   const [formData, setFormData] = useState({
@@ -188,7 +189,12 @@ const PersonalInfoScreen = ({ user, onNavigate, onSave }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <CommunityLayout 
+      user={user} 
+      onNavigate={onNavigate} 
+      currentPage="personal-info"
+    >
+      <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
@@ -570,7 +576,8 @@ const PersonalInfoScreen = ({ user, onNavigate, onSave }) => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </CommunityLayout>
   )
 }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
+import CommunityLayout from '../layouts/CommunityLayout.jsx'
 import apiService from '../../services/api.js'
 
 const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false }) => {
@@ -22,10 +23,10 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
     // ข้อมูลทางการแพทย์เบื้องต้น
     bloodType: '',
     allergies: '',
-    chronicDiseases: '',
-    currentMedications: '',
+    chronicDiseases: [],
+    currentMedications: [],
     medicalHistory: '',
-    disability: '',
+    disability: [],
     
     // ที่อยู่และข้อมูลติดต่อ
     houseNumber: '',
@@ -92,6 +93,47 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
     { id: 5, title: 'ตรวจสอบข้อมูลก่อนบันทึก', icon: '✅' }
   ]
 
+  // ตัวเลือกสำหรับ Tag-based input
+  const disabilityOptions = [
+    'ความพิการทางการเห็น',
+    'ความพิการทางการได้ยิน',
+    'ความพิการทางการเคลื่อนไหว',
+    'ความพิการทางสติปัญญา',
+    'ความพิการทางจิตใจ',
+    'ความพิการทางการเรียนรู้',
+    'ความพิการทางออทิสติก',
+    'ความพิการซ้ำซ้อน'
+  ]
+
+  const chronicDiseaseOptions = [
+    'เบาหวาน',
+    'ความดันโลหิตสูง',
+    'โรคหัวใจ',
+    'โรคไต',
+    'โรคตับ',
+    'โรคปอด',
+    'โรคมะเร็ง',
+    'โรคไทรอยด์',
+    'โรคกระดูกพรุน',
+    'โรคข้อเข่าเสื่อม',
+    'โรคหลอดเลือดสมอง',
+    'โรคลมชัก'
+  ]
+
+  const medicationOptions = [
+    'ยาลดความดัน',
+    'ยาเบาหวาน',
+    'ยาลดไขมัน',
+    'ยาแก้ปวด',
+    'ยาแก้อักเสบ',
+    'ยาต้านการแข็งตัวของเลือด',
+    'ยาต้านซึมเศร้า',
+    'ยาลดกรด',
+    'ยาแคลเซียม',
+    'วิตามิน',
+    'ยาสมุนไพร'
+  ]
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     
@@ -133,6 +175,80 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
       ...prev,
       [name]: files[0]
     }))
+  }
+
+  // ฟังก์ชันสำหรับจัดการ Tag-based input
+  const handleTagToggle = (fieldName, value) => {
+    setFormData(prev => {
+      const currentValues = prev[fieldName] || []
+      const isSelected = currentValues.includes(value)
+      
+      if (isSelected) {
+        return {
+          ...prev,
+          [fieldName]: currentValues.filter(item => item !== value)
+        }
+      } else {
+        return {
+          ...prev,
+          [fieldName]: [...currentValues, value]
+        }
+      }
+    })
+  }
+
+  // คอมโพเนนต์สำหรับแสดง Tag-based input
+  const TagSelector = ({ fieldName, options, label, placeholder }) => {
+    const selectedValues = formData[fieldName] || []
+    
+    return (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label}
+        </label>
+        <div className="border border-gray-300 rounded-md p-3 min-h-[100px] bg-gray-50">
+          {selectedValues.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {selectedValues.map((value, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                >
+                  {value}
+                  <button
+                    type="button"
+                    onClick={() => handleTagToggle(fieldName, value)}
+                    className="ml-2 text-blue-600 hover:text-blue-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="text-sm text-gray-600 mb-2">เลือกจากตัวเลือกด้านล่าง:</div>
+          <div className="flex flex-wrap gap-2">
+            {options.map((option, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => handleTagToggle(fieldName, option)}
+                className={`px-3 py-1 rounded-full text-sm border transition-colors ${
+                  selectedValues.includes(option)
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {selectedValues.length === 0 && (
+            <div className="text-gray-400 text-sm mt-2">{placeholder}</div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   const validateStep = (step) => {
@@ -274,10 +390,10 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
         email: formData.email,
         blood_type: formData.bloodType,
         allergies: formData.allergies,
-        chronic_diseases: formData.chronicDiseases,
-        current_medications: formData.currentMedications,
+        chronic_diseases: Array.isArray(formData.chronicDiseases) ? formData.chronicDiseases.join(', ') : formData.chronicDiseases,
+        current_medications: Array.isArray(formData.currentMedications) ? formData.currentMedications.join(', ') : formData.currentMedications,
         medical_history: formData.medicalHistory,
-        disability: formData.disability,
+        disability: Array.isArray(formData.disability) ? formData.disability.join(', ') : formData.disability,
         house_number: formData.houseNumber,
         village: formData.village,
         sub_district: formData.subDistrict,
@@ -556,17 +672,12 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ความพิการ (ถ้ามี)
-                </label>
-                <input
-                  type="text"
-                  name="disability"
-                  value={formData.disability}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="ระบุความพิการ"
+              <div className="md:col-span-2">
+                <TagSelector
+                  fieldName="disability"
+                  options={disabilityOptions}
+                  label="ความพิการ (ถ้ามี)"
+                  placeholder="เลือกประเภทความพิการที่มี (สามารถเลือกได้หลายรายการ)"
                 />
               </div>
             </div>
@@ -585,33 +696,19 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                โรคประจำตัว
-              </label>
-              <textarea
-                name="chronicDiseases"
-                value={formData.chronicDiseases}
-                onChange={handleInputChange}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="เช่น เบาหวาน, ความดันโลหิตสูง, โรคหัวใจ"
-              />
-            </div>
+            <TagSelector
+              fieldName="chronicDiseases"
+              options={chronicDiseaseOptions}
+              label="โรคประจำตัว"
+              placeholder="เลือกโรคประจำตัวที่มี (สามารถเลือกได้หลายรายการ)"
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ยาที่ใช้ประจำ
-              </label>
-              <textarea
-                name="currentMedications"
-                value={formData.currentMedications}
-                onChange={handleInputChange}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="ระบุยาที่ใช้ประจำ"
-              />
-            </div>
+            <TagSelector
+              fieldName="currentMedications"
+              options={medicationOptions}
+              label="ยาที่ใช้ประจำ"
+              placeholder="เลือกยาที่ใช้ประจำ (สามารถเลือกได้หลายรายการ)"
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1023,10 +1120,14 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">ความพิการ:</span>
-                    <span className="font-medium">{formData.disability || '-'}</span>
+                    <span className="font-medium">
+                      {Array.isArray(formData.disability) && formData.disability.length > 0 
+                        ? formData.disability.join(', ') 
+                        : '-'}
+                    </span>
                   </div>
                 </div>
-                {(formData.allergies || formData.chronicDiseases || formData.currentMedications || formData.medicalHistory) && (
+                {(formData.allergies || (Array.isArray(formData.chronicDiseases) && formData.chronicDiseases.length > 0) || (Array.isArray(formData.currentMedications) && formData.currentMedications.length > 0) || formData.medicalHistory) && (
                   <div className="mt-4 space-y-2">
                     {formData.allergies && (
                       <div>
@@ -1034,16 +1135,28 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
                         <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{formData.allergies}</p>
                       </div>
                     )}
-                    {formData.chronicDiseases && (
+                    {Array.isArray(formData.chronicDiseases) && formData.chronicDiseases.length > 0 && (
                       <div>
                         <span className="text-gray-600 font-medium">โรคประจำตัว:</span>
-                        <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{formData.chronicDiseases}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {formData.chronicDiseases.map((disease, index) => (
+                            <span key={index} className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                              {disease}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
-                    {formData.currentMedications && (
+                    {Array.isArray(formData.currentMedications) && formData.currentMedications.length > 0 && (
                       <div>
                         <span className="text-gray-600 font-medium">ยาที่ใช้ประจำ:</span>
-                        <p className="text-sm mt-1 p-2 bg-gray-50 rounded">{formData.currentMedications}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {formData.currentMedications.map((medication, index) => (
+                            <span key={index} className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                              {medication}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                     {formData.medicalHistory && (
@@ -1166,7 +1279,12 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
   }
 
   return (
-    <div className="space-y-6">
+    <CommunityLayout 
+      user={user} 
+      onNavigate={onNavigate} 
+      currentPage="register-patient"
+    >
+      <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
@@ -1317,7 +1435,8 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </CommunityLayout>
   )
 }
 

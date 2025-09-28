@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
+import CommunityLayout from '../layouts/CommunityLayout.jsx'
 import apiService from '../../services/api.js'
 
 const CommunityDashboard = ({ user, onNavigate }) => {
@@ -10,7 +11,6 @@ const CommunityDashboard = ({ user, onNavigate }) => {
     pendingRides: 0,
     completedThisMonth: 0
   })
-  const [showMenu, setShowMenu] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // Load data from API
@@ -48,9 +48,9 @@ const CommunityDashboard = ({ user, onNavigate }) => {
           },
           {
             id: 3,
-            name: 'นาย สมศักดิ์ ดีใจ',
+            name: 'นาย วิชัย สุขใส',
             age: 72,
-            condition: 'ไตเสื่อม',
+            condition: 'ความดันโลหิตสูง',
             lastVisit: '2025-09-15',
             phone: '083-456-7890'
           }
@@ -68,68 +68,39 @@ const CommunityDashboard = ({ user, onNavigate }) => {
           {
             id: 1,
             patientName: 'นาย สมชาย ใจดี',
-            destination: 'โรงพยาบาลบางพลี',
-            appointmentTime: '2025-09-26T10:00:00',
-            status: 'ASSIGNED'
+            destination: 'โรงพยาบาลจุฬาลงกรณ์',
+            scheduledTime: '2025-09-28T10:00:00',
+            status: 'PENDING'
           },
           {
             id: 2,
             patientName: 'นาง สมหญิง รักดี',
-            destination: 'โรงพยาบาลสมุทรปราการ',
-            appointmentTime: '2025-09-26T14:30:00',
-            status: 'PENDING'
+            destination: 'โรงพยาบาลศิริราช',
+            scheduledTime: '2025-09-27T14:30:00',
+            status: 'COMPLETED'
           }
         ])
       }
 
-      // Load statistics
-      try {
-        const statsData = await apiService.getCommunityStats(user.id)
-        setStats(statsData || {
-          totalPatients: 3,
-          pendingRides: 2,
-          completedThisMonth: 8
-        })
-      } catch (error) {
-        console.error('Failed to load stats:', error)
-        // Fallback to mock data
-        setStats({
-          totalPatients: 3,
-          pendingRides: 2,
-          completedThisMonth: 8
-        })
-      }
-      
+      // Calculate stats
+      const totalPatients = patients.length
+      const pendingRides = rides.filter(ride => ride.status === 'PENDING').length
+      const completedThisMonth = rides.filter(ride => 
+        ride.status === 'COMPLETED' && 
+        new Date(ride.scheduledTime).getMonth() === new Date().getMonth()
+      ).length
+
+      setStats({
+        totalPatients,
+        pendingRides,
+        completedThisMonth
+      })
+
     } catch (error) {
       console.error('Failed to load dashboard data:', error)
     } finally {
       setLoading(false)
     }
-  }
-
-  // Event Handlers
-  const handleRegisterNewPatient = () => {
-    onNavigate('register-patient')
-  }
-
-  const handleBookRideForPatient = () => {
-    onNavigate('book-ride')
-  }
-
-  const handleRequestRide = (patientId) => {
-    onNavigate('book-ride', { patientId })
-  }
-
-  const handleEditPatient = (patientId) => {
-    onNavigate('edit-patient', { patientId })
-  }
-
-  const handleCallPatient = (phone) => {
-    window.open(`tel:${phone}`)
-  }
-
-  const handleTrackStatus = (rideId) => {
-    onNavigate('track-ride', { rideId })
   }
 
   const handlePersonalInfo = () => {
@@ -182,295 +153,211 @@ const CommunityDashboard = ({ user, onNavigate }) => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-lg text-gray-600">กำลังโหลดข้อมูล...</div>
-      </div>
+      <CommunityLayout user={user} onNavigate={onNavigate} currentPage="dashboard">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-lg text-gray-600">กำลังโหลดข้อมูล...</div>
+        </div>
+      </CommunityLayout>
     )
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${showMenu ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">เมนู</h2>
-          <Button
-            onClick={() => setShowMenu(false)}
-            variant="ghost"
-            size="sm"
-            className="lg:hidden"
-          >
-            ✕
-          </Button>
+    <CommunityLayout user={user} onNavigate={onNavigate} currentPage="dashboard">
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              สวัสดี, {user.name}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              ยินดีต้อนรับสู่ระบบจัดการผู้ป่วยในชุมชน
+            </p>
+          </div>
         </div>
-        
-        <nav className="mt-6">
-          <div className="px-3 space-y-1">
-            <button
-              onClick={handlePersonalInfo}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="text-2xl">📊</div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">รวมทั้งหมด</p>
+                <p className="text-xl font-bold text-gray-900">{stats.totalPatients + stats.pendingRides + stats.completedThisMonth}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="text-2xl">✅</div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">เสร็จสิ้น</p>
+                <p className="text-xl font-bold text-gray-900">{stats.completedThisMonth}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="text-2xl">⏱️</div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-600">รอดำเนินการ</p>
+                <p className="text-xl font-bold text-gray-900">{stats.pendingRides}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">การดำเนินการด่วน</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Button
+              onClick={() => onNavigate('register-patient')}
+              className="bg-blue-600 hover:bg-blue-700 text-white h-20 flex flex-col items-center justify-center space-y-2"
             >
-              <span className="text-lg">👤</span>
-              <span>จัดการข้อมูลส่วนบุคคล</span>
-            </button>
-            <button
+              <span className="text-2xl">👤</span>
+              <span>ลงทะเบียนผู้ป่วยใหม่</span>
+            </Button>
+            <Button
+              onClick={() => onNavigate('track-ride')}
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center space-y-2"
+            >
+              <span className="text-2xl">🚑</span>
+              <span>ติดตามรถพยาบาล</span>
+            </Button>
+            <Button
               onClick={handleServiceHistory}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center space-y-2"
             >
-              <span className="text-lg">📋</span>
+              <span className="text-2xl">📋</span>
               <span>ประวัติการใช้บริการ</span>
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleNotifications}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
+              variant="outline"
+              className="h-20 flex flex-col items-center justify-center space-y-2"
             >
-              <span className="text-lg">🔔</span>
+              <span className="text-2xl">🔔</span>
               <span>การแจ้งเตือน</span>
-            </button>
-            <button
-              onClick={handleContactStaff}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
-            >
-              <span className="text-lg">📞</span>
-              <span>ติดต่อเจ้าหน้าที่</span>
-            </button>
-            <button
-              onClick={handleUserGuide}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
-            >
-              <span className="text-lg">📖</span>
-              <span>คู่มือการใช้งาน</span>
-            </button>
-            <button
-              onClick={handleNotificationSettings}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
-            >
-              <span className="text-lg">⚙️</span>
-              <span>ตั้งค่าการแจ้งเตือน</span>
-            </button>
-            <button
-              onClick={handleStatistics}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-100 flex items-center space-x-3 text-gray-700 hover:text-gray-900"
-            >
-              <span className="text-lg">📊</span>
-              <span>รายงานสถิติ</span>
-            </button>
-          </div>
-        </nav>
-      </div>
-
-      {/* Overlay for mobile */}
-      {showMenu && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setShowMenu(false)}
-        />
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <Button
-                  onClick={() => setShowMenu(true)}
-                  variant="outline"
-                  size="sm"
-                  className="lg:hidden"
-                >
-                  <span className="text-lg">☰</span>
-                </Button>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    สวัสดี, {user.name}
-                  </h1>
-                  <p className="text-gray-600 mt-1">
-                    ยินดีต้อนรับสู่ระบบจัดการผู้ป่วยในชุมชน
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="text-2xl">📊</div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">รวมทั้งหมด</p>
-                    <p className="text-xl font-bold text-gray-900">{stats.totalPatients + stats.pendingRides + stats.completedThisMonth}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="text-2xl">✅</div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">เสร็จสิ้น</p>
-                    <p className="text-xl font-bold text-gray-900">{stats.completedThisMonth}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="text-2xl">❌</div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">ยกเลิก</p>
-                    <p className="text-xl font-bold text-gray-900">1</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </Button>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto">
-          <div className="p-6 space-y-6">
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">
-          การดำเนินการด่วน
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Button 
-            onClick={handleRegisterNewPatient}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            + ลงทะเบียนผู้ป่วยใหม่
-          </Button>
-          <Button 
-            onClick={handleBookRideForPatient}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            📅 จองรถสำหรับผู้ป่วย
-          </Button>
-        </div>
-      </div>
-
-      {/* Patients List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">
-            ผู้ป่วยในความดูแล
-          </h2>
-        </div>
-        
-        <div className="divide-y divide-gray-200">
-          {patients.map((patient) => (
-            <div key={patient.id} className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {patient.name}
-                  </h3>
-                  <div className="mt-2 space-y-1">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">อายุ:</span> {patient.age} ปี
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">อาการ:</span> {patient.condition}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">เยี่ยมครั้งล่าสุด:</span> {new Date(patient.lastVisit).toLocaleDateString('th-TH')}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">โทรศัพท์:</span> {patient.phone}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col space-y-2 ml-6">
-                  <Button
-                    onClick={() => handleRequestRide(patient.id)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    จองรถ
-                  </Button>
-                  <Button
-                    onClick={() => handleEditPatient(patient.id)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    แก้ไขข้อมูล
-                  </Button>
-                  <Button
-                    onClick={() => handleCallPatient(patient.phone)}
-                    variant="outline"
-                    size="sm"
-                    className="text-green-600 hover:text-green-700"
-                  >
-                    โทรหา
-                  </Button>
-                </div>
-              </div>
+        {/* Recent Patients */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">ผู้ป่วยล่าสุด</h2>
+            <Button
+              onClick={() => onNavigate('register-patient')}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              + เพิ่มผู้ป่วยใหม่
+            </Button>
+          </div>
+          
+          {patients.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-gray-400 text-4xl mb-4">👥</div>
+              <p className="text-gray-600">ยังไม่มีข้อมูลผู้ป่วย</p>
+              <Button
+                onClick={() => onNavigate('register-patient')}
+                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                ลงทะเบียนผู้ป่วยคนแรก
+              </Button>
             </div>
-          ))}
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      ชื่อ-นามสกุล
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      อายุ
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      อาการ/โรค
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      เยี่ยมล่าสุด
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      การดำเนินการ
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {patients.slice(0, 5).map((patient) => (
+                    <tr key={patient.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{patient.name}</div>
+                        <div className="text-sm text-gray-500">{patient.phone}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {patient.age} ปี
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {patient.condition}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(patient.lastVisit).toLocaleDateString('th-TH')}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <Button
+                          onClick={() => onNavigate('track-ride')}
+                          size="sm"
+                          variant="outline"
+                        >
+                          จองรถ
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Recent Rides */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">
-            การเดินทางล่าสุด
-          </h2>
-        </div>
-        
-        <div className="divide-y divide-gray-200">
-          {rides.map((ride) => (
-            <div key={ride.id} className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3">
-                    <h3 className="text-lg font-medium text-gray-900">
-                      {ride.patientName}
-                    </h3>
+        {/* Recent Rides */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">การเดินทางล่าสุด</h2>
+          
+          {rides.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-gray-400 text-4xl mb-4">🚑</div>
+              <p className="text-gray-600">ยังไม่มีประวัติการเดินทาง</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {rides.slice(0, 3).map((ride) => (
+                <div key={ride.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{ride.patientName}</h3>
+                      <p className="text-sm text-gray-600">{ride.destination}</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(ride.scheduledTime).toLocaleString('th-TH')}
+                      </p>
+                    </div>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(ride.status)}`}>
                       {getStatusText(ride.status)}
                     </span>
                   </div>
-                  
-                  <div className="mt-2 space-y-1">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">จุดหมาย:</span> {ride.destination}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">เวลานัด:</span> {new Date(ride.appointmentTime).toLocaleString('th-TH')}
-                    </p>
-                  </div>
                 </div>
-                
-                <div className="flex flex-col space-y-2 ml-6">
-                  <Button
-                    onClick={() => handleTrackStatus(ride.id)}
-                    variant="outline"
-                    size="sm"
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    ติดตามสถานะ
-                  </Button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-        
-        {rides.length === 0 && (
-          <div className="p-6 text-center text-gray-500">
-            ไม่มีการเดินทางในขณะนี้
-          </div>
-        )}
-      </div>
-          </div>
+          )}
         </div>
       </div>
-    </div>
+    </CommunityLayout>
   )
 }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
+import CommunityLayout from '../layouts/CommunityLayout.jsx'
 
 const ServiceHistoryScreen = ({ user, onNavigate }) => {
   const [serviceHistory, setServiceHistory] = useState([])
@@ -96,7 +97,12 @@ const ServiceHistoryScreen = ({ user, onNavigate }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <CommunityLayout 
+      user={user} 
+      onNavigate={onNavigate} 
+      currentPage="service-history"
+    >
+      <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center">
@@ -260,7 +266,8 @@ const ServiceHistoryScreen = ({ user, onNavigate }) => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </CommunityLayout>
   )
 }
 

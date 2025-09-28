@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button.jsx'
+import CommunityLayout from '../layouts/CommunityLayout.jsx'
 
 const ContactStaffScreen = ({ user, onNavigate }) => {
   const [selectedContact, setSelectedContact] = useState(null)
@@ -96,7 +97,12 @@ const ContactStaffScreen = ({ user, onNavigate }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <CommunityLayout 
+      user={user} 
+      onNavigate={onNavigate} 
+      currentPage="contact-staff"
+    >
+      <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex justify-between items-center">
@@ -298,7 +304,8 @@ const ContactStaffScreen = ({ user, onNavigate }) => {
           <p>• ข้อสงสัยทั่วไป ส่งข้อความผ่านระบบหรือโทรในเวลาทำการ</p>
         </div>
       </div>
-    </div>
+      </div>
+    </CommunityLayout>
   )
 }
 
