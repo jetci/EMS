@@ -139,20 +139,48 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
     
     // คำนวณอายุอัตโนมัติเมื่อเลือกวันเกิด
     if (name === 'birthDate' && value) {
-      const birthDate = new Date(value)
-      const today = new Date()
-      let age = today.getFullYear() - birthDate.getFullYear()
-      const monthDiff = today.getMonth() - birthDate.getMonth()
+      // จัดรูปแบบวันที่ไทย วว/ดด/ปปปป
+      let formattedValue = value.replace(/\D/g, '') // เอาเฉพาะตัวเลข
       
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--
+      if (formattedValue.length >= 2) {
+        formattedValue = formattedValue.substring(0, 2) + '/' + formattedValue.substring(2)
+      }
+      if (formattedValue.length >= 5) {
+        formattedValue = formattedValue.substring(0, 5) + '/' + formattedValue.substring(5, 9)
       }
       
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        age: age.toString()
-      }))
+      // คำนวณอายุถ้าวันที่ครบถ้วน (วว/ดด/ปปปป)
+      if (formattedValue.length === 10) {
+        const [day, month, buddhistYear] = formattedValue.split('/')
+        const christianYear = parseInt(buddhistYear) - 543
+        
+        if (christianYear > 1900 && christianYear <= new Date().getFullYear()) {
+          const birthDate = new Date(christianYear, parseInt(month) - 1, parseInt(day))
+          const today = new Date()
+          let age = today.getFullYear() - birthDate.getFullYear()
+          const monthDiff = today.getMonth() - birthDate.getMonth()
+          
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--
+          }
+          
+          setFormData(prev => ({
+            ...prev,
+            [name]: formattedValue,
+            age: age.toString()
+          }))
+        } else {
+          setFormData(prev => ({
+            ...prev,
+            [name]: formattedValue
+          }))
+        }
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          [name]: formattedValue
+        }))
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -270,7 +298,21 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
           newErrors.lastName = 'กรุณากรอกนามสกุล'
         }
         if (!formData.birthDate.trim()) {
-          newErrors.birthDate = 'กรุณาเลือกวันเกิด'
+          newErrors.birthDate = 'กรุณากรอกวันเกิด'
+        } else if (formData.birthDate.length !== 10 || !/^\d{2}\/\d{2}\/\d{4}$/.test(formData.birthDate)) {
+          newErrors.birthDate = 'รูปแบบวันเกิดไม่ถูกต้อง (วว/ดด/ปปปป พ.ศ.)'
+        } else {
+          const [day, month, buddhistYear] = formData.birthDate.split('/')
+          const christianYear = parseInt(buddhistYear) - 543
+          const date = new Date(christianYear, parseInt(month) - 1, parseInt(day))
+          
+          if (date.getDate() !== parseInt(day) || 
+              date.getMonth() !== parseInt(month) - 1 || 
+              date.getFullYear() !== christianYear ||
+              christianYear < 1900 || 
+              christianYear > new Date().getFullYear()) {
+            newErrors.birthDate = 'วันเกิดไม่ถูกต้อง'
+          }
         }
         if (!formData.gender.trim()) {
           newErrors.gender = 'กรุณาเลือกเพศ'
@@ -510,10 +552,11 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
                   วันเกิด *
                 </label>
                 <input
-                  type="date"
+                  type="text"
                   name="birthDate"
                   value={formData.birthDate}
                   onChange={handleInputChange}
+                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.birthDate ? 'border-red-500' : 'border-gray-300'
                   }`}
