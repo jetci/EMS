@@ -5,6 +5,8 @@ import apiService from '../../services/api.js'
 
 const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false }) => {
   const [currentStep, setCurrentStep] = useState(1)
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calendarDate, setCalendarDate] = useState(new Date())
   const [formData, setFormData] = useState({
     // ข้อมูลระบุตัวตน
     idCardNumber: '',
@@ -203,6 +205,61 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
       ...prev,
       [name]: files[0]
     }))
+  }
+
+  // ฟังก์ชันสำหรับ calendar
+  const generateCalendarDays = () => {
+    const year = calendarDate.getFullYear()
+    const month = calendarDate.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const startDate = new Date(firstDay)
+    startDate.setDate(startDate.getDate() - firstDay.getDay())
+    
+    const days = []
+    for (let i = 0; i < 42; i++) {
+      const currentDate = new Date(startDate)
+      currentDate.setDate(startDate.getDate() + i)
+      
+      if (currentDate.getMonth() === month) {
+        days.push(currentDate.getDate())
+      } else {
+        days.push(null)
+      }
+    }
+    return days
+  }
+
+  const handleDateSelect = (day) => {
+    const selectedDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), day)
+    const buddhistYear = selectedDate.getFullYear() + 543
+    const formattedDate = `${day.toString().padStart(2, '0')}/${(selectedDate.getMonth() + 1).toString().padStart(2, '0')}/${buddhistYear}`
+    
+    // คำนวณอายุ
+    const today = new Date()
+    let age = today.getFullYear() - selectedDate.getFullYear()
+    const monthDiff = today.getMonth() - selectedDate.getMonth()
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < selectedDate.getDate())) {
+      age--
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      birthDate: formattedDate,
+      age: age.toString()
+    }))
+    
+    setShowCalendar(false)
+  }
+
+  const isSelectedDate = (day) => {
+    if (!formData.birthDate || !day) return false
+    const [selectedDay, selectedMonth, selectedYear] = formData.birthDate.split('/')
+    const calendarYear = calendarDate.getFullYear() + 543
+    return parseInt(selectedDay) === day && 
+           parseInt(selectedMonth) === calendarDate.getMonth() + 1 && 
+           parseInt(selectedYear) === calendarYear
   }
 
   // ฟังก์ชันสำหรับจัดการ Tag-based input
@@ -551,16 +608,85 @@ const RegisterPatientScreen = ({ user, onNavigate, pageData, editMode = false })
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   วันเกิด *
                 </label>
-                <input
-                  type="text"
-                  name="birthDate"
-                  value={formData.birthDate}
-                  onChange={handleInputChange}
-                  placeholder="วว/ดด/ปปปป (พ.ศ.)"
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.birthDate ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="birthDate"
+                    value={formData.birthDate}
+                    onChange={handleInputChange}
+                    placeholder="วว/ดด/ปปปป (พ.ศ.)"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.birthDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    📅
+                  </button>
+                  {showCalendar && (
+                    <div className="absolute z-10 mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <button
+                          type="button"
+                          onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1))}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          ‹
+                        </button>
+                        <div className="text-sm font-medium">
+                          {calendarDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1))}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          ›
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2">
+                        <div className="font-medium text-gray-600">อา</div>
+                        <div className="font-medium text-gray-600">จ</div>
+                        <div className="font-medium text-gray-600">อ</div>
+                        <div className="font-medium text-gray-600">พ</div>
+                        <div className="font-medium text-gray-600">พฤ</div>
+                        <div className="font-medium text-gray-600">ศ</div>
+                        <div className="font-medium text-gray-600">ส</div>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {generateCalendarDays().map((day, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => day && handleDateSelect(day)}
+                            className={`p-2 text-xs rounded hover:bg-blue-100 ${
+                              day ? 'text-gray-900' : 'text-gray-300'
+                            } ${
+                              day && isSelectedDate(day) ? 'bg-blue-500 text-white' : ''
+                            }`}
+                            disabled={!day}
+                          >
+                            {day || ''}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setShowCalendar(false)}
+                          className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                        >
+                          ปิด
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {errors.birthDate && (
                   <p className="text-red-500 text-sm mt-1">{errors.birthDate}</p>
                 )}
