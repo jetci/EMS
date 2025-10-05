@@ -26,11 +26,11 @@ app.use(express.json());
 // Routes
 app.get('/', (req, res) => res.send('EMS WeCare Backend is running!'));
 app.use('/api', authRoutes);
-// Protected routes
+// Public routes (no auth required)
 app.use('/api/patients', patientRoutes);
 app.use('/api/office/patients', patientRoutes);
 app.use('/api/drivers', driverRoutes);
-app.use('/api/rides', authenticateToken, rideRoutes);
+app.use('/api/rides', rideRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/vehicles', vehicleRoutes);
