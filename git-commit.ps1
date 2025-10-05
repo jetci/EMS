@@ -1,3 +1,3 @@
 git add .
-git commit -m "Add Google OAuth setup - install library, add Client ID to .env, wrap App with GoogleOAuthProvider"
+git commit -m "Add database migration scripts and export tools - prepare for production deployment"
 git push

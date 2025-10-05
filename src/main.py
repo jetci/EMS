@@ -13,9 +13,14 @@ from src.routes.driver import driver_bp
 from src.routes.office import office_bp
 from src.routes.news import news_bp
 from src.routes.user import user_bp
+from dotenv import load_dotenv
+
+# Load environment variables
+env_file = '.env.production' if os.getenv('FLASK_ENV') == 'production' else '.env'
+load_dotenv(os.path.join(os.path.dirname(__file__), env_file))
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
 
 # Enable CORS for all routes
 CORS(app)
@@ -41,7 +46,16 @@ app.register_blueprint(news_bp, url_prefix='/api/news')
 app.register_blueprint(user_bp, url_prefix='/api')
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+db_type = os.getenv('DATABASE_TYPE', 'sqlite')
+if db_type == 'mysql':
+    db_host = os.getenv('DATABASE_HOST', 'localhost')
+    db_port = os.getenv('DATABASE_PORT', '3306')
+    db_name = os.getenv('DATABASE_NAME', 'wecare')
+    db_user = os.getenv('DATABASE_USER', 'root')
+    db_pass = os.getenv('DATABASE_PASSWORD', '')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():

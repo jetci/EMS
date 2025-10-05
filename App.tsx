@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { GoogleOAuthProvider } from '@react-oauth/google';
 import LoginScreen from './components/LoginScreen';
 import LandingPage from './components/LandingPage';
 import PublicHeader from './components/PublicHeader';
@@ -12,8 +11,6 @@ import { User } from './types';
 import PublicNewsListingPage from './pages/PublicNewsListingPage';
 import PublicSingleNewsPage from './pages/PublicSingleNewsPage';
 import { authAPI } from './src/services/api';
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 type PublicView = 'landing' | 'login' | 'register' | 'about' | 'contact' | 'news' | 'news_single';
 
@@ -161,22 +158,20 @@ const App: React.FC = () => {
   }
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <div className="bg-slate-50 min-h-screen">
-        <PublicHeader
-            onLoginClick={showLogin}
-            onRegisterClick={showRegister}
-            onLogoClick={showLanding}
-            onAboutClick={showAbout}
-            onContactClick={showContact}
-            onNewsClick={showNews}
-        />
-        <main>
-            {renderPublicContent()}
-        </main>
-        {showFooter && <PublicFooter />}
-      </div>
-    </GoogleOAuthProvider>
+    <div className="bg-slate-50 min-h-screen">
+      <PublicHeader
+          onLoginClick={showLogin}
+          onRegisterClick={showRegister}
+          onLogoClick={showLanding}
+          onAboutClick={showAbout}
+          onContactClick={showContact}
+          onNewsClick={showNews}
+      />
+      <main>
+          {renderPublicContent()}
+      </main>
+      {showFooter && <PublicFooter />}
+    </div>
   );
 };
 
