@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Import DriverStatus enum to use for type safety.
-import { Driver, DriverStatus } from '../../types';
+import { Driver, DriverStatus, User } from '../../types';
 import XIcon from '../icons/XIcon';
 import UserIcon from '../icons/UserIcon';
 import RidesIcon from '../icons/RidesIcon';
@@ -9,17 +8,17 @@ interface EditDriverModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (driver: Driver) => void;
-  driver: Driver | null; // Can be null for adding a new driver
+  driver: Driver | null;
+  availableStaff: User[];
+  availableDrivers: Driver[];
 }
 
-// FIX: Add missing properties to conform to the Driver type.
 const emptyDriver: Driver = {
     id: `DRV-${Math.floor(Math.random() * 1000)}`,
     fullName: '',
     phone: '',
     licensePlate: '',
-    // FIX: Use DriverStatus enum instead of a string literal to match the type definition.
-    status: DriverStatus.AVAILABLE,
+    status: DriverStatus.OFFLINE,
     profileImageUrl: '',
     email: '',
     address: '',
@@ -32,13 +31,36 @@ const emptyDriver: Driver = {
     avgReviewScore: 0,
 };
 
-const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSave, driver }) => {
+const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSave, driver, availableStaff, availableDrivers }) => {
   const [formData, setFormData] = useState<Driver>(driver || emptyDriver);
+  const [searchTerm, setSearchTerm] = useState('');
   const isEditing = !!driver;
 
   useEffect(() => {
     setFormData(driver || emptyDriver);
+     if (!driver) {
+        setSearchTerm('');
+    }
   }, [driver, isOpen]);
+  
+  const searchResults = searchTerm
+        ? availableStaff.filter(member =>
+            !availableDrivers.some(d => d.email === member.email) && (
+                member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase()))
+            )
+          )
+        : [];
+
+  const handleSelectMember = (member: User) => {
+    setFormData(prev => ({
+        ...prev,
+        fullName: member.name,
+        email: member.email,
+        phone: member.phone || '',
+    }));
+    setSearchTerm('');
+  };
 
   if (!isOpen) return null;
 
@@ -66,6 +88,31 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="overflow-y-auto">
           <div className="p-6 space-y-6">
+            {!isEditing && (
+                <fieldset className="pb-6">
+                    <legend className="text-lg font-semibold text-[#005A9C] mb-4">ค้นหาจากฐานข้อมูลสมาชิก</legend>
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            id="searchMember" 
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)} 
+                            placeholder="พิมพ์ชื่อ หรือ อีเมลเพื่อค้นหา..." 
+                            className="w-full" 
+                        />
+                        {searchResults.length > 0 && (
+                            <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
+                                {searchResults.map(member => (
+                                    <li key={member.id} onClick={() => handleSelectMember(member)} className="p-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0">
+                                        <p className="font-semibold">{member.name}</p>
+                                        <p className="text-xs text-gray-500">{member.email}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </fieldset>
+            )}
             {/* Personal Information Section */}
             <fieldset className="border-t pt-6">
               <legend className="text-lg font-semibold text-[#005A9C] mb-4">ข้อมูลส่วนตัว</legend>

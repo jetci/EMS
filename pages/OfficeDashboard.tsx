@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import StatCard from '../components/dashboard/StatCard';
 import UsersIcon from '../components/icons/UsersIcon';
@@ -11,22 +11,9 @@ import AssignDriverModal from '../components/modals/AssignDriverModal';
 import RideDetailsModal from '../components/modals/RideDetailsModal';
 import Toast from '../components/Toast';
 import ScheduleTimeline from '../components/dashboard/ScheduleTimeline';
-import { mockDrivers } from '../data/mockData';
 import LiveDriverStatusPanel from '../components/dashboard/LiveDriverStatusPanel';
 import WheelchairIcon from '../components/icons/WheelchairIcon';
-
-const mockUrgentRidesData: Ride[] = [
-    { id: 'RIDE-204', patientName: 'จันทรา งามวงศ์วาน', destination: 'โรงพยาบาลรามาธิบดี', appointmentTime: dayjs().add(1, 'day').hour(16).minute(30).toISOString(), status: RideStatus.PENDING, requestedBy: 'นางสาวสมศรี ใจดี', pickupLocation: '101 ถนนรัชดาภิเษก', village: 'หมู่ 4 สวนดอก', tripType: 'รับยา', specialNeeds: ['ต้องการวีลแชร์'] },
-    { id: 'RIDE-205', patientName: 'มานี รักเรียน', destination: 'โรงพยาบาลพญาไท', appointmentTime: dayjs().add(1, 'day').hour(17).minute(0).toISOString(), status: RideStatus.PENDING, requestedBy: 'นายปิติ ชูใจ', pickupLocation: '222 ถนนเพชรบุรี', village: 'หมู่ 5 ต้นหนุน', tripType: 'ฉุกเฉิน' },
-    { id: 'RIDE-206', patientName: 'ปิติ ชูใจ', destination: 'โรงพยาบาลศิริราช', appointmentTime: dayjs().add(2, 'day').hour(8).minute(0).toISOString(), status: RideStatus.PENDING, requestedBy: 'น.ส.มานี มีนา', pickupLocation: '333 ถนนจรัญสนิทวงศ์', village: 'หมู่ 6 สันทรายคองน้อย', tripType: 'นัดหมอตามปกติ' },
-];
-
-const mockTodaysScheduleData: Ride[] = [
-    { id: 'RIDE-301', patientName: 'กานดา สุขใจ', destination: 'รพ.ศิริราช', appointmentTime: dayjs().hour(9).minute(0).toISOString(), status: RideStatus.ASSIGNED, driverName: 'สมศักดิ์ ขยันยิ่ง', driverInfo: { id: 'DRV-001', fullName: 'สมศักดิ์ ขยันยิ่ง', phone: '081-234-5678', licensePlate: 'กท 1234', vehicleModel: 'Toyota Vios' }, pickupLocation: '...'},
-    { id: 'RIDE-302', patientName: 'วิชัย มีชัย', destination: 'รพ.รามาธิบดี', appointmentTime: dayjs().hour(10).minute(30).toISOString(), status: RideStatus.ASSIGNED, driverName: 'มานะ อดทน', driverInfo: { id: 'DRV-002', fullName: 'มานะ อดทน', phone: '082-345-6789', licensePlate: 'ชล 5678', vehicleModel: 'Honda City' }, pickupLocation: '...'},
-    { id: 'RIDE-303', patientName: 'มานี ใจดี', destination: 'รพ.จุฬา', appointmentTime: dayjs().hour(10).minute(45).toISOString(), status: RideStatus.IN_PROGRESS, driverName: 'สมศรี มีวินัย', driverInfo: { id: 'DRV-003', fullName: 'สมศรี มีวินัย', phone: '083-456-7890', licensePlate: 'กท 9012', vehicleModel: 'Isuzu D-Max' }, pickupLocation: '...'},
-    { id: 'RIDE-305', patientName: 'อรุณ รุ่งเรือง', destination: 'รพ.กรุงเทพ', appointmentTime: dayjs().hour(16).minute(15).toISOString(), status: RideStatus.ASSIGNED, driverName: 'วิชัย รักบริการ', driverInfo: { id: 'DRV-004', fullName: 'วิชัย รักบริการ', phone: '084-567-8901', licensePlate: 'ชม 3456', vehicleModel: 'Toyota Altis' }, pickupLocation: '...'},
-];
+import { dashboardService } from '../src/services/dashboardService';
 
 interface OfficeDashboardProps {
     setActiveView: (view: OfficeView, context?: any) => void;
@@ -34,12 +21,40 @@ interface OfficeDashboardProps {
 
 const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
     const currentDate = formatFullDateToThai(new Date());
-    const [urgentRides, setUrgentRides] = useState<Ride[]>(mockUrgentRidesData);
-    const [todaysSchedule, setTodaysSchedule] = useState<Ride[]>(mockTodaysScheduleData);
+    const [urgentRides, setUrgentRides] = useState<Ride[]>([]);
+    const [todaysSchedule, setTodaysSchedule] = useState<Ride[]>([]);
+    const [drivers, setDrivers] = useState<any[]>([]);
+    const [stats, setStats] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadDashboardData();
+    }, []);
+
+    const loadDashboardData = async () => {
+        try {
+            setLoading(true);
+            const [urgentData, scheduleData, driversData, statsData] = await Promise.all([
+                dashboardService.getUrgentRides(),
+                dashboardService.getTodaysSchedule(),
+                dashboardService.getAvailableDrivers(),
+                dashboardService.getOfficeDashboard(),
+            ]);
+            setUrgentRides(urgentData.rides || []);
+            setTodaysSchedule(scheduleData.rides || []);
+            setDrivers(driversData.drivers || []);
+            setStats(statsData);
+        } catch (error) {
+            console.error('Failed to load dashboard data:', error);
+            showToast('⚠️ ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -56,41 +71,32 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
         setIsDetailsModalOpen(true);
     };
 
-    const handleAssignDriver = (rideId: string, driverId: string) => {
-        const driver = mockDrivers.find(d => d.id === driverId);
-        if (!driver) return;
-
-        const assignedRide = urgentRides.find(r => r.id === rideId);
-        if (assignedRide) {
-            const updatedRideInfo = {
-                ...assignedRide,
-                driverName: driver.fullName,
-                status: RideStatus.ASSIGNED as RideStatus,
-                driverInfo: {
-                    id: driver.id,
-                    fullName: driver.fullName,
-                    phone: driver.phone,
-                    licensePlate: driver.licensePlate,
-                    vehicleModel: `${driver.vehicleBrand} ${driver.vehicleModel}`
-                }
-            };
-
-            if (dayjs(updatedRideInfo.appointmentTime).isSame(dayjs(), 'day')) {
-                setTodaysSchedule(prev => [...prev, updatedRideInfo].sort((a, b) => dayjs(a.appointmentTime).diff(dayjs(b.appointmentTime))));
-            }
+    const handleAssignDriver = async (rideId: string, driverId: string) => {
+        try {
+            await dashboardService.assignDriver(rideId, driverId);
+            await loadDashboardData();
+            const driver = drivers.find(d => d.id === driverId);
+            showToast(`✅ มอบหมายงาน ${rideId} ให้กับ ${driver?.fullName || 'คนขับ'} สำเร็จแล้ว`);
+            setIsAssignModalOpen(false);
+        } catch (error) {
+            console.error('Failed to assign driver:', error);
+            showToast('⚠️ ไม่สามารถมอบหมายงานได้ กรุณาลองใหม่อีกครั้ง');
         }
-        
-        setUrgentRides(prevRides => prevRides.filter(r => r.id !== rideId));
-        showToast(`✅ มอบหมายงาน ${rideId} ให้กับ ${driver.fullName} สำเร็จแล้ว`);
-        setIsAssignModalOpen(false);
     };
     
     const allRidesForModal = [...urgentRides, ...todaysSchedule];
     
-    const totalTodayRides = todaysSchedule.length;
-    const availableDrivers = mockDrivers.filter(d => d.status === 'AVAILABLE').length;
-    const totalDrivers = mockDrivers.length;
+    const totalTodayRides = stats?.total_today_rides || todaysSchedule.length;
+    const availableDrivers = stats?.available_drivers || drivers.filter(d => d.status === 'AVAILABLE').length;
+    const totalDrivers = stats?.total_drivers || drivers.length;
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-gray-500">กำลังโหลดข้อมูล...</div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
@@ -170,7 +176,7 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
                 </div>
             </div>
 
-            {selectedRide && <AssignDriverModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={mockDrivers} allRides={allRidesForModal} />}
+            {selectedRide && <AssignDriverModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={drivers} allRides={allRidesForModal} />}
             <RideDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} ride={selectedRide} />
             <Toast message={toastMessage} />
         </div>

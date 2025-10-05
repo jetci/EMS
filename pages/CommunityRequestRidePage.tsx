@@ -5,16 +5,7 @@ import ThaiDatePicker from '../components/ui/ThaiDatePicker';
 import ThaiTimePicker from '../components/ui/ThaiTimePicker';
 import SuccessModal from '../components/modals/SuccessModal';
 import TagInput from '../components/ui/TagInput';
-
-// Mock data that would typically come from an API
-const mockPatients: Pick<Patient, 'id' | 'fullName'>[] = [
-  { id: 'PAT-001', fullName: 'สมชาย ใจดี' },
-  { id: 'PAT-002', fullName: 'สมหญิง มีสุข' },
-  { id: 'PAT-003', fullName: 'อาทิตย์ แจ่มใส' },
-  { id: 'PAT-004', fullName: 'จันทรา งามวงศ์วาน' },
-  { id: 'PAT-005', fullName: 'มานี รักเรียน' },
-  { id: 'PAT-006', fullName: 'ปิติ ชูใจ' },
-];
+import { patientsAPI, ridesAPI } from '../src/services/api';
 
 const tripTypes = [
     'นัดหมอตามปกติ',
@@ -38,7 +29,12 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         tripType: tripTypes[0],
         caregiverCount: 0,
         contactPhone: '',
+        pickupLocation: '',
+        destination: 'โรงพยาบาลฝาง',
     });
+    const [patients, setPatients] = useState<Array<{ id: string; fullName: string }>>([]);
+    const [loadingPatients, setLoadingPatients] = useState<boolean>(false);
+
     const [specialNeeds, setSpecialNeeds] = useState<string[]>([]);
     const [minTime, setMinTime] = useState<string | null>(null);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -51,6 +47,22 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
     }, [preselectedPatientId]);
 
     useEffect(() => {
+        const loadPatients = async () => {
+            setLoadingPatients(true);
+            try {
+                const data = await patientsAPI.getPatients();
+                const mapped = (data || []).map((p: any) => ({ id: p.id, fullName: p.full_name || p.fullName }));
+                setPatients(mapped);
+            } catch (e) {
+                addNotification({ message: 'ไม่สามารถโหลดรายชื่อผู้ป่วยได้', isRead: false });
+            } finally {
+                setLoadingPatients(false);
+            }
+        };
+        loadPatients();
+    }, []);
+
+    useEffect(() => {
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
         
@@ -60,7 +72,6 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             const newMinTime = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
             setMinTime(newMinTime);
             
-            // If the currently selected time is in the past, reset it
             if (formData.appointmentTime) {
                 const [selectedHour, selectedMinute] = formData.appointmentTime.split(':').map(Number);
                 if (selectedHour < currentHour || (selectedHour === currentHour && selectedMinute < currentMinute)) {
@@ -68,10 +79,9 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                 }
             }
         } else {
-            setMinTime(null); // No time restriction for future dates
+            setMinTime(null); 
         }
     }, [formData.appointmentDate, formData.appointmentTime]);
-
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -81,19 +91,44 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const selectedPatient = mockPatients.find(p => p.id === formData.patientId);
-        
-        console.log("Submitting Ride Request:", { ...formData, specialNeeds });
-        
-        addNotification({
-            message: `ส่งคำขอเดินทางสำหรับคุณ ${selectedPatient?.fullName} เรียบร้อยแล้ว`,
-            isRead: false,
-        });
+        if (!formData.patientId || !formData.appointmentDate || !formData.appointmentTime || !formData.pickupLocation || !formData.destination) {
+            addNotification({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน', isRead: false });
+            return;
+        }
 
-        setIsSuccessModalOpen(true);
+        const apptIso = new Date(`${formData.appointmentDate}T${formData.appointmentTime}:00`).toISOString();
+        const payload = {
+            patient_id: formData.patientId,
+            appointment_time: apptIso,
+            pickup_location: formData.pickupLocation,
+            destination: formData.destination,
+            special_needs: specialNeeds.join(', '),
+            caregiver_count: formData.caregiverCount,
+            contact_phone: formData.contactPhone,
+        } as any;
+
+        try {
+            await ridesAPI.createRide(payload);
+            const selectedPatient = patients.find(p => p.id === formData.patientId);
+            addNotification({ message: `ส่งคำขอเดินทางสำหรับคุณ ${selectedPatient?.fullName || ''} เรียบร้อยแล้ว`, isRead: false });
+            setIsSuccessModalOpen(true);
+            setFormData({
+                patientId: '',
+                appointmentDate: '',
+                appointmentTime: '',
+                tripType: tripTypes[0],
+                caregiverCount: 0,
+                contactPhone: '',
+                pickupLocation: '',
+                destination: 'โรงพยาบาลฝาง',
+            });
+            setSpecialNeeds([]);
+        } catch (e) {
+            addNotification({ message: 'ไม่สามารถสร้างคำขอเดินทางได้ กรุณาลองใหม่', isRead: false });
+        }
     };
 
     const handleCloseSuccessModal = () => {
@@ -108,7 +143,6 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             <div className="bg-white p-6 md:p-8 rounded-lg shadow-sm border border-gray-200">
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Patient Selection */}
                         <div className="md:col-span-2">
                             <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-1">ผู้ป่วย</label>
                             <select
@@ -119,29 +153,45 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                                 required
                             >
                                 <option value="" disabled>-- กรุณาเลือกผู้ป่วย --</option>
-                                {mockPatients.map(p => (
-                                    <option key={p.id} value={p.id}>{p.fullName}</option>
-                                ))}
+                                {loadingPatients ? (
+                                    <option>กำลังโหลด...</option>
+                                ) : (
+                                    patients.map(p => (
+                                        <option key={p.id} value={p.id}>{p.fullName}</option>
+                                    ))
+                                )}
                             </select>
                         </div>
-                        
-                        {/* Destination (Read-only) */}
+
+                        <div>
+                            <label htmlFor="pickupLocation" className="block text-sm font-medium text-gray-700 mb-1">จุดรับผู้ป่วย</label>
+                            <input
+                                type="text"
+                                name="pickupLocation"
+                                id="pickupLocation"
+                                value={formData.pickupLocation}
+                                onChange={handleChange}
+                                placeholder="เช่น บ้านเลขที่ 123 หมู่ 1 ..."
+                                required
+                            />
+                        </div>
+
                         <div>
                             <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">จุดหมายปลายทาง</label>
                             <input
                                 type="text"
                                 name="destination"
                                 id="destination"
-                                value="โรงพยาบาลฝาง"
-                                readOnly
-                                className="w-full bg-gray-100 text-gray-600 cursor-not-allowed"
+                                value={formData.destination}
+                                onChange={handleChange}
+                                placeholder="เช่น โรงพยาบาลฝาง"
+                                required
                             />
                         </div>
 
-                        {/* Trip Type */}
                         <div>
                             <label htmlFor="tripType" className="block text-sm font-medium text-gray-700 mb-1">ประเภทการเดินทาง</label>
-                             <select
+                            <select
                                 name="tripType"
                                 id="tripType"
                                 value={formData.tripType}

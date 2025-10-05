@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReportCard from '../components/reports/ReportCard';
 import ThaiDatePicker from '../components/ui/ThaiDatePicker';
 import MultiSelectAutocomplete from '../components/ui/MultiSelectAutocomplete';
-import { mockDrivers, mockTeams } from '../data/mockData';
+import { driversAPI, teamsAPI } from '../src/services/api';
 import WrenchIcon from '../components/icons/WrenchIcon';
 
 const mockVillages = [
@@ -18,6 +18,25 @@ const mockVillages = [
 const OfficeReportsPage: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     const [loadingReport, setLoadingReport] = useState<string | null>(null);
+    const [drivers, setDrivers] = useState<any[]>([]);
+    const [teams, setTeams] = useState<any[]>([]);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        try {
+            const [driversData, teamsData] = await Promise.all([
+                driversAPI.getDrivers(),
+                teamsAPI.getTeams(),
+            ]);
+            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
+            setTeams(Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []));
+        } catch (err) {
+            console.error('Failed to load data:', err);
+        }
+    };
 
     // 1. Roster/Shift Report State
     const [rosterData, setRosterData] = useState({ startDate: '', endDate: '', teamId: 'all' });
@@ -81,7 +100,7 @@ const OfficeReportsPage: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">เลือกทีม</label>
                             <select name="teamId" value={rosterData.teamId} onChange={(e) => handleStateChange(setRosterData, e)}>
                                 <option value="all">ทุกทีม</option>
-                                {mockTeams.map(t => (
+                                {teams.map(t => (
                                     <option key={t.id} value={t.id}>{t.name}</option>
                                 ))}
                             </select>
@@ -110,7 +129,7 @@ const OfficeReportsPage: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">เลือกคนขับ</label>
                             <select name="driverId" value={personnelData.driverId} onChange={(e) => handleStateChange(setPersonnelData, e)}>
                                 <option value="all">คนขับทั้งหมด</option>
-                                {mockDrivers.map(d => (
+                                {drivers.map(d => (
                                     <option key={d.id} value={d.id}>{d.fullName}</option>
                                 ))}
                             </select>

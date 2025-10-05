@@ -12,6 +12,7 @@ from src.routes.community import community_bp
 from src.routes.driver import driver_bp
 from src.routes.office import office_bp
 from src.routes.news import news_bp
+from src.routes.user import user_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'your-secret-key-change-this-in-production'
@@ -37,6 +38,7 @@ app.register_blueprint(community_bp, url_prefix='/api/community')
 app.register_blueprint(driver_bp, url_prefix='/api/driver')
 app.register_blueprint(office_bp, url_prefix='/api/office')
 app.register_blueprint(news_bp, url_prefix='/api/news')
+app.register_blueprint(user_bp, url_prefix='/api')
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"

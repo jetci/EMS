@@ -1,5 +1,6 @@
 import React from 'react';
 import HeroIllustration from './illustrations/HeroIllustration';
+import Button from './ui/Button';
 
 interface LandingPageProps {
   onRegisterClick: () => void;
@@ -14,7 +15,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                         {/* Text Content */}
                         <div className="text-center lg:text-left">
-                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#005A9C] tracking-tight">
+                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-green-600 tracking-tight">
                                 WeCare
                             </h1>
                             <p className="mt-4 text-xl sm:text-2xl text-gray-700">
@@ -24,18 +25,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
                                 แพลตฟอร์มกลางสำหรับประสานงานการเดินทางของผู้ป่วย เชื่อมต่อระหว่างเจ้าหน้าที่, ชุมชน, และคนขับรถ เพื่อการเดินทางไปพบแพทย์ที่สะดวกและไว้วางใจได้
                             </p>
                             <div className="mt-8 flex flex-col sm:flex-row sm:justify-center lg:justify-start gap-3">
-                                <button
-                                    onClick={onRegisterClick}
-                                    className="inline-block bg-[#28A745] text-white px-8 py-3 rounded-md text-lg font-semibold hover:bg-green-700 transition duration-300 shadow-lg"
-                                >
+                                <Button onClick={onRegisterClick} size="lg">
                                     สมัครสมาชิก
-                                </button>
-                                 <a 
-                                    href="#contact" 
-                                    className="inline-block bg-transparent border border-gray-300 text-gray-700 px-8 py-3 rounded-md text-lg font-semibold hover:bg-gray-100 transition duration-300"
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    onClick={() => { try { document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); } catch {} }}
                                 >
                                     เรียนรู้เพิ่มเติม
-                                </a>
+                                </Button>
                             </div>
                         </div>
                         {/* Illustration */}

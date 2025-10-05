@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Vehicle, VehicleStatus } from '../../types';
 import XIcon from '../icons/XIcon';
 import ThaiDatePicker from '../ui/ThaiDatePicker';
-import { mockVehicleTypes } from '../../data/mockData';
 
 interface EditVehicleModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (vehicle: Vehicle) => void;
   vehicle: Vehicle | null;
+  availableVehicleTypes: any[];
 }
 
 const emptyVehicle: Omit<Vehicle, 'id'> = {
@@ -20,7 +20,7 @@ const emptyVehicle: Omit<Vehicle, 'id'> = {
     nextMaintenanceDate: '',
 };
 
-const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, onSave, vehicle }) => {
+const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, onSave, vehicle, availableVehicleTypes }) => {
     const [formData, setFormData] = useState<Omit<Vehicle, 'id'>>(vehicle || emptyVehicle);
     const isEditing = !!vehicle;
 
@@ -65,7 +65,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
                                 <label htmlFor="type" className="block text-sm font-medium text-gray-700">ประเภทรถ</label>
                                 <select name="type" id="type" value={formData.type} onChange={handleChange} className="mt-1" required>
                                     <option value="" disabled>-- เลือกประเภทรถ --</option>
-                                    {mockVehicleTypes.map(vt => (
+                                    {availableVehicleTypes.map(vt => (
                                         <option key={vt.id} value={vt.name}>{vt.name}</option>
                                     ))}
                                 </select>

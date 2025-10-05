@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Ride, RideStatus, CommunityView } from '../types';
+import { Ride, RideStatus, CommunityView, Driver } from '../types';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import SearchIcon from '../components/icons/SearchIcon';
 import FilterIcon from '../components/icons/FilterIcon';
@@ -14,18 +14,14 @@ import RideDetailsModal from '../components/modals/RideDetailsModal';
 import RideRatingModal from '../components/modals/RideRatingModal';
 import Toast from '../components/Toast';
 import StarIcon from '../components/icons/StarIcon';
+import AssignDriverModal from '../components/modals/AssignDriverModal';
+import { driversAPI, ridesAPI } from '../src/services/api';
+import Button from '../components/ui/Button';
+import Select from '../components/ui/Select';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
+import Pagination from '../components/ui/Pagination';
 
-const mockRides: Ride[] = [
-    { id: 'RIDE-201', patientName: 'สมชาย ใจดี', destination: 'โรงพยาบาลกรุงเทพ', appointmentTime: '2024-08-10T09:30:00Z', status: RideStatus.COMPLETED, driverName: 'Driver One', pickupLocation: '', rating: 5, reviewTags: ['ตรงต่อเวลา', 'สุภาพ'] },
-    // FIX: Changed `specialNeeds` from a string to an array of strings to match the `Ride` type definition.
-    { id: 'RIDE-202', patientName: 'สมหญิง มีสุข', destination: 'โรงพยาบาลบำรุงราษฎร์', appointmentTime: '2024-08-11T11:00:00Z', status: RideStatus.IN_PROGRESS, driverName: 'Driver Two', pickupLocation: '', specialNeeds: ['ต้องการรถวีลแชร์'], caregiverCount: 1, contactPhone: '089-123-4567', driverInfo: { id: 'DRV-002', fullName: 'มานะ อดทน', phone: '082-345-6789', licensePlate: 'ชล 5678', vehicleModel: 'Honda City' } },
-    { id: 'RIDE-203', patientName: 'อาทิตย์ แจ่มใส', destination: 'โรงพยาบาลสมิติเวช', appointmentTime: '2024-08-12T14:00:00Z', status: RideStatus.ASSIGNED, driverName: 'Driver One', pickupLocation: '' },
-    // FIX: Changed `specialNeeds` from a string to an array of strings to match the `Ride` type definition.
-    { id: 'RIDE-204', patientName: 'จันทรา งามวงศ์วาน', destination: 'โรงพยาบาลรามาธิบดี', appointmentTime: '2024-08-12T16:30:00Z', status: RideStatus.PENDING, pickupLocation: '', specialNeeds: ['ผู้ป่วยมีอาการเหนื่อยง่าย'] },
-    { id: 'RIDE-205', patientName: 'มานี รักเรียน', destination: 'โรงพยาบาลพญาไท', appointmentTime: '2024-08-13T17:00:00Z', status: RideStatus.PENDING, pickupLocation: '' },
-    { id: 'RIDE-206', patientName: 'ปิติ ชูใจ', destination: 'โรงพยาบาลศิริราช', appointmentTime: '2024-08-14T08:00:00Z', status: RideStatus.PENDING, pickupLocation: '' },
-    { id: 'RIDE-207', patientName: 'สมชาย ใจดี', destination: 'โรงพยาบาลจุฬาลงกรณ์', appointmentTime: '2024-08-15T10:00:00Z', status: RideStatus.CANCELLED, pickupLocation: '' },
-];
+// Backend data will be loaded on mount via ridesAPI
 
 const ITEMS_PER_PAGE = 5;
 
@@ -35,7 +31,7 @@ interface ManageRidesPageProps {
 }
 
 const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initialFilter }) => {
-    const [rides, setRides] = useState<Ride[]>(mockRides);
+    const [rides, setRides] = useState<Ride[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<RideStatus | 'All'>(initialFilter || 'All');
     const [currentPage, setCurrentPage] = useState(1);
@@ -44,6 +40,10 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
     const [rideToRate, setRideToRate] = useState<Ride | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [rideForAssign, setRideForAssign] = useState<Ride | null>(null);
+    const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -52,12 +52,112 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
         }, 3000);
     };
 
+    const handleViewDetails = (ride: Ride) => {
+        setSelectedRide(ride);
+        setIsDetailsModalOpen(true);
+    };
+
+    const handleOpenRatingModal = (ride: Ride) => {
+        setRideToRate(ride);
+        setIsRatingModalOpen(true);
+    };
+
+    // Load rides from backend and map to local Ride interface
+    const fetchRides = async () => {
+        setLoading(true);
+        try {
+            const data = await ridesAPI.getRides();
+            const mapped: Ride[] = (data || []).map((r: any) => ({
+                id: r.id,
+                patientName: r.patient_name || r.patientName || '',
+                destination: r.destination || '',
+                appointmentTime: r.appointment_time || r.appointmentTime || new Date().toISOString(),
+                status: (r.status as RideStatus) || RideStatus.PENDING,
+                driverName: r.driver_name || r.driverName || undefined,
+                pickupLocation: r.pickup_location || r.pickupLocation || '',
+            }));
+            setRides(mapped);
+        } catch (e) {
+            setToastMessage('ไม่สามารถดึงข้อมูลการเดินทางได้');
+            setTimeout(() => setToastMessage(null), 3000);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRides();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const openAssignModal = async (ride: Ride) => {
+        setRideForAssign(ride);
+        setIsAssignModalOpen(true);
+        try {
+            const raw = await driversAPI.getAvailableDrivers();
+            // Map backend fields to frontend Driver interface
+            const mapped: Driver[] = (raw || []).map((d: any) => ({
+                id: d.id,
+                fullName: d.full_name || d.fullName || 'Unknown',
+                phone: d.phone || '',
+                licensePlate: d.license_plate || d.licensePlate || '',
+                status: d.status || 'AVAILABLE',
+                profileImageUrl: d.profile_image_url || d.profileImageUrl || undefined,
+                email: d.email || '',
+                address: d.address || '',
+                vehicleBrand: d.brand || d.vehicleBrand || '',
+                vehicleModel: d.model || d.vehicleModel || '',
+                vehicleColor: d.vehicleColor || '',
+                tripsThisMonth: d.tripsThisMonth || 0,
+                vehicleType: d.type || d.vehicleType || '',
+                totalTrips: d.totalTrips || 0,
+                avgReviewScore: d.avg_review_score || d.avgReviewScore || 0,
+            }));
+            setAvailableDrivers(mapped);
+        } catch (e) {
+            setToastMessage('ไม่สามารถดึงรายชื่อคนขับที่ว่างได้');
+            setTimeout(() => setToastMessage(null), 3000);
+        }
+    };
+
+    const handleAssignDriver = async (rideId: string, driverId: string) => {
+        try {
+            await ridesAPI.updateRideStatus(rideId, 'ASSIGNED', driverId);
+            // Update local UI state (mock data) to reflect assignment
+            const driver = availableDrivers.find(d => d.id === driverId);
+            setRides(prev => prev.map(r => r.id === rideId ? {
+                ...r,
+                status: RideStatus.ASSIGNED,
+                driverName: driver ? driver.fullName : r.driverName
+            } : r));
+            setToastMessage('จ่ายงานให้คนขับสำเร็จ');
+        } catch (e) {
+            setToastMessage('จ่ายงานล้มเหลว กรุณาลองใหม่');
+        } finally {
+            setTimeout(() => setToastMessage(null), 3000);
+            setIsAssignModalOpen(false);
+            setRideForAssign(null);
+        }
+    };
+
+    const handleSubmitRating = (rideId: string, ratingData: { rating: number; tags: string[]; comment: string }) => {
+        setRides(prevRides =>
+            prevRides.map(ride =>
+                ride.id === rideId
+                    ? { ...ride, rating: ratingData.rating, reviewTags: ratingData.tags, reviewComment: ratingData.comment }
+                    : ride
+            )
+        );
+        setIsRatingModalOpen(false);
+        showToast('ขอบคุณสำหรับความคิดเห็น!');
+    };
+
     useEffect(() => {
         if (initialFilter) {
             setStatusFilter(initialFilter);
         }
     }, [initialFilter]);
-    
+
     const filteredRides = useMemo(() => {
         return rides.filter(r => {
             const searchLower = searchTerm.toLowerCase();
@@ -81,28 +181,18 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
         if (currentPage > 1) setCurrentPage(currentPage - 1);
     };
 
-    const handleViewDetails = (ride: Ride) => {
-        setSelectedRide(ride);
-        setIsDetailsModalOpen(true);
-    };
-
-    const handleOpenRatingModal = (ride: Ride) => {
-        setRideToRate(ride);
-        setIsRatingModalOpen(true);
-    };
-    
-    const handleSubmitRating = (rideId: string, ratingData: { rating: number; tags: string[]; comment: string }) => {
-        setRides(prevRides => 
-            prevRides.map(ride =>
-                ride.id === rideId
-                    ? { ...ride, rating: ratingData.rating, reviewTags: ratingData.tags, reviewComment: ratingData.comment }
-                    : ride
-            )
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-3xl font-bold text-[var(--text-primary)]">จัดการการเดินทาง</h1>
+                    <Button onClick={fetchRides} variant="secondary" size="sm">รีเฟรช</Button>
+                </div>
+                <div className="p-4 bg-white rounded-lg shadow-sm border">กำลังโหลดข้อมูลการเดินทาง...</div>
+            </div>
         );
-        setIsRatingModalOpen(false);
-        showToast('ขอบคุณสำหรับความคิดเห็น!');
-    };
-    
+    }
+
     if (rides.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center text-center h-[60vh]">
@@ -116,6 +206,9 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                     <PlusCircleIcon className="w-5 h-5 mr-2" />
                     ร้องขอการเดินทางแรกของคุณ
                 </button>
+                <div className="mt-4">
+                    <Button onClick={fetchRides} variant="secondary" size="sm">รีเฟรช</Button>
+                </div>
             </div>
         );
     }
@@ -124,21 +217,24 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
         <div className="space-y-6">
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                 <div>
+                <div>
                     <h1 className="text-3xl font-bold text-[var(--text-primary)]">จัดการการเดินทาง</h1>
                     <p className="mt-1 text-[var(--text-secondary)]">ตรวจสอบสถานะและรายละเอียดการเดินทางทั้งหมด</p>
                 </div>
-                <button 
-                    onClick={() => setActiveView('request_ride')}
-                    className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors"
-                >
-                    <PlusCircleIcon className="w-5 h-5 mr-2" />
-                    <span>ร้องขอการเดินทางใหม่</span>
-                </button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={fetchRides} variant="secondary" size="sm" title="รีเฟรชข้อมูล">รีเฟรช</Button>
+                    <button 
+                        onClick={() => setActiveView('request_ride')}
+                        className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors"
+                    >
+                        <PlusCircleIcon className="w-5 h-5 mr-2" />
+                        <span>ร้องขอการเดินทางใหม่</span>
+                    </button>
+                </div>
             </div>
 
             {/* Toolbar */}
-             <div className="bg-white p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-auto flex-grow">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -153,13 +249,16 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                         />
                     </div>
                     <div className="relative w-full md:w-auto">
+                        <label htmlFor="statusFilter" className="sr-only">กรองตามสถานะ</label>
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                             <FilterIcon className="w-5 h-5 text-gray-400" />
                         </span>
-                        <select
+                        <Select
+                            id="statusFilter"
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value as RideStatus | 'All')}
                             className="w-full md:w-56 pl-10"
+                            aria-label="กรองตามสถานะ"
                         >
                             <option value="All">สถานะทั้งหมด</option>
                             <option value={RideStatus.PENDING}>รอดำเนินการ</option>
@@ -167,38 +266,41 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                             <option value={RideStatus.IN_PROGRESS}>กำลังเดินทาง</option>
                             <option value={RideStatus.COMPLETED}>เสร็จสิ้น</option>
                             <option value={RideStatus.CANCELLED}>ยกเลิก</option>
-                        </select>
+                        </Select>
                     </div>
                 </div>
             </div>
 
-            {/* Data Table */}
+            {/* Data Table using primitives */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-[var(--border-color)]">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-[var(--text-secondary)]">
-                        <thead className="text-xs text-[var(--text-primary)] uppercase bg-gray-50/75">
-                            <tr>
-                                <th scope="col" className="px-6 py-4 font-semibold">ชื่อผู้ป่วย</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">ปลายทาง</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">วัน-เวลานัดหมาย</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">สถานะ</th>
-                                <th scope="col" className="px-6 py-4 font-semibold">คนขับ</th>
-                                <th scope="col" className="px-6 py-4 font-semibold text-center">การดำเนินการ</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border-color)]">
+                    <Table className="text-left text-[var(--text-secondary)]">
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>ชื่อผู้ป่วย</TableHead>
+                                <TableHead>ปลายทาง</TableHead>
+                                <TableHead>วัน-เวลานัดหมาย</TableHead>
+                                <TableHead>สถานะ</TableHead>
+                                <TableHead>คนขับ</TableHead>
+                                <TableHead className="text-center">การดำเนินการ</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {paginatedRides.map(ride => (
-                                <tr key={ride.id} className="hover:bg-gray-50/50">
-                                    <td className="px-6 py-4 font-medium text-[var(--text-primary)] whitespace-nowrap">{ride.patientName}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{ride.destination}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
-                                    <td className="px-6 py-4"><StatusBadge status={ride.status} /></td>
-                                    <td className="px-6 py-4 whitespace-nowrap">{ride.driverName || 'N/A'}</td>
-                                    <td className="px-6 py-4">
+                                <TableRow key={ride.id}>
+                                    <TableCell className="font-medium text-[var(--text-primary)] whitespace-nowrap">{ride.patientName}</TableCell>
+                                    <TableCell className="whitespace-nowrap">{ride.destination}</TableCell>
+                                    <TableCell className="whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</TableCell>
+                                    <TableCell><StatusBadge status={ride.status} /></TableCell>
+                                    <TableCell className="whitespace-nowrap">{ride.driverName || 'N/A'}</TableCell>
+                                    <TableCell>
                                         <div className="flex items-center justify-center space-x-2">
-                                            <button onClick={() => handleViewDetails(ride)} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleViewDetails(ride)} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด" aria-label={`ดูรายละเอียดของ ${ride.patientName}`}><EyeIcon className="w-5 h-5" /></button>
                                             {ride.status === RideStatus.PENDING && (
-                                                <button className="p-2 rounded-full hover:bg-red-100 text-red-600" title="ยกเลิก"><TrashIcon className="w-5 h-5" /></button>
+                                                <>
+                                                    <button className="p-2 rounded-full hover:bg-red-100 text-red-600" title="ยกเลิก" aria-label={`ยกเลิกรายการของ ${ride.patientName}`}><TrashIcon className="w-5 h-5" /></button>
+                                                    <Button onClick={() => openAssignModal(ride)} size="sm" title="จ่ายงานให้คนขับ" aria-label={`จ่ายงานให้คนขับสำหรับ ${ride.patientName}`}>จ่ายงาน</Button>
+                                                </>
                                             )}
                                             {ride.status === RideStatus.COMPLETED && (
                                                 <button
@@ -218,37 +320,37 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                                                 </button>
                                             )}
                                         </div>
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                </TableRow>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            {/* Pagination */}
-            <div className="flex justify-between items-center mt-4">
-                 <span className="text-sm text-[var(--text-secondary)]">
-                    หน้า {currentPage} จาก {totalPages}
-                </span>
-                <div className="inline-flex items-center space-x-2">
-                    <button onClick={handlePrevPage} disabled={currentPage === 1} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <ChevronLeftIcon className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleNextPage} disabled={currentPage === totalPages} className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <ChevronRightIcon className="w-4 h-4" />
-                    </button>
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
 
+            {/* Pagination */}
+            <div className="mt-4">
+                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </div>
+
             <RideDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} ride={selectedRide} />
-            <RideRatingModal 
+            <RideRatingModal
                 isOpen={isRatingModalOpen}
                 onClose={() => setIsRatingModalOpen(false)}
                 ride={rideToRate}
                 onSubmit={handleSubmitRating}
             />
             <Toast message={toastMessage} />
+            {rideForAssign && (
+                <AssignDriverModal
+                    isOpen={isAssignModalOpen}
+                    onClose={() => { setIsAssignModalOpen(false); setRideForAssign(null); } }
+                    onAssign={handleAssignDriver}
+                    ride={rideForAssign}
+                    allDrivers={availableDrivers}
+                    allRides={rides}
+                />
+            )}
         </div>
     );
 };

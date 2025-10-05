@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { VehicleType } from '../types';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import EditIcon from '../components/icons/EditIcon';
@@ -6,23 +6,45 @@ import TrashIcon from '../components/icons/TrashIcon';
 import EditVehicleTypeModal from '../components/modals/EditVehicleTypeModal';
 import ConfirmationModal from '../components/modals/ConfirmationModal';
 import Toast from '../components/Toast';
-import { mockVehicleTypes, mockVehicles } from '../data/mockData';
+import { apiRequest } from '../src/services/api';
 
 const ManageVehicleTypesPage: React.FC = () => {
-    const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>(mockVehicleTypes);
+    const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+    const [vehicles, setVehicles] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [selectedType, setSelectedType] = useState<VehicleType | null>(null);
     const [typeToDelete, setTypeToDelete] = useState<VehicleType | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
+        try {
+            setLoading(true);
+            const [vehicleTypesData, vehiclesData] = await Promise.all([
+                apiRequest('/vehicle-types'),
+                apiRequest('/vehicles'),
+            ]);
+            setVehicleTypes(Array.isArray(vehicleTypesData) ? vehicleTypesData : (vehicleTypesData?.vehicleTypes || []));
+            setVehicles(Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []));
+        } catch (err) {
+            console.error('Failed to load data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const vehicleCounts = useMemo(() => {
         const counts = new Map<string, number>();
-        mockVehicles.forEach(vehicle => {
+        vehicles.forEach(vehicle => {
             counts.set(vehicle.type, (counts.get(vehicle.type) || 0) + 1);
         });
         return counts;
-    }, []);
+    }, [vehicles]);
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -39,14 +61,26 @@ const ManageVehicleTypesPage: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleSaveType = (typeData: Omit<VehicleType, 'id'>) => {
-        if (selectedType) {
-            setVehicleTypes(prev => prev.map(t => t.id === selectedType.id ? { ...t, ...typeData } : t));
-            showToast(`✅ แก้ไขประเภทรถ "${typeData.name}" สำเร็จ`);
-        } else {
-            const newType = { ...typeData, id: `vt-${Date.now()}` };
-            setVehicleTypes(prev => [newType, ...prev]);
-            showToast(`🎉 เพิ่มประเภทรถ "${newType.name}" ใหม่สำเร็จ`);
+    const handleSaveType = async (typeData: Omit<VehicleType, 'id'>) => {
+        try {
+            if (selectedType) {
+                await apiRequest(`/vehicle-types/${selectedType.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(typeData),
+                });
+                showToast(`✅ แก้ไขประเภทรถ "${typeData.name}" สำเร็จ`);
+            } else {
+                await apiRequest('/vehicle-types', {
+                    method: 'POST',
+                    body: JSON.stringify(typeData),
+                });
+                showToast(`🎉 เพิ่มประเภทรถ "${typeData.name}" ใหม่สำเร็จ`);
+            }
+            await loadAllData();
+            setIsModalOpen(false);
+        } catch (err) {
+            console.error('Failed to save vehicle type:', err);
+            showToast('❌ ไม่สามารถบันทึกข้อมูลได้');
         }
         setIsModalOpen(false);
     };
@@ -56,13 +90,15 @@ const ManageVehicleTypesPage: React.FC = () => {
         setIsConfirmOpen(true);
     };
 
-    const handleDeleteType = () => {
+    const handleDeleteType = async () => {
         if (typeToDelete) {
-            if ((vehicleCounts.get(typeToDelete.name) || 0) > 0) {
-                 showToast(`❌ ไม่สามารถลบได้: มีรถที่ใช้ประเภทนี้อยู่`);
-            } else {
-                setVehicleTypes(prev => prev.filter(t => t.id !== typeToDelete.id));
+            try {
+                await apiRequest(`/vehicle-types/${typeToDelete.id}`, { method: 'DELETE' });
                 showToast(`🗑️ ลบประเภทรถ "${typeToDelete.name}" เรียบร้อยแล้ว`);
+                await loadAllData();
+            } catch (err) {
+                console.error('Failed to delete vehicle type:', err);
+                showToast('❌ ไม่สามารถลบข้อมูลได้');
             }
         }
         setIsConfirmOpen(false);

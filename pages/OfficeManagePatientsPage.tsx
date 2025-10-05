@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { Patient } from '../types';
@@ -17,51 +17,63 @@ import StatCard from '../components/dashboard/StatCard';
 import UsersIcon from '../components/icons/UsersIcon';
 import BedIcon from '../components/icons/BedIcon';
 import PrintIcon from '../components/icons/PrintIcon';
+import { patientsAPI } from '../src/services/api';
 
 dayjs.extend(isSameOrBefore);
-
-
-const mockPatients: Patient[] = [
-  { 
-    id: 'PAT-001', fullName: 'สมชาย ใจดี', age: 72, keyInfo: 'โรคเบาหวาน, ความดันสูง', registeredDate: '2023-01-15T10:00:00Z', registeredBy: 'น.ส.มานี มีนา', 
-    dob: '1952-03-10', contactPhone: '081-111-1111', chronicDiseases: ['เบาหวาน', 'ความดัน'], allergies: ['ไม่มี'], 
-    currentAddress: { houseNumber: '123', village: 'หมู่ 1 บ้านหนองตุ้ม', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    idCardAddress: { houseNumber: '123', village: 'หมู่ 1 บ้านหนองตุ้ม', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    landmark: 'ใกล้ตลาดสด', latitude: '19.9213', longitude: '99.2131', title: 'นาย', gender: 'ชาย', nationalId: '1234567890123',
-    patientTypes: ['ผู้ป่วยภาวะพึงพิง'], bloodType: 'A', rhFactor: 'Rh+', healthCoverage: 'สิทธิบัตรทอง (UC)', attachments: []
-  },
-  { 
-    id: 'PAT-002', fullName: 'สมหญิง มีสุข', age: 68, keyInfo: 'ผู้ป่วยติดเตียง', registeredDate: '2023-02-20T11:00:00Z', registeredBy: 'นายปิติ ชูใจ', 
-    dob: '1956-07-22', contactPhone: '082-222-2222', chronicDiseases: ['ผู้ป่วยติดเตียง'], allergies: ['เพนนิซิลลิน'], 
-    caregiverName: 'สมศักดิ์ มีสุข', caregiverPhone: '089-999-9999', 
-    currentAddress: { houseNumber: '456', village: 'หมู่ 2 ป่าบง', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    idCardAddress: { houseNumber: '456', village: 'หมู่ 2 ป่าบง', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    landmark: '', latitude: '19.9213', longitude: '99.2131', title: 'นาง', gender: 'หญิง', nationalId: '2345678901234',
-    patientTypes: ['ผู้ป่วยติดเตียง', 'ผู้ป่วยยากไร้'], bloodType: 'O', rhFactor: 'Rh+', healthCoverage: 'ประกันสังคม', attachments: []
-  },
-   { 
-    id: 'PAT-003', fullName: 'อาทิตย์ แจ่มใส', age: 80, keyInfo: 'โรคหัวใจ', registeredDate: '2023-03-10T14:00:00Z', registeredBy: 'นางสาวสมศรี ใจดี', 
-    dob: '1944-03-10', contactPhone: '083-333-4444', chronicDiseases: ['โรคหัวใจ'], allergies: ['ไม่มี'], 
-    currentAddress: { houseNumber: '789', village: 'หมู่ 3 เต๋าดิน, เวียงสุทโธ', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    idCardAddress: { houseNumber: '789', village: 'หมู่ 3 เต๋าดิน, เวียงสุทโธ', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    landmark: '', latitude: '19.9111', longitude: '99.2222', title: 'นาย', gender: 'ชาย', nationalId: '3456789012345',
-    patientTypes: ['ผู้สูงอายุ'], bloodType: 'O', rhFactor: 'Rh+', healthCoverage: 'ข้าราชการ', attachments: []
-  },
-  { 
-    id: 'PAT-004', fullName: 'จันทรา งามวงศ์วาน', age: 75, keyInfo: 'ต้องใช้วีลแชร์', registeredDate: '2023-04-05T16:00:00Z', registeredBy: 'น.ส.มานี มีนา', 
-    dob: '1949-04-05', contactPhone: '084-444-5555', chronicDiseases: ['ข้อเข่าเสื่อม'], allergies: ['ซัลฟา'], 
-    currentAddress: { houseNumber: '101', village: 'หมู่ 4 สวนดอก', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    idCardAddress: { houseNumber: '101', village: 'หมู่ 4 สวนดอก', tambon: 'เวียง', amphoe: 'ฝาง', changwat: 'เชียงใหม่' },
-    landmark: '', latitude: '19.9333', longitude: '99.2000', title: 'นาง', gender: 'หญิง', nationalId: '4567890123456',
-    patientTypes: ['ผู้สูงอายุ', 'ผู้พิการ'], bloodType: 'AB', rhFactor: 'Rh-', healthCoverage: 'สิทธิบัตรทอง (UC)', attachments: []
-  },
-];
-
 
 const ITEMS_PER_PAGE = 10;
 
 const OfficeManagePatientsPage: React.FC = () => {
-    const [patients, setPatients] = useState<Patient[]>(mockPatients);
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [loadingRemote, setLoadingRemote] = useState<boolean>(false);
+    const [remoteError, setRemoteError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const load = async () => {
+            setLoadingRemote(true);
+            setRemoteError(null);
+            try {
+                const data = await patientsAPI.getPatients();
+                const patientsData = Array.isArray(data) ? data : (data?.patients || []);
+                const mapped: Patient[] = patientsData.map((p: any) => ({
+                    id: p.id,
+                    fullName: p.full_name ?? '',
+                    profileImageUrl: undefined,
+                    title: p.title ?? '',
+                    gender: p.gender ?? '',
+                    nationalId: p.national_id ?? '',
+                    dob: p.dob ?? '',
+                    age: p.dob ? dayjs().diff(dayjs(p.dob), 'year') : 0,
+                    patientTypes: Array.isArray(p.patient_types) ? p.patient_types : [],
+                    bloodType: p.blood_type ?? '',
+                    rhFactor: p.rh_factor ?? '',
+                    healthCoverage: p.health_coverage ?? '',
+                    chronicDiseases: Array.isArray(p.chronic_diseases) ? p.chronic_diseases : [],
+                    allergies: Array.isArray(p.allergies) ? p.allergies : [],
+                    contactPhone: p.contact_phone ?? '',
+                    idCardAddress: p.id_card_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
+                    currentAddress: p.current_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
+                    landmark: p.landmark ?? '',
+                    latitude: (p.latitude ?? '').toString(),
+                    longitude: (p.longitude ?? '').toString(),
+                    attachments: Array.isArray(p.attachments) ? p.attachments : [],
+                    registeredDate: p.registered_date ?? new Date().toISOString(),
+                    registeredBy: p.registered_by_id ?? 'Unknown',
+                    keyInfo: typeof p.key_info === 'string' ? p.key_info : (p.key_info?.summary ?? ''),
+                    caregiverName: p.caregiver_name ?? undefined,
+                    caregiverPhone: p.caregiver_phone ?? undefined,
+                }));
+                setPatients(mapped);
+            } catch (err: any) {
+                setRemoteError(err?.message || 'Failed to load patients');
+                // Keep mockPatients as fallback
+            } finally {
+                setLoadingRemote(false);
+            }
+        };
+        load();
+    }, []);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ registeredBy: 'All', village: 'All', healthCoverage: 'All', startDate: '', endDate: '' });
     const [currentPage, setCurrentPage] = useState(1);
@@ -134,6 +146,13 @@ const OfficeManagePatientsPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {loadingRemote && (
+                <div className="p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded">กำลังดึงข้อมูลผู้ป่วยจากเซิร์ฟเวอร์...</div>
+            )}
+            {remoteError && (
+                <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">เกิดข้อผิดพลาดในการดึงข้อมูล: {remoteError}</div>
+            )}
+            
             {/* Page Header */}
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการข้อมูลผู้ป่วยทั้งหมด</h1>
@@ -154,12 +173,12 @@ const OfficeManagePatientsPage: React.FC = () => {
             <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-600 mb-1">ค้นหา</label>
-                        <input type="text" placeholder="ชื่อ, รหัสผู้ป่วย..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <label htmlFor="patientSearch" className="block text-xs font-medium text-gray-600 mb-1">ค้นหา</label>
+                        <input id="patientSearch" type="text" placeholder="ชื่อ, รหัสผู้ป่วย..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">ชุมชน (ผู้ลงทะเบียน)</label>
-                         <select name="registeredBy" value={filters.registeredBy} onChange={handleFilterChange}>
+                        <label htmlFor="filterRegisteredBy" className="block text-xs font-medium text-gray-600 mb-1">ชุมชน (ผู้ลงทะเบียน)</label>
+                         <select id="filterRegisteredBy" name="registeredBy" value={filters.registeredBy} onChange={handleFilterChange}>
                            {uniqueRegistrars.map(r => (
                                <option key={r} value={r}>
                                    {r === 'All' ? 'ทั้งหมด' : r}
@@ -168,8 +187,8 @@ const OfficeManagePatientsPage: React.FC = () => {
                         </select>
                     </div>
                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">หมู่บ้าน</label>
-                        <select name="village" value={filters.village} onChange={handleFilterChange}>
+                        <label htmlFor="filterVillage" className="block text-xs font-medium text-gray-600 mb-1">หมู่บ้าน</label>
+                        <select id="filterVillage" name="village" value={filters.village} onChange={handleFilterChange}>
                            {uniqueVillages.map(v => (
                                <option key={v} value={v}>
                                    {v === 'All' ? 'ทุกหมู่บ้าน' : v}
@@ -180,8 +199,8 @@ const OfficeManagePatientsPage: React.FC = () => {
                 </div>
                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">สิทธิการรักษา</label>
-                        <select name="healthCoverage" value={filters.healthCoverage} onChange={handleFilterChange}>
+                        <label htmlFor="filterHealthCoverage" className="block text-xs font-medium text-gray-600 mb-1">สิทธิการรักษา</label>
+                        <select id="filterHealthCoverage" name="healthCoverage" value={filters.healthCoverage} onChange={handleFilterChange}>
                            {uniqueHealthCoverages.map(hc => (
                                <option key={hc} value={hc}>
                                    {hc === 'All' ? 'ทุกสิทธิ' : hc}

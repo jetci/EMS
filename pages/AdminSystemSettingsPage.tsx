@@ -1,41 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SystemSettings } from '../types';
 import SaveIcon from '../components/icons/SaveIcon';
 import AlertTriangleIcon from '../components/icons/AlertTriangleIcon';
 import ToggleSwitch from '../components/ui/ToggleSwitch';
+import UploadIcon from '../components/icons/UploadIcon';
+import TrashIcon from '../components/icons/TrashIcon';
+import { getAppSettings } from '../utils/settings';
 
-// FIX: Added missing properties to the mock object to ensure it conforms to the SystemSettings interface.
-const mockSettings: SystemSettings = {
-    appName: 'WeCare Platform',
-    organizationName: 'องค์การบริหารส่วนตำบลเวียง',
-    contactEmail: 'contact@wecare.dev',
-    googleRecaptchaSiteKey: 'your-recaptcha-site-key-here',
-    googleRecaptchaSecretKey: 'your-recaptcha-secret-key-here',
-    maintenanceMode: false,
-    maintenanceMessage: 'ระบบกำลังปิดปรับปรุงชั่วคราว ขออภัยในความไม่สะดวก',
-    schedulingModel: 'individual',
-};
-
-type SettingsTab = 'general' | 'ride_schedule';
+type SettingsTab = 'general' | 'api' | 'ride_schedule';
 
 const AdminSystemSettingsPage: React.FC = () => {
-    const [settings, setSettings] = useState<SystemSettings>(mockSettings);
+    const [settings, setSettings] = useState<SystemSettings>(getAppSettings());
     const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setSettings(prev => ({ ...prev, [name]: value }));
+        const { name, value, type } = e.target;
+        setSettings(prev => ({ 
+            ...prev, 
+            [name]: type === 'number' ? parseFloat(value) || 0 : value 
+        }));
     };
 
     const handleToggle = (name: keyof SystemSettings, checked: boolean) => {
         setSettings(prev => ({...prev, [name]: checked}));
     };
+    
+    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setSettings(prev => ({ ...prev, logoUrl: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+    
+    const handleRemoveLogo = () => {
+        setSettings(prev => ({ ...prev, logoUrl: undefined }));
+    };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        console.log("Saving settings:", settings);
-        // Here you would call an API to save the settings
-        alert("Settings saved successfully!");
+        
+        let shouldPromptReload = false;
+        const currentSettings = getAppSettings();
+
+        // Check if API key or map center changed
+        if (currentSettings.googleMapsApiKey !== settings.googleMapsApiKey ||
+            currentSettings.mapCenterLat !== settings.mapCenterLat ||
+            currentSettings.mapCenterLng !== settings.mapCenterLng) {
+            shouldPromptReload = true;
+        }
+
+        // Persist to localStorage
+        localStorage.setItem('wecare_appName', settings.appName);
+        localStorage.setItem('wecare_organizationName', settings.organizationName);
+        localStorage.setItem('wecare_organizationAddress', settings.organizationAddress || '');
+        localStorage.setItem('wecare_organizationPhone', settings.organizationPhone || '');
+        localStorage.setItem('wecare_contactEmail', settings.contactEmail);
+        localStorage.setItem('wecare_googleMapsApiKey', settings.googleMapsApiKey);
+        localStorage.setItem('wecare_mapCenterLat', String(settings.mapCenterLat));
+        localStorage.setItem('wecare_mapCenterLng', String(settings.mapCenterLng));
+        localStorage.setItem('wecare_developerName', settings.developerName || '');
+        localStorage.setItem('wecare_developerTitle', settings.developerTitle || '');
+
+        if (settings.logoUrl) {
+            localStorage.setItem('wecare_logoUrl', settings.logoUrl);
+        } else {
+            localStorage.removeItem('wecare_logoUrl');
+        }
+        
+        window.dispatchEvent(new CustomEvent('settingsChanged'));
+        
+        if (shouldPromptReload) {
+            if (confirm("การตั้งค่า API Key และพิกัดแผนที่ถูกบันทึกแล้ว จำเป็นต้องรีโหลดหน้าเว็บเพื่อให้การเปลี่ยนแปลงสมบูรณ์ รีโหลดเลยหรือไม่?")) {
+                window.location.reload();
+            } else {
+                alert("บันทึกการตั้งค่าสำเร็จ! (กรุณารีโหลดหน้าเว็บเพื่อให้การตั้งค่าแผนที่มีผล)");
+            }
+        } else {
+            alert("บันทึกการตั้งค่าสำเร็จ!");
+        }
     };
     
     const TabButton: React.FC<{ tabId: SettingsTab; label: string }> = ({ tabId, label }) => {
@@ -67,6 +113,7 @@ const AdminSystemSettingsPage: React.FC = () => {
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                     <TabButton tabId="general" label="การตั้งค่าทั่วไป" />
+                    <TabButton tabId="api" label="API & Integration" />
                     <TabButton tabId="ride_schedule" label="การตั้งค่าการเดินทาง" />
                 </nav>
             </div>
@@ -78,14 +125,64 @@ const AdminSystemSettingsPage: React.FC = () => {
                         {/* General Settings */}
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                             <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลทั่วไป</h2>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 <div>
                                     <label htmlFor="appName" className="block text-sm font-medium text-gray-700">ชื่อแอปพลิเคชัน</label>
                                     <input type="text" name="appName" id="appName" value={settings.appName} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
                                 </div>
                                 <div>
+                                     <label className="block text-sm font-medium text-gray-700">โลโก้องค์กร</label>
+                                     <div className="mt-2 flex items-center gap-6">
+                                        <div className="w-32 h-16 bg-gray-100 border rounded-md flex items-center justify-center">
+                                            {settings.logoUrl ? (
+                                                <img src={settings.logoUrl} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
+                                            ) : (
+                                                <span className="text-xs text-gray-500">ไม่มีโลโก้</span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <label htmlFor="logoUpload" className="cursor-pointer px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100">
+                                                <span>อัปโหลดโลโก้</span>
+                                                <input id="logoUpload" name="logoUpload" type="file" className="sr-only" accept="image/png, image/jpeg, image/svg+xml" onChange={handleLogoChange} />
+                                            </label>
+                                            {settings.logoUrl && (
+                                                <button type="button" onClick={handleRemoveLogo} className="p-2 text-red-600 hover:bg-red-50 rounded-full" title="ลบโลโก้">
+                                                    <TrashIcon className="w-5 h-5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Organization Settings */}
+                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">การตั้งค่าองค์กรและผู้พัฒนา</h2>
+                            <div className="space-y-6">
+                                <div>
+                                    <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700">ชื่อองค์กร</label>
+                                    <input type="text" name="organizationName" id="organizationName" value={settings.organizationName} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
+                                </div>
+                                <div>
+                                    <label htmlFor="organizationAddress" className="block text-sm font-medium text-gray-700">ที่อยู่องค์กร</label>
+                                    <textarea name="organizationAddress" id="organizationAddress" rows={3} value={settings.organizationAddress || ''} onChange={handleChange} className="mt-1 w-full md:w-1/2"></textarea>
+                                </div>
+                                <div>
+                                    <label htmlFor="organizationPhone" className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์องค์กร</label>
+                                    <input type="tel" name="organizationPhone" id="organizationPhone" value={settings.organizationPhone || ''} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
+                                </div>
+                                <div>
                                     <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700">อีเมลสำหรับติดต่อ (สาธารณะ)</label>
                                     <input type="email" name="contactEmail" id="contactEmail" value={settings.contactEmail} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
+                                </div>
+                                <div className="border-t pt-6">
+                                    <label htmlFor="developerName" className="block text-sm font-medium text-gray-700">ชื่อผู้พัฒนา</label>
+                                    <input type="text" name="developerName" id="developerName" value={settings.developerName || ''} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
+                                </div>
+                                <div>
+                                    <label htmlFor="developerTitle" className="block text-sm font-medium text-gray-700">ตำแหน่ง/สังกัดผู้พัฒนา</label>
+                                    <input type="text" name="developerTitle" id="developerTitle" value={settings.developerTitle || ''} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
                                 </div>
                             </div>
                         </div>
@@ -115,6 +212,32 @@ const AdminSystemSettingsPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+                )}
+                
+                 {activeTab === 'api' && (
+                     <div className="space-y-8 animate-scale-in">
+                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">Google Maps Settings</h2>
+                            <div className="space-y-6">
+                                <div>
+                                    <label htmlFor="googleMapsApiKey" className="block text-sm font-medium text-gray-700">Google Maps API Key</label>
+                                    <input type="text" name="googleMapsApiKey" id="googleMapsApiKey" value={settings.googleMapsApiKey} onChange={handleChange} className="mt-1 w-full" placeholder="ใส่ API Key ของคุณที่นี่" />
+                                    <p className="text-xs text-gray-500 mt-1">จำเป็นต้องรีโหลดหน้าเว็บใหม่หลังการเปลี่ยนแปลง</p>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                     <div>
+                                        <label htmlFor="mapCenterLat" className="block text-sm font-medium text-gray-700">พิกัดศูนย์กลาง (ละติจูด)</label>
+                                        <input type="number" step="any" name="mapCenterLat" id="mapCenterLat" value={settings.mapCenterLat} onChange={handleChange} className="mt-1 w-full" />
+                                    </div>
+                                     <div>
+                                        <label htmlFor="mapCenterLng" className="block text-sm font-medium text-gray-700">พิกัดศูนย์กลาง (ลองจิจูด)</label>
+                                        <input type="number" step="any" name="mapCenterLng" id="mapCenterLng" value={settings.mapCenterLng} onChange={handleChange} className="mt-1 w-full" />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500">ใช้สำหรับกำหนดค่าเริ่มต้นของแผนที่เมื่อเปิดใช้งานครั้งแรก (เช่น ศูนย์กลางของพื้นที่ให้บริการ)</p>
+                            </div>
+                        </div>
+                     </div>
                 )}
                 
                 {activeTab === 'ride_schedule' && (

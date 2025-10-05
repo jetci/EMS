@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AuditLog, ActionType } from '../types';
 import SearchIcon from '../components/icons/SearchIcon';
 import XCircleIcon from '../components/icons/XCircleIcon';
@@ -9,24 +9,34 @@ import EyeIcon from '../components/icons/EyeIcon';
 import LogDetailsModal from '../components/modals/LogDetailsModal';
 import { formatDateTimeToThai, formatDateToThai } from '../utils/dateUtils';
 import ThaiDatePicker from '../components/ui/ThaiDatePicker';
-
-const mockLogs: AuditLog[] = [
-  { id: 'LOG-001', timestamp: '2024-09-16T14:32:15Z', userEmail: 'office1@wecare.dev', userRole: 'office', action: ActionType.ASSIGN_DRIVER, targetId: 'RIDE-206', ipAddress: '192.168.1.10', dataPayload: { before: { driver: null }, after: { driver: 'Driver One' } } },
-  { id: 'LOG-002', timestamp: '2024-09-16T14:30:05Z', userEmail: 'community1@wecare.dev', userRole: 'community', action: ActionType.CREATE_PATIENT, targetId: 'PAT-007', ipAddress: '203.0.113.25' },
-  { id: 'LOG-003', timestamp: '2024-09-16T13:15:40Z', userEmail: 'driver1@wecare.dev', userRole: 'driver', action: ActionType.COMPLETE_RIDE, targetId: 'RIDE-201', ipAddress: '198.51.100.12' },
-  { id: 'LOG-004', timestamp: '2024-09-16T11:05:10Z', userEmail: 'admin@wecare.dev', userRole: 'admin', action: ActionType.UPDATE_USER, targetId: 'USR-005', ipAddress: '127.0.0.1', dataPayload: { before: { status: 'Inactive' }, after: { status: 'Active' } } },
-  { id: 'LOG-005', timestamp: '2024-09-16T09:00:01Z', userEmail: 'admin@wecare.dev', userRole: 'admin', action: ActionType.LOGIN, ipAddress: '127.0.0.1' },
-];
+import { apiRequest } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
 
 const AdminAuditLogsPage: React.FC = () => {
-    const [logs] = useState<AuditLog[]>(mockLogs);
+    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ user: '', role: 'All', actionType: 'All', startDate: '', endDate: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+    useEffect(() => {
+        loadAuditLogs();
+    }, []);
+
+    const loadAuditLogs = async () => {
+        try {
+            setLoading(true);
+            const data = await apiRequest('/audit-logs');
+            setLogs(Array.isArray(data) ? data : (data?.logs || []));
+        } catch (err) {
+            console.error('Failed to load audit logs:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
         const { name, value } = e.target;

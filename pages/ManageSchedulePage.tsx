@@ -1,13 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ToggleSwitch from '../components/ui/ToggleSwitch';
 import IndividualShiftCalendar from '../components/schedules/IndividualShiftCalendar';
 import TeamShiftCalendar from '../components/schedules/TeamShiftCalendar';
 import { appData } from '../data/mockData';
+import { driversAPI, teamsAPI, apiRequest } from '../src/services/api';
 
 type SchedulingModel = 'individual' | 'team';
 
 const ManageSchedulePage: React.FC = () => {
     const [schedulingModel, setSchedulingModel] = useState<SchedulingModel>(appData.systemSettings.schedulingModel);
+    const [drivers, setDrivers] = useState<any[]>([]);
+    const [teams, setTeams] = useState<any[]>([]);
+    const [vehicles, setVehicles] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
+        try {
+            setLoading(true);
+            const [driversData, teamsData, vehiclesData] = await Promise.all([
+                driversAPI.getDrivers(),
+                teamsAPI.getTeams(),
+                apiRequest('/vehicles'),
+            ]);
+            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
+            setTeams(Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []));
+            setVehicles(Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []));
+        } catch (err) {
+            console.error('Failed to load data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleModelChange = (isChecked: boolean) => {
         const newModel = isChecked ? 'team' : 'individual';
@@ -38,10 +65,14 @@ const ManageSchedulePage: React.FC = () => {
             </div>
 
             {/* Conditional Rendering based on the model */}
-            {schedulingModel === 'individual' ? (
-                <IndividualShiftCalendar />
+            {loading ? (
+                <div className="flex items-center justify-center h-64">
+                    <div className="text-gray-500">กำลังโหลดข้อมูล...</div>
+                </div>
+            ) : schedulingModel === 'individual' ? (
+                <IndividualShiftCalendar drivers={drivers} />
             ) : (
-                <TeamShiftCalendar />
+                <TeamShiftCalendar teams={teams} vehicles={vehicles} />
             )}
         </div>
     );

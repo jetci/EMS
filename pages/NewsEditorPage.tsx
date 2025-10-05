@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { NewsArticle, OfficeView, AdminView } from '../types';
-import { mockNews } from '../data/mockData';
+import { NewsArticle, OfficerView, AdminView } from '../types';
+import { apiRequest } from '../src/services/api';
 import ArrowLeftIcon from '../components/icons/ArrowLeftIcon';
 import SimpleRichTextEditor from '../components/news/SimpleRichTextEditor';
 import PublishingPanel from '../components/news/PublishingPanel';
 
 interface NewsEditorPageProps {
-    setActiveView: (view: OfficeView | AdminView) => void;
+    setActiveView: (view: OfficerView | AdminView) => void;
     articleId?: string;
 }
 
@@ -26,21 +26,43 @@ const NewsEditorPage: React.FC<NewsEditorPageProps> = ({ setActiveView, articleI
 
     useEffect(() => {
         if (articleId) {
-            const existingArticle = mockNews.find(a => a.id === articleId);
-            if (existingArticle) {
-                setArticle(existingArticle);
-                setIsNew(false);
-            }
+            loadArticle(articleId);
         } else {
             setArticle(emptyArticle);
             setIsNew(true);
         }
     }, [articleId]);
 
-    const handleSave = (status: 'draft' | 'published') => {
-        console.log("Saving article with status:", status, article);
-        alert(`Article "${article.title}" has been saved as ${status}!`);
-        setActiveView('news');
+    const loadArticle = async (id: string) => {
+        try {
+            const data = await apiRequest(`/news/${id}`);
+            setArticle(data);
+            setIsNew(false);
+        } catch (err) {
+            console.error('Failed to load article:', err);
+        }
+    };
+
+    const handleSave = async (status: 'draft' | 'published') => {
+        try {
+            const articleData = { ...article, status };
+            if (isNew) {
+                await apiRequest('/news', {
+                    method: 'POST',
+                    body: JSON.stringify(articleData),
+                });
+            } else {
+                await apiRequest(`/news/${articleId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(articleData),
+                });
+            }
+            alert(`Article "${article.title}" has been saved as ${status}!`);
+            setActiveView('news');
+        } catch (err) {
+            console.error('Failed to save article:', err);
+            alert('Failed to save article');
+        }
     };
 
     return (

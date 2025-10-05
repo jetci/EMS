@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { NewsArticle } from '../types';
-import { mockNews } from '../data/mockData';
 import PublicNewsCard from '../components/news/PublicNewsCard';
 import ChevronLeftIcon from '../components/icons/ChevronLeftIcon';
 import ChevronRightIcon from '../components/icons/ChevronRightIcon';
@@ -14,12 +13,58 @@ const ITEMS_PER_PAGE = 5;
 
 const PublicNewsListingPage: React.FC<PublicNewsListingPageProps> = ({ onViewArticle }) => {
     const [currentPage, setCurrentPage] = useState(1);
-    
-    const publishedArticles = useMemo(() => {
-        return mockNews
-            .filter(article => article.status === 'published' && article.publishedDate)
-            .sort((a, b) => new Date(b.publishedDate!).getTime() - new Date(a.publishedDate!).getTime());
+    const [articles, setArticles] = useState<NewsArticle[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        const joinUrl = (base: string, p: string) => {
+            const b = base.replace(/\/$/, '');
+            const s = p.startsWith('/') ? p : `/${p}`;
+            return `${b}${s}`;
+        };
+
+        const load = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || window.location.origin;
+                // Try without trailing slash first, then with slash
+                let resp = await fetch(joinUrl(baseUrl, '/api/news'), { method: 'GET', mode: 'cors', headers: { 'Accept': 'application/json' } });
+                if (!resp.ok) {
+                    // Try alternate path with trailing slash
+                    const alt = await fetch(joinUrl(baseUrl, '/api/news/'), { method: 'GET', mode: 'cors', headers: { 'Accept': 'application/json' } });
+                    if (alt.ok) {
+                        resp = alt;
+                    } else {
+                        // Fallback to same-origin proxy (avoids CORS)
+                        const proxyUrl = joinUrl(window.location.origin, `${(import.meta as any).env?.VITE_BASE || '/'}api-proxy/news.php`);
+                        const prox = await fetch(proxyUrl.replace(/\/$/, ''), { method: 'GET', headers: { 'Accept': 'application/json' } });
+                        if (!prox.ok) {
+                            let detail = '';
+                            try { detail = await prox.text(); } catch {}
+                            throw new Error(`Failed to load news via proxy: ${prox.status} ${detail}`.trim());
+                        }
+                        resp = prox;
+                    }
+                }
+                const data = await resp.json();
+                // Expecting array of articles compatible with NewsArticle
+                setArticles(Array.isArray(data) ? data : (data.items || []));
+            } catch (e: any) {
+                setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข่าวสาร');
+            } finally {
+                setLoading(false);
+            }
+        };
+        load();
     }, []);
+
+    const publishedArticles = useMemo(() => {
+        return articles
+            .filter(article => article.status === 'published' && (article as any).publishedDate)
+            .sort((a: any, b: any) => new Date(b.publishedDate!).getTime() - new Date(a.publishedDate!).getTime());
+    }, [articles]);
 
     const totalPages = Math.ceil(publishedArticles.length / ITEMS_PER_PAGE);
     const paginatedArticles = publishedArticles.slice(
@@ -39,6 +84,12 @@ const PublicNewsListingPage: React.FC<PublicNewsListingPageProps> = ({ onViewArt
         <div className="bg-white pt-20">
             <main className="py-12 sm:py-16">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {loading && (
+                        <div className="text-center py-8 text-gray-600">กำลังโหลดข่าวสาร...</div>
+                    )}
+                    {error && (
+                        <div className="text-center py-8 text-red-600">{error}</div>
+                    )}
                     <div className="text-center mb-12">
                         <h1 className="text-4xl sm:text-5xl font-extrabold text-[#005A9C]">
                             ข่าวสารและประชาสัมพันธ์

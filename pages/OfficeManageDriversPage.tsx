@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Driver, DriverStatus } from '../types';
 import UserPlusIcon from '../components/icons/UserPlusIcon';
 import SearchIcon from '../components/icons/SearchIcon';
@@ -11,18 +11,42 @@ import EditDriverModal from '../components/modals/EditDriverModal';
 import DriverStatusBadge from '../components/ui/DriverStatusBadge';
 import PowerIcon from '../components/icons/PowerIcon';
 import { defaultProfileImage } from '../assets/defaultProfile';
-import { mockDrivers } from '../data/mockData';
-
+import { driversAPI, apiRequest } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
 
 const OfficeManageDriversPage: React.FC = () => {
-    const [drivers, setDrivers] = useState<Driver[]>(mockDrivers);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [staff, setStaff] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<DriverStatus | 'All'>('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const [driversData, usersData] = await Promise.all([
+                driversAPI.getDrivers(),
+                apiRequest('/users'),
+            ]);
+            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
+            setStaff(Array.isArray(usersData) ? usersData : (usersData?.users || []));
+        } catch (err: any) {
+            console.error('Failed to load data:', err);
+            setError(err.message || 'ไม่สามารถโหลดข้อมูลได้');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const filteredDrivers = useMemo(() => {
         return drivers.filter(d => {
@@ -40,14 +64,19 @@ const OfficeManageDriversPage: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleSaveDriver = (updatedDriver: Driver) => {
-        console.log("Saving driver:", updatedDriver);
-        if (selectedDriver) { // Editing
-            setDrivers(prev => prev.map(d => d.id === updatedDriver.id ? updatedDriver : d));
-        } else { // Adding
-            setDrivers(prev => [updatedDriver, ...prev]);
+    const handleSaveDriver = async (updatedDriver: Driver) => {
+        try {
+            if (selectedDriver) {
+                await driversAPI.updateDriver(updatedDriver.id, updatedDriver);
+            } else {
+                await driversAPI.createDriver(updatedDriver);
+            }
+            await loadAllData();
+            setIsModalOpen(false);
+        } catch (err: any) {
+            console.error('Failed to save driver:', err);
+            alert('ไม่สามารถบันทึกข้อมูลคนขับได้');
         }
-        setIsModalOpen(false);
     };
     
     const handleToggleActive = (driverId: string) => {
@@ -142,7 +171,7 @@ const OfficeManageDriversPage: React.FC = () => {
                 </div>
             </div>
 
-            <EditDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} driver={selectedDriver} onSave={handleSaveDriver} />
+            <EditDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} driver={selectedDriver} onSave={handleSaveDriver} availableStaff={staff} availableDrivers={drivers} />
         </div>
     );
 };

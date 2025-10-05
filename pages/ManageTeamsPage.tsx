@@ -1,15 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { Team, User, Driver } from '../../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Team, User, Driver } from '../types';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import TeamCard from '../components/teams/TeamCard';
 import EditTeamModal from '../components/modals/EditTeamModal';
 import ConfirmationModal from '../components/modals/ConfirmationModal';
 import Toast from '../components/Toast';
-import { mockDrivers, mockStaff, mockTeams } from '../data/mockData';
+import { driversAPI, apiRequest } from '../src/services/api';
+import { teamsAPI } from '../src/services/api';
 import SearchIcon from '../components/icons/SearchIcon';
 
 const ManageTeamsPage: React.FC = () => {
-    const [teams, setTeams] = useState<Team[]>(mockTeams);
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [staff, setStaff] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -17,15 +22,39 @@ const ManageTeamsPage: React.FC = () => {
     const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const [teamsData, driversData, usersData] = await Promise.all([
+                teamsAPI.getTeams(),
+                driversAPI.getDrivers(),
+                apiRequest('/users'),
+            ]);
+            setTeams(Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []));
+            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
+            setStaff(Array.isArray(usersData) ? usersData : (usersData?.users || []));
+        } catch (err: any) {
+            console.error('Failed to load data:', err);
+            setError(err.message || 'ไม่สามารถโหลดข้อมูลได้');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const userInfoMap = useMemo(() => {
         const map = new Map<string, { name: string; profileImageUrl?: string }>();
-        const allUsers: (Driver | User)[] = [...mockDrivers, ...mockStaff];
+        const allUsers: (Driver | User)[] = [...drivers, ...staff];
         allUsers.forEach(user => {
             const name = 'fullName' in user ? user.fullName : user.name;
             map.set(user.id!, { name, profileImageUrl: user.profileImageUrl });
         });
         return map;
-    }, []);
+    }, [drivers, staff]);
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -42,16 +71,20 @@ const ManageTeamsPage: React.FC = () => {
         setIsModalOpen(true);
     };
     
-    const handleSaveTeam = (teamData: Team) => {
-        if (selectedTeam) {
-            // Editing
-            setTeams(prev => prev.map(t => t.id === teamData.id ? teamData : t));
-            showToast(`✅ แก้ไขข้อมูลทีม "${teamData.name}" สำเร็จ`);
-        } else {
-            // Creating
-            const newTeam = { ...teamData, id: `TEAM-${Date.now()}` };
-            setTeams(prev => [newTeam, ...prev]);
-            showToast(`🎉 สร้างทีม "${newTeam.name}" ใหม่สำเร็จ`);
+    const handleSaveTeam = async (teamData: Team) => {
+        try {
+            if (selectedTeam) {
+                await teamsAPI.updateTeam(teamData.id, teamData);
+                showToast(`✅ แก้ไขข้อมูลทีม "${teamData.name}" สำเร็จ`);
+            } else {
+                await teamsAPI.createTeam(teamData);
+                showToast(`✅ สร้างทีม "${teamData.name}" สำเร็จ`);
+            }
+            await loadAllData();
+            setIsModalOpen(false);
+        } catch (err: any) {
+            console.error('Failed to save team:', err);
+            showToast('❌ ไม่สามารถบันทึกข้อมูลทีมได้');
         }
         setIsModalOpen(false);
     };
@@ -142,8 +175,8 @@ const ManageTeamsPage: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveTeam}
                 team={selectedTeam}
-                availableDrivers={mockDrivers}
-                availableStaff={mockStaff}
+                availableDrivers={drivers}
+                availableStaff={staff}
             />
             
             <ConfirmationModal 

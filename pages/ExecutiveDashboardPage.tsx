@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RidesIcon from '../components/icons/RidesIcon';
 import UsersIcon from '../components/icons/UsersIcon';
 import RouteIcon from '../components/icons/RouteIcon';
@@ -8,30 +8,7 @@ import DonutChart from '../components/charts/DonutChart';
 import HorizontalBarChart from '../components/charts/HorizontalBarChart';
 import DownloadIcon from '../components/icons/DownloadIcon';
 import ExportReportModal from '../components/modals/ExportReportModal';
-
-// Mock Data for Charts
-const monthlyRideData = [
-    { label: 'ม.ค.', value: 110 }, { label: 'ก.พ.', value: 125 }, { label: 'มี.ค.', value: 140 },
-    { label: 'เม.ย.', value: 130 }, { label: 'พ.ค.', value: 155 }, { label: 'มิ.ย.', value: 160 },
-    { label: 'ก.ค.', value: 175 }, { label: 'ส.ค.', value: 180 }, { label: 'ก.ย.', value: 165 },
-];
-
-const patientDistributionData = [
-    { label: 'หมู่ 1', value: 15, color: '#3B82F6' },
-    { label: 'หมู่ 2', value: 12, color: '#10B981' },
-    { label: 'หมู่ 3', value: 8, color: '#F59E0B' },
-    { label: 'หมู่ 4', value: 10, color: '#EF4444' },
-    { label: 'หมู่ 5', value: 5, color: '#8B5CF6' },
-    { label: 'อื่นๆ', value: 50, color: '#6B7280' },
-];
-
-const topTripTypesData = [
-    { label: 'นัดฟอกไต', value: 85 },
-    { label: 'กายภาพบำบัด', value: 62 },
-    { label: 'รับยา', value: 55 },
-    { label: 'นัดหมอตามปกติ', value: 48 },
-    { label: 'ฉุกเฉิน', value: 23 },
-];
+import { apiRequest } from '../src/services/api';
 
 const StatCard: React.FC<{ icon: React.FC<React.SVGProps<SVGSVGElement>>; label: string; value: string; }> = ({ icon: Icon, label, value }) => (
     <div className="bg-white p-4 rounded-lg shadow-sm border flex items-center gap-4">
@@ -45,9 +22,36 @@ const StatCard: React.FC<{ icon: React.FC<React.SVGProps<SVGSVGElement>>; label:
     </div>
 );
 
-
 const ExecutiveDashboardPage: React.FC = () => {
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+    const [dashboardData, setDashboardData] = useState<any>({
+        monthlyRideData: [],
+        patientDistributionData: [],
+        topTripTypesData: [],
+        stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0 }
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadDashboardData();
+    }, []);
+
+    const loadDashboardData = async () => {
+        try {
+            setLoading(true);
+            const data = await apiRequest('/dashboard/executive');
+            setDashboardData(data || {
+                monthlyRideData: [],
+                patientDistributionData: [],
+                topTripTypesData: [],
+                stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0 }
+            });
+        } catch (err) {
+            console.error('Failed to load dashboard data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -73,13 +77,13 @@ const ExecutiveDashboardPage: React.FC = () => {
                     </button>
                 </div>
             </div>
-            
+
             {/* KPI Widget */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard icon={RidesIcon} label="จำนวนการเดินทางทั้งหมด" value="165" />
-                <StatCard icon={UsersIcon} label="จำนวนผู้ป่วยที่ให้บริการ" value="42" />
-                <StatCard icon={RouteIcon} label="ระยะทางรวม (กม.)" value="2,480" />
-                <StatCard icon={EfficiencyIcon} label="ประสิทธิภาพเฉลี่ย" value="5.5 เที่ยว/วัน" />
+                <StatCard icon={RidesIcon} label="จำนวนเที่ยววิ่งทั้งหมด" value={dashboardData.stats.totalRides.toLocaleString()} />
+                <StatCard icon={UsersIcon} label="จำนวนผู้ป่วยที่ใซ้บริการ" value={dashboardData.stats.totalPatients.toLocaleString()} />
+                <StatCard icon={RouteIcon} label="ระยะทางเฉลี่ยต่อเที่ยว" value={`${dashboardData.stats.avgDistance} กม.`} />
+                <StatCard icon={EfficiencyIcon} label="ประสิทธิภาพการดำเนินงาน" value={`${dashboardData.stats.efficiency}%`} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -87,7 +91,7 @@ const ExecutiveDashboardPage: React.FC = () => {
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">สถิติการเดินทางรายเดือน</h2>
                     <div className="h-64">
-                        <BarChart data={monthlyRideData} />
+                        <BarChart data={dashboardData.monthlyRideData} title="แนวโน้มการเดินทางรายเดือน" />
                     </div>
                 </div>
 
@@ -95,15 +99,15 @@ const ExecutiveDashboardPage: React.FC = () => {
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">การกระจายตัวของผู้ป่วยตามหมู่บ้าน</h2>
                     <div className="h-64 flex items-center justify-center">
-                        <DonutChart data={patientDistributionData} />
+                        <DonutChart data={dashboardData.patientDistributionData} title="สัดส่วนผู้ป่วยตามหมู่บ้าน" />
                     </div>
                 </div>
             </div>
-            
+
             {/* Top Trip Types Widget */}
             <div className="bg-white p-6 rounded-lg shadow-sm border">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">ประเภทการเดินทางยอดนิยม 5 อันดับแรก</h2>
-                <HorizontalBarChart data={topTripTypesData} />
+                <HorizontalBarChart data={dashboardData.topTripTypesData} title="ประเภทการเดินทางที่มีความต้องการสูงสุด" />
             </div>
 
             <ExportReportModal

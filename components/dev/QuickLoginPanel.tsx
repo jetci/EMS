@@ -5,8 +5,9 @@ interface QuickLoginPanelProps {
 }
 
 const testUsers = {
+  DEVELOPER: { email: 'jetci.jm@gmail.com', pass: 'g0KEk,^],k;yo' },
   ADMIN: { email: 'admin@wecare.dev', pass: 'password' },
-  OFFICE: { email: 'office1@wecare.dev', pass: 'password' },
+  RADIO_CENTER: { email: 'office1@wecare.dev', pass: 'password' },
   OFFICER: { email: 'officer1@wecare.dev', pass: 'password' },
   DRIVER: { email: 'driver1@wecare.dev', pass: 'password' },
   COMMUNITY: { email: 'community1@wecare.dev', pass: 'password' },

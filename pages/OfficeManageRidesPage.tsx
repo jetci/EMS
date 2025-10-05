@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Ride, RideStatus, Driver } from '../types';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import SearchIcon from '../components/icons/SearchIcon';
@@ -17,22 +17,15 @@ import ThaiDatePicker from '../components/ui/ThaiDatePicker';
 import { mockDrivers } from '../data/mockData';
 import UserSwitchIcon from '../components/icons/UserSwitchIcon';
 import WheelchairIcon from '../components/icons/WheelchairIcon';
-
-const mockRides: Ride[] = [
-    { id: 'RIDE-201', patientName: 'สมชาย ใจดี', village: 'หมู่ 1 บ้านหนองตุ้ม', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-16T09:30:00Z', status: RideStatus.COMPLETED, driverName: 'สมศักดิ์ ขยันยิ่ง', driverInfo: { id: 'DRV-001', fullName: 'สมศักดิ์ ขยันยิ่ง', phone: '081-234-5678', licensePlate: 'กท 1234', vehicleModel: 'Toyota Vios' }, requestedBy: 'น.ส.มานี มีนา', pickupLocation: '123 สุขุมวิท', rating: 5, reviewTags: ['ตรงต่อเวลา', 'สุภาพ'], tripType: 'นัดหมอตามปกติ' },
-    { id: 'RIDE-202', patientName: 'สมหญิง มีสุข', village: 'หมู่ 9 ริมฝาง', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-16T11:00:00Z', status: RideStatus.IN_PROGRESS, driverName: 'มานะ อดทน', driverInfo: { id: 'DRV-002', fullName: 'มานะ อดทน', phone: '082-345-6789', licensePlate: 'ชล 5678', vehicleModel: 'Honda City' }, requestedBy: 'นายปิติ ชูใจ', pickupLocation: '456 พหลโยธิน', tripType: 'กายภาพบำบัด' },
-    { id: 'RIDE-203', patientName: 'อาทิตย์ แจ่มใส', village: 'หมู่ 3 เต๋าดิน', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-17T14:00:00Z', status: RideStatus.ASSIGNED, driverName: 'สมศักดิ์ ขยันยิ่ง', driverInfo: { id: 'DRV-001', fullName: 'สมศักดิ์ ขยันยิ่ง', phone: '081-234-5678', licensePlate: 'กท 1234', vehicleModel: 'Toyota Vios' }, requestedBy: 'น.ส.มานี มีนา', pickupLocation: '789 พระราม 4', tripType: 'นัดหมอตามปกติ' },
-    { id: 'RIDE-204', patientName: 'จันทรา งามวงศ์วาน', village: 'หมู่ 4 สวนดอก', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-17T11:30:00Z', status: RideStatus.PENDING, requestedBy: 'นางสาวสมศรี ใจดี', pickupLocation: '101 รัชดา', tripType: 'รับยา', specialNeeds: ['ต้องการวีลแชร์'] },
-    { id: 'RIDE-205', patientName: 'มานี รักเรียน', village: 'หมู่ 5 ต้นหนุน', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-18T17:00:00Z', status: RideStatus.PENDING, requestedBy: 'นายปิติ ชูใจ', pickupLocation: '222 เพชรบุรี', tripType: 'ฉุกเฉิน' },
-    { id: 'RIDE-206', patientName: 'ปิติ ชูใจ', village: 'หมู่ 6 สันทรายคองน้อย', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-18T08:00:00Z', status: RideStatus.PENDING, requestedBy: 'น.ส.มานี มีนา', pickupLocation: '333 จรัญสนิทวงศ์', tripType: 'นัดหมอตามปกติ' },
-    { id: 'RIDE-207', patientName: 'สมชาย ใจดี', village: 'หมู่ 1 บ้านหนองตุ้ม', destination: 'โรงพยาบาลฝาง', appointmentTime: '2024-09-19T10:00:00Z', status: RideStatus.CANCELLED, requestedBy: 'นางสาวสมศรี ใจดี', pickupLocation: '123 สุขุมวิท', tripType: 'นัดหมอตามปกติ' },
-];
+import { ridesAPI } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
 const tripTypes = ['All', 'นัดหมอตามปกติ', 'รับยา', 'กายภาพบำบัด', 'ฉุกเฉิน'];
 
 const OfficeManageRidesPage: React.FC = () => {
-    const [rides, setRides] = useState<Ride[]>(mockRides);
+    const [rides, setRides] = useState<Ride[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
         status: 'All',
@@ -46,6 +39,24 @@ const OfficeManageRidesPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadRides();
+    }, []);
+
+    const loadRides = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const data = await ridesAPI.getRides();
+            setRides(data || []);
+        } catch (err: any) {
+            console.error('Failed to load rides:', err);
+            setError(err.message || 'ไม่สามารถโหลดข้อมูลการเดินทางได้');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const uniqueVillages = useMemo(() => {
         const villages = new Set(rides.map(r => r.village).filter((v): v is string => !!v));

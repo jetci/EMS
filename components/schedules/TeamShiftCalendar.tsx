@@ -1,25 +1,29 @@
 import React, { useState, useMemo } from 'react';
 import dayjs from 'dayjs';
-import { TeamShiftStatus, TeamScheduleEntry, Vehicle, VehicleStatus } from '../../types';
+import { TeamShiftStatus, Team, TeamScheduleEntry } from '../../types';
 import ChevronLeftIcon from '../icons/ChevronLeftIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import AssignTeamShiftModal from './AssignTeamShiftModal';
-import { mockTeams, mockVehicles } from '../../data/mockData';
+
+interface TeamShiftCalendarProps {
+    teams: Team[];
+    vehicles: any[];
+}
 
 const teamShiftStatusStyles: { [key in TeamShiftStatus]: string } = {
     [TeamShiftStatus.ON_DUTY]: 'bg-green-200 text-green-800',
     [TeamShiftStatus.REST_DAY]: 'bg-gray-200 text-gray-700',
 };
 
-const TeamShiftCalendar: React.FC = () => {
+const TeamShiftCalendar: React.FC<TeamShiftCalendarProps> = ({ teams, vehicles }) => {
     const [currentMonth, setCurrentMonth] = useState(dayjs());
     const [schedule, setSchedule] = useState<Record<string, TeamScheduleEntry>>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCell, setSelectedCell] = useState<{ team: { id: string; name: string; }, date: dayjs.Dayjs; } | null>(null);
 
     const vehicleMap = useMemo(() => {
-        return new Map(mockVehicles.map(v => [v.id, v]));
-    }, []);
+        return new Map(vehicles.map(v => [v.id, v]));
+    }, [vehicles]);
 
     const handleCellClick = (team: {id: string, name: string}, date: dayjs.Dayjs) => {
         setSelectedCell({ team, date });
@@ -65,7 +69,7 @@ const TeamShiftCalendar: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {mockTeams.map(team => (
+                        {teams.map(team => (
                             <tr key={team.id}>
                                 <td className="p-2 font-medium text-gray-800 border">{team.name}</td>
                                 {daysArray.map(day => {
@@ -99,7 +103,7 @@ const TeamShiftCalendar: React.FC = () => {
                     onSave={handleSaveShift}
                     team={selectedCell.team}
                     date={selectedCell.date}
-                    allVehicles={mockVehicles}
+                    allVehicles={vehicles}
                     currentSchedule={schedule}
                 />
             )}

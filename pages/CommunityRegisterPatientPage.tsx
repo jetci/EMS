@@ -10,6 +10,7 @@ import { defaultProfileImage } from '../assets/defaultProfile';
 import TagInput from '../components/ui/TagInput';
 import MultiSelectAutocomplete from '../components/ui/MultiSelectAutocomplete';
 import ThaiDatePicker from '../components/ui/ThaiDatePicker';
+import { patientsAPI } from '../src/services/api';
 
 const villages = [
     "หมู่ 1 บ้านหนองตุ้ม", "หมู่ 2 ป่าบง", "หมู่ 3 เต๋าดิน, เวียงสุทโธ",
@@ -32,6 +33,8 @@ interface CommunityRegisterPatientPageProps {
 }
 
 const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> = ({ setActiveView }) => {
+    const [currentStep, setCurrentStep] = useState(1);
+    const totalSteps = 4;
     const [formData, setFormData] = useState({
         title: '',
         firstName: '',
@@ -144,11 +147,30 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         setFormData(prev => ({ ...prev, latitude: coords.lat.toString(), longitude: coords.lng.toString() }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Saving new patient:", { formData, patientTypes, chronicDiseases, allergies });
-        alert('บันทึกข้อมูลผู้ป่วยใหม่สำเร็จ!');
-        setActiveView('patients');
+        // Map form data to backend minimal payload
+        const payload = {
+            full_name: `${formData.title ? formData.title + ' ' : ''}${formData.firstName} ${formData.lastName}`.trim(),
+            patient_types: patientTypes,
+            key_info: {
+                summary: formData.landmark || 'ข้อมูลสำคัญ',
+                chronic_diseases: chronicDiseases,
+                allergies,
+                contact_phone: formData.contactPhone,
+                address: formData.currentAddress,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+            },
+        } as any;
+
+        try {
+            await patientsAPI.createPatient(payload);
+            alert('บันทึกข้อมูลผู้ป่วยใหม่สำเร็จ!');
+            setActiveView('patients');
+        } catch (err: any) {
+            alert(`บันทึกไม่สำเร็จ: ${err?.message || 'เกิดข้อผิดพลาด'}`);
+        }
     };
     
     const today = new Date().toISOString().split('T')[0];
@@ -156,11 +178,32 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
 
     const readonlyClasses = "mt-1 w-full bg-gray-100 rounded-lg py-2.5 px-3.5 text-gray-800 text-sm";
 
+    const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+    const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-gray-800">ลงทะเบียนผู้ป่วยใหม่</h1>
+            
+            {/* Progress Steps */}
+            <div className="flex items-center justify-between mb-8">
+                {[1, 2, 3, 4].map((step) => (
+                    <div key={step} className="flex items-center flex-1">
+                        <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                            currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+                        } font-bold`}>
+                            {step}
+                        </div>
+                        {step < 4 && <div className={`flex-1 h-1 mx-2 ${
+                            currentStep > step ? 'bg-blue-600' : 'bg-gray-300'
+                        }`} />}
+                    </div>
+                ))}
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Section 1: Personal Identification */}
+                {currentStep === 1 && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">1. ข้อมูลระบุตัวตน</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -205,9 +248,16 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                             </div>
                         </div>
                     </div>
+                    <div className="flex justify-end mt-6">
+                        <button type="button" onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            ถัดไป
+                        </button>
+                    </div>
                 </div>
+                )}
 
-                {/* Section 2: Medical Info */}
+                {/* Section 2: Health Information */}
+                {currentStep === 2 && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">2. ข้อมูลทางการแพทย์เบื้องต้น</h2>
                     <div className="space-y-6">
@@ -216,15 +266,43 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                             <TagInput tags={chronicDiseases} setTags={setChronicDiseases} placeholder="เพิ่มโรคประจำตัว...ทีละรายการ" />
                             <TagInput tags={allergies} setTags={setAllergies} placeholder="เพิ่มประวัติการแพ้ยา/อาหาร..." />
                         </div>
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <select name="bloodType" value={formData.bloodType} onChange={handleBasicChange}><option value="">-- กรุ๊ปเลือด --</option>{bloodTypes.map(b => <option key={b} value={b}>{b}</option>)}</select>
-                            <select name="rhFactor" value={formData.rhFactor} onChange={handleBasicChange}><option value="">-- Rh --</option>{rhFactors.map(rh => <option key={rh} value={rh}>{rh}</option>)}</select>
-                            <select name="healthCoverage" value={formData.healthCoverage} onChange={handleBasicChange}><option value="">-- สิทธิการรักษา --</option>{healthCoverages.map(hc => <option key={hc} value={hc}>{hc}</option>)}</select>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label htmlFor="bloodType" className="block text-sm font-medium text-gray-700">กรุ๊ปเลือด</label>
+                                <select id="bloodType" name="bloodType" value={formData.bloodType} onChange={handleBasicChange} aria-label="กรุ๊ปเลือด">
+                                    <option value="">-- กรุ๊ปเลือด --</option>
+                                    {bloodTypes.map(b => <option key={b} value={b}>{b}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="rhFactor" className="block text-sm font-medium text-gray-700">ปัจจัย Rh</label>
+                                <select id="rhFactor" name="rhFactor" value={formData.rhFactor} onChange={handleBasicChange} aria-label="ปัจจัย Rh">
+                                    <option value="">-- Rh --</option>
+                                    {rhFactors.map(rh => <option key={rh} value={rh}>{rh}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="healthCoverage" className="block text-sm font-medium text-gray-700">สิทธิการรักษา</label>
+                                <select id="healthCoverage" name="healthCoverage" value={formData.healthCoverage} onChange={handleBasicChange} aria-label="สิทธิการรักษา">
+                                    <option value="">-- สิทธิการรักษา --</option>
+                                    {healthCoverages.map(hc => <option key={hc} value={hc}>{hc}</option>)}
+                                </select>
+                            </div>
                         </div>
                     </div>
+                    <div className="flex justify-between mt-6">
+                        <button type="button" onClick={prevStep} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                            ย้อนกลับ
+                        </button>
+                        <button type="button" onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            ถัดไป
+                        </button>
+                    </div>
                 </div>
+                )}
 
-                {/* Section 3: Address & Contact */}
+                {/* Section 3: Address & Location */}
+                {currentStep === 3 && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">3. ที่อยู่และข้อมูลติดต่อ</h2>
                     
@@ -299,10 +377,20 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                            </div>
                         </div>
                     </div>
+                    <div className="flex justify-between mt-6">
+                        <button type="button" onClick={prevStep} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                            ย้อนกลับ
+                        </button>
+                        <button type="button" onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            ถัดไป
+                        </button>
+                    </div>
                 </div>
+                )}
 
-                {/* Section 4: Attachments */}
-                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                {/* Section 4: Additional Documents */}
+                {currentStep === 4 && (
+                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">4. เอกสารแนบ</h2>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                         <UploadIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -314,7 +402,7 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                             <ul className="mt-2 divide-y border rounded-md">{attachments.map((file, index) => (
                                 <li key={index} className="flex items-center justify-between p-3">
                                     <div className="flex items-center min-w-0"><PaperclipIcon className="w-5 h-5 text-gray-400"/><p className="ml-2 text-sm truncate">{file.name}</p></div>
-                                    <button type="button" onClick={() => handleRemoveAttachment(index)} className="text-red-600 hover:text-red-800"><TrashIcon className="w-5 h-5" /></button>
+                                    <button type="button" onClick={() => handleRemoveAttachment(index)} className="text-red-600 hover:text-red-800" aria-label={`ลบไฟล์ ${file.name}`} title="ลบไฟล์"><TrashIcon className="w-5 h-5" /></button>
                                 </li>))}
                             </ul>
                         </div>
@@ -323,7 +411,16 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                             <p>ยังไม่มีเอกสารแนบ</p>
                         </div>
                     )}
+                    <div className="flex justify-between mt-6">
+                        <button type="button" onClick={prevStep} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                            ย้อนกลับ
+                        </button>
+                        <button type="submit" className="px-8 py-3 bg-[var(--wecare-blue)] text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                            บันทึกข้อมูล
+                        </button>
+                    </div>
                 </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-4 pt-4 border-t mt-4">

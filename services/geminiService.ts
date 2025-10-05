@@ -1,7 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Ride, Driver } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// Resolve API key from env at runtime/build
+const GEMINI_KEY = (import.meta as any)?.env?.VITE_GEMINI_API_KEY || (process.env as any)?.GEMINI_API_KEY || process.env.API_KEY;
+const ai = GEMINI_KEY ? new GoogleGenAI({ apiKey: GEMINI_KEY as string }) : null;
 
 /**
  * Calls the Gemini API to get an optimized order of rides.
@@ -9,9 +11,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
  * @returns A promise that resolves to an array of ride IDs in the optimal order.
  */
 export const optimizeRides = async (rides: Ride[]): Promise<string[]> => {
-  if (!process.env.API_KEY) {
-    console.error("API_KEY is not set. Returning mock data.");
-    // Return a shuffled version for testing without an API key
+  if (!GEMINI_KEY || !ai) {
+    console.warn("Gemini API key not set. Falling back to mock optimization.");
     return [...rides].map(r => r.id).sort(() => Math.random() - 0.5);
   }
 
@@ -34,7 +35,7 @@ export const optimizeRides = async (rides: Ride[]): Promise<string[]> => {
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await (ai as GoogleGenAI).models.generateContent({
         model: "gemini-2.5-flash",
         contents: prompt,
         config: {
@@ -76,8 +77,8 @@ export const optimizeRides = async (rides: Ride[]): Promise<string[]> => {
  * @returns A promise that resolves to the ID of the suggested driver.
  */
 export const suggestDriver = async (ride: Ride, drivers: Pick<Driver, 'id' | 'fullName' | 'tripsThisMonth'>[]): Promise<string> => {
-  if (!process.env.API_KEY) {
-    console.error("API_KEY is not set. Returning a random driver.");
+  if (!GEMINI_KEY || !ai) {
+    console.warn("Gemini API key not set. Returning a random driver.");
     if (drivers.length === 0) throw new Error("No drivers available to suggest.");
     return drivers[Math.floor(Math.random() * drivers.length)].id;
   }

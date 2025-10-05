@@ -17,6 +17,7 @@ export enum DriverStatus {
 
 export interface Ride {
   id: string;
+  patientId: string;
   patientName: string;
   patientPhone?: string;
   pickupLocation: string;
@@ -43,13 +44,24 @@ export interface Ride {
   reviewTags?: string[];
   reviewComment?: string;
   tripType?: string;
+  signatureDataUrl?: string;
+}
+
+export enum UserRole {
+  DRIVER = 'driver',
+  COMMUNITY = 'community',
+  RADIO_CENTER = 'radio_center',
+  ADMIN = 'admin',
+  OFFICER = 'OFFICER',
+  EXECUTIVE = 'EXECUTIVE',
+  DEVELOPER = 'DEVELOPER',
 }
 
 export interface User {
   id?: string;
   name: string;
   email: string;
-  role: 'driver' | 'community' | 'office' | 'admin' | 'OFFICER' | 'EXECUTIVE' | 'DEVELOPER';
+  role: UserRole;
   phone?: string;
   profileImageUrl?: string;
 }
@@ -60,7 +72,7 @@ export interface ManagedUser {
     id: string;
     fullName: string;
     email: string;
-    role: User['role'];
+    role: UserRole;
     dateCreated: string;
     status: UserStatus;
     profileImageUrl?: string;
@@ -115,7 +127,7 @@ export interface Patient {
     // Metadata
     registeredDate: string; // ISO String
     registeredBy: string; // Community User Name or ID
-    keyInfo: string; // Summary of key conditions
+    keyInfo: string[]; // Summary of key conditions
     caregiverName?: string;
     caregiverPhone?: string;
 }
@@ -138,6 +150,8 @@ export interface Driver {
     totalTrips: number;
     avgReviewScore: number;
     dateCreated?: string;
+    totalDistance?: number;
+    topCompliments?: string[];
 }
 
 export enum ActionType {
@@ -161,7 +175,7 @@ export interface AuditLog {
   id: string;
   timestamp: string;
   userEmail: string;
-  userRole: User['role'];
+  userRole: UserRole;
   action: ActionType;
   targetId?: string;
   ipAddress: string;
@@ -175,21 +189,27 @@ export interface AuditLog {
 export interface SystemLog {
     time: string;
     user: string;
-    role: User['role'];
+    role: UserRole;
     action: string;
 }
 
 export interface SystemSettings {
     appName: string;
     organizationName: string;
-    // FIX: Changed property `contactInfo` to `contactEmail` to align with its usage in the settings page.
+    organizationAddress?: string;
+    organizationPhone?: string;
     contactEmail: string;
     logoUrl?: string;
+    googleMapsApiKey: string;
+    mapCenterLat: number;
+    mapCenterLng: number;
     googleRecaptchaSiteKey: string;
     googleRecaptchaSecretKey: string;
     maintenanceMode: boolean;
     maintenanceMessage: string;
     schedulingModel: 'individual' | 'team';
+    developerName?: string;
+    developerTitle?: string;
 }
 
 export interface Notification {
@@ -259,9 +279,10 @@ export interface NewsArticle {
 }
 
 
-export type CommunityView = 'dashboard' | 'patients' | 'rides' | 'profile' | 'register_patient' | 'request_ride' | 'patient_detail' | 'ride_details';
+export type CommunityView = 'dashboard' | 'patients' | 'rides' | 'profile' | 'register_patient' | 'request_ride' | 'patient_detail' | 'ride_details' | 'edit_ride';
 export type DriverView = 'today_jobs' | 'history' | 'profile';
-export type OfficeView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'manage_teams' | 'manage_schedules' | 'news' | 'edit_news' | 'reports';
-export type AdminView = 'dashboard' | 'users' | 'rides' | 'patients' | 'drivers' | 'news' | 'logs' | 'settings' | 'profile' | 'test_map' | 'manage_teams' | 'manage_schedules' | 'manage_vehicles' | 'manage_vehicle_types' | 'edit_news' | 'reports';
-export type ExecutiveView = 'executive_dashboard';
-export type AuthenticatedView = CommunityView | DriverView | OfficeView | AdminView | ExecutiveView;
+export type RadioCenterView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'register_patient' | 'request_ride';
+export type OfficerView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'manage_teams' | 'manage_schedules' | 'news' | 'edit_news' | 'reports' | 'manage_vehicles' | 'register_patient' | 'request_ride';
+export type AdminView = 'dashboard' | 'users' | 'rides' | 'patients' | 'drivers' | 'news' | 'logs' | 'settings' | 'profile' | 'test_map' | 'manage_teams' | 'manage_schedules' | 'manage_vehicles' | 'manage_vehicle_types' | 'edit_news' | 'reports' | 'register_patient' | 'request_ride';
+export type ExecutiveView = 'executive_dashboard' | 'operational_report' | 'financial_report' | 'patient_demographics_report';
+export type AuthenticatedView = CommunityView | DriverView | OfficerView | RadioCenterView | AdminView | ExecutiveView;

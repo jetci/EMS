@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import dayjs from 'dayjs';
-import { ShiftStatus } from '../../types';
+import { ShiftStatus, Driver } from '../../types';
 import ChevronLeftIcon from '../icons/ChevronLeftIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import ShiftStatusSelector from './ShiftStatusSelector';
-import { mockDrivers } from '../../data/mockData';
+
+interface IndividualShiftCalendarProps {
+    drivers: Driver[];
+}
 
 const shiftStatusStyles: { [key in ShiftStatus]: string } = {
     [ShiftStatus.MORNING]: 'bg-yellow-200 text-yellow-800',
@@ -14,7 +17,7 @@ const shiftStatusStyles: { [key in ShiftStatus]: string } = {
     [ShiftStatus.ON_LEAVE]: 'bg-red-200 text-red-800',
 };
 
-const IndividualShiftCalendar: React.FC = () => {
+const IndividualShiftCalendar: React.FC<IndividualShiftCalendarProps> = ({ drivers }) => {
     const [currentWeek, setCurrentWeek] = useState(dayjs().startOf('week'));
     const [schedule, setSchedule] = useState<Record<string, ShiftStatus>>({});
     const [popoverState, setPopoverState] = useState<{ key: string; visible: boolean; x: number; y: number } | null>(null);
@@ -74,7 +77,7 @@ const IndividualShiftCalendar: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {mockDrivers.map(driver => (
+                        {drivers.map(driver => (
                             <tr key={driver.id}>
                                 <td className="p-3 font-medium text-gray-800 border">{driver.fullName}</td>
                                 {weekDays.map(day => {

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { NewsArticle, OfficeView, AdminView } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { NewsArticle, OfficerView, AdminView } from '../types';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import SearchIcon from '../components/icons/SearchIcon';
 import EditIcon from '../components/icons/EditIcon';
@@ -9,19 +9,36 @@ import NewsStatusBadge from '../components/ui/NewsStatusBadge';
 import ConfirmationModal from '../components/modals/ConfirmationModal';
 import Toast from '../components/Toast';
 import { formatDateToThai } from '../utils/dateUtils';
-import { mockNews } from '../data/mockData';
+import { apiRequest } from '../src/services/api';
 
 interface ManageNewsPageProps {
     setActiveView: (view: OfficeView | AdminView, context?: any) => void;
 }
 
 const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
-    const [articles, setArticles] = useState<NewsArticle[]>(mockNews);
+    const [articles, setArticles] = useState<NewsArticle[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all');
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [articleToDelete, setArticleToDelete] = useState<NewsArticle | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadNews();
+    }, []);
+
+    const loadNews = async () => {
+        try {
+            setLoading(true);
+            const data = await apiRequest('/news');
+            setArticles(Array.isArray(data) ? data : (data?.news || []));
+        } catch (err) {
+            console.error('Failed to load news:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -41,10 +58,16 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
         setIsConfirmOpen(true);
     };
 
-    const handleDeleteArticle = () => {
+    const handleDeleteArticle = async () => {
         if (articleToDelete) {
-            setArticles(prev => prev.filter(a => a.id !== articleToDelete.id));
-            showToast(`🗑️ ลบข่าว "${articleToDelete.title}" เรียบร้อยแล้ว`);
+            try {
+                await apiRequest(`/news/${articleToDelete.id}`, { method: 'DELETE' });
+                showToast(`🗑️ ลบข่าว "${articleToDelete.title}" เรียบร้อยแล้ว`);
+                await loadNews();
+            } catch (err) {
+                console.error('Failed to delete news:', err);
+                showToast('❌ ไม่สามารถลบข่าวได้');
+            }
         }
         setIsConfirmOpen(false);
         setArticleToDelete(null);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ManagedUser, User, UserStatus } from '../types';
 import UserPlusIcon from '../components/icons/UserPlusIcon';
 import SearchIcon from '../components/icons/SearchIcon';
@@ -13,15 +13,7 @@ import UserStatusBadge from '../components/ui/UserStatusBadge';
 import EditUserModal from '../components/modals/EditUserModal';
 import { formatDateToThai } from '../utils/dateUtils';
 import { defaultProfileImage } from '../assets/defaultProfile';
-
-const mockUsers: ManagedUser[] = [
-    { id: 'USR-001', fullName: 'Admin User', email: 'admin@wecare.dev', role: 'admin', dateCreated: '2023-01-01T10:00:00Z', status: 'Active', profileImageUrl: 'https://i.pravatar.cc/150?u=USR-001' },
-    { id: 'USR-002', fullName: 'Office Operator', email: 'office1@wecare.dev', role: 'office', dateCreated: '2023-02-10T11:00:00Z', status: 'Active', profileImageUrl: 'https://i.pravatar.cc/150?u=USR-002' },
-    { id: 'USR-003', fullName: 'Driver One', email: 'driver1@wecare.dev', role: 'driver', dateCreated: '2023-03-15T14:00:00Z', status: 'Active', profileImageUrl: 'https://i.pravatar.cc/150?u=USR-003' },
-    { id: 'USR-004', fullName: 'Community User', email: 'community1@wecare.dev', role: 'community', dateCreated: '2023-04-20T16:00:00Z', status: 'Active', profileImageUrl: 'https://i.pravatar.cc/150?u=USR-004' },
-    { id: 'USR-005', fullName: 'Inactive Driver', email: 'driver2@wecare.dev', role: 'driver', dateCreated: '2023-05-01T09:00:00Z', status: 'Inactive', profileImageUrl: 'https://i.pravatar.cc/150?u=USR-005' },
-    { id: 'USR-DEV-001', fullName: 'Developer User', email: 'jetci.j@gmail.com', role: 'DEVELOPER', dateCreated: '2022-12-25T12:00:00Z', status: 'Active', profileImageUrl: 'https://i.pravatar.cc/150?u=jetci.j@gmail.com' },
-];
+import { apiRequest } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -30,12 +22,42 @@ interface AdminUserManagementPageProps {
 }
 
 const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ currentUser }) => {
-    const [users, setUsers] = useState<ManagedUser[]>(mockUsers);
+    const [users, setUsers] = useState<ManagedUser[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({ role: 'All', status: 'All' });
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+
+    useEffect(() => {
+        loadUsers();
+    }, []);
+
+    const loadUsers = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await apiRequest('/users');
+            const usersData = Array.isArray(response) ? response : (response.users || []);
+            const mapped: ManagedUser[] = usersData.map((u: any) => ({
+                id: u.id?.toString() || '',
+                fullName: u.full_name || u.name || u.username || '',
+                email: u.email || '',
+                role: u.role || 'community',
+                dateCreated: u.created_at || new Date().toISOString(),
+                status: (u.is_active === false ? 'Inactive' : 'Active') as UserStatus,
+                profileImageUrl: u.profile_image_url || undefined,
+            }));
+            setUsers(mapped);
+        } catch (err: any) {
+            console.error('Failed to load users:', err);
+            setError(err.message || 'ไม่สามารถโหลดข้อมูลผู้ใช้ได้');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const visibleUsers = useMemo(() => {
         // AC-6: If the logged-in user is an ADMIN, they MUST NOT see the DEVELOPER account.
@@ -64,10 +86,51 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
         setIsModalOpen(true);
     };
 
-    const handleSaveUser = (userToSave: ManagedUser) => {
-        console.log("Saving user:", userToSave);
-        setIsModalOpen(false);
+    const handleSaveUser = async (userToSave: ManagedUser) => {
+        try {
+            if (selectedUser) {
+                await apiRequest(`/users/${userToSave.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        username: userToSave.fullName,
+                        email: userToSave.email,
+                    }),
+                });
+            } else {
+                await apiRequest('/users', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        username: userToSave.fullName,
+                        email: userToSave.email,
+                    }),
+                });
+            }
+            await loadUsers();
+            setIsModalOpen(false);
+        } catch (err: any) {
+            console.error('Failed to save user:', err);
+            alert('ไม่สามารถบันทึกข้อมูลผู้ใช้ได้');
+        }
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-gray-500">กำลังโหลดข้อมูล...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                <div className="text-red-500">{error}</div>
+                <button onClick={loadUsers} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    ลองใหม่
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

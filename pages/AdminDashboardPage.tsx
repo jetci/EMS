@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '../components/dashboard/StatCard';
 import UsersIcon from '../components/icons/UsersIcon';
 import RidesIcon from '../components/icons/RidesIcon';
@@ -9,29 +9,55 @@ import UserPlusIcon from '../components/icons/UserPlusIcon';
 import FileTextIcon from '../components/icons/FileTextIcon';
 import SettingsIcon from '../components/icons/SettingsIcon';
 import MapIcon from '../components/icons/MapIcon';
-
-const mockLogs: SystemLog[] = [
-    { time: '14:32', user: 'office1@wecare.dev', role: 'office', action: 'จ่ายงาน RIDE-206 ให้กับ Driver One' },
-    { time: '14:30', user: 'community1@wecare.dev', role: 'community', action: 'ลงทะเบียนผู้ป่วยใหม่: ปิติ ชูใจ' },
-    { time: '13:15', user: 'driver1@wecare.dev', role: 'driver', action: 'จบการเดินทาง RIDE-201' },
-    { time: '11:05', user: 'office1@wecare.dev', role: 'office', action: 'อนุมัติคำขอเดินทาง RIDE-203' },
-    { time: '09:00', user: 'admin@wecare.dev', role: 'admin', action: 'เข้าสู่ระบบ' },
-];
+import { dashboardService } from '../src/services/dashboardService';
 
 interface AdminDashboardPageProps {
     setActiveView: (view: AdminView) => void;
 }
 
 const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ setActiveView }) => {
+    const [stats, setStats] = useState({ totalUsers: 0, totalRides: 0, newUsers: 0 });
+    const [logs, setLogs] = useState<SystemLog[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        loadDashboardData();
+    }, []);
+
+    const loadDashboardData = async () => {
+        try {
+            setLoading(true);
+            const data = await dashboardService.getAdminDashboard();
+            setStats({
+                totalUsers: data.totalUsers || 0,
+                totalRides: data.totalRides || 0,
+                newUsers: data.newUsers || 0,
+            });
+            setLogs(data.recentLogs || []);
+        } catch (err) {
+            console.error('Failed to load dashboard:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-gray-500">กำลังโหลดข้อมูล...</div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <h1 className="text-3xl font-bold text-gray-800">ภาพรวมระบบสำหรับผู้ดูแล</h1>
             
             {/* Key System Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="จำนวนผู้ใช้ทั้งหมด" value="56" icon={UsersIcon} />
-                <StatCard title="การเดินทางทั้งหมด (เดือนนี้)" value="128" icon={RidesIcon} />
-                <StatCard title="ผู้ใช้ใหม่ (7 วันล่าสุด)" value="8" icon={UserPlusIcon} />
+                <StatCard title="จำนวนผู้ใช้ทั้งหมด" value={stats.totalUsers.toString()} icon={UsersIcon} />
+                <StatCard title="การเดินทางทั้งหมด (เดือนนี้)" value={stats.totalRides.toString()} icon={RidesIcon} />
+                <StatCard title="ผู้ใช้ใหม่ (7 วันล่าสุด)" value={stats.newUsers.toString()} icon={UserPlusIcon} />
                 <StatCard title="สถานะระบบ" value="ปกติ" icon={CheckCircleIcon} variant="success" />
             </div>
 
@@ -73,7 +99,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ setActiveView }
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                {mockLogs.map((log, index) => (
+                                {logs.map((log, index) => (
                                     <tr key={index} className="hover:bg-gray-50/50">
                                         <td className="px-6 py-4 font-mono text-xs">{log.time}</td>
                                         <td className="px-6 py-4 font-medium text-gray-900">{log.user}</td>

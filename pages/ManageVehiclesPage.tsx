@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Vehicle, VehicleStatus } from '../types';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import SearchIcon from '../components/icons/SearchIcon';
@@ -10,8 +10,9 @@ import ChevronRightIcon from '../components/icons/ChevronRightIcon';
 import EditVehicleModal from '../components/modals/EditVehicleModal';
 import ConfirmationModal from '../components/modals/ConfirmationModal';
 import Toast from '../components/Toast';
-import { mockVehicles, mockTeamsData, mockVehicleTypes } from '../data/mockData';
+import { mockTeamsData } from '../data/mockData';
 import { formatDateToThai } from '../utils/dateUtils';
+import { apiRequest } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -46,7 +47,9 @@ const CurrentStatusBadge: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
 
 
 const ManageVehiclesPage: React.FC = () => {
-    const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<'All' | Vehicle['type']>('All');
     const [currentPage, setCurrentPage] = useState(1);
@@ -55,6 +58,26 @@ const ManageVehiclesPage: React.FC = () => {
     const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
     const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadAllData();
+    }, []);
+
+    const loadAllData = async () => {
+        try {
+            setLoading(true);
+            const [vehiclesData, vehicleTypesData] = await Promise.all([
+                apiRequest('/vehicles'),
+                apiRequest('/vehicle-types'),
+            ]);
+            setVehicles(Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []));
+            setVehicleTypes(Array.isArray(vehicleTypesData) ? vehicleTypesData : (vehicleTypesData?.vehicleTypes || []));
+        } catch (err) {
+            console.error('Failed to load data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -82,16 +105,27 @@ const ManageVehiclesPage: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleSaveVehicle = (vehicleData: Vehicle) => {
-        if (selectedVehicle) {
-            setVehicles(prev => prev.map(v => v.id === vehicleData.id ? vehicleData : v));
-            showToast(`✅ แก้ไขข้อมูลรถทะเบียน "${vehicleData.licensePlate}" สำเร็จ`);
-        } else {
-            const newVehicle = { ...vehicleData, id: `VEH-${Date.now()}` };
-            setVehicles(prev => [newVehicle, ...prev]);
-            showToast(`🎉 เพิ่มรถทะเบียน "${newVehicle.licensePlate}" ใหม่สำเร็จ`);
+    const handleSaveVehicle = async (vehicleData: Vehicle) => {
+        try {
+            if (selectedVehicle) {
+                await apiRequest(`/vehicles/${vehicleData.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(vehicleData),
+                });
+                showToast(`✅ แก้ไขข้อมูลรถทะเบียน "${vehicleData.licensePlate}" สำเร็จ`);
+            } else {
+                await apiRequest('/vehicles', {
+                    method: 'POST',
+                    body: JSON.stringify(vehicleData),
+                });
+                showToast(`🎉 เพิ่มรถทะเบียน "${vehicleData.licensePlate}" ใหม่สำเร็จ`);
+            }
+            await loadAllData();
+            setIsModalOpen(false);
+        } catch (err) {
+            console.error('Failed to save vehicle:', err);
+            showToast('❌ ไม่สามารถบันทึกข้อมูลได้');
         }
-        setIsModalOpen(false);
     };
 
     const handleOpenDeleteConfirm = (vehicle: Vehicle) => {
@@ -99,10 +133,16 @@ const ManageVehiclesPage: React.FC = () => {
         setIsConfirmOpen(true);
     };
     
-    const handleDeleteVehicle = () => {
+    const handleDeleteVehicle = async () => {
         if (vehicleToDelete) {
-            setVehicles(prev => prev.filter(v => v.id !== vehicleToDelete.id));
-            showToast(`🗑️ ลบรถทะเบียน "${vehicleToDelete.licensePlate}" เรียบร้อยแล้ว`);
+            try {
+                await apiRequest(`/vehicles/${vehicleToDelete.id}`, { method: 'DELETE' });
+                showToast(`🗑️ ลบรถทะเบียน "${vehicleToDelete.licensePlate}" เรียบร้อยแล้ว`);
+                await loadAllData();
+            } catch (err) {
+                console.error('Failed to delete vehicle:', err);
+                showToast('❌ ไม่สามารถลบข้อมูลได้');
+            }
         }
         setIsConfirmOpen(false);
         setVehicleToDelete(null);
@@ -132,7 +172,7 @@ const ManageVehiclesPage: React.FC = () => {
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><FilterIcon className="w-5 h-5 text-gray-400" /></span>
                     <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as any)} className="w-full md:w-56 pl-10 pr-4 py-2 border border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-[#005A9C] bg-white">
                         <option value="All">รถทุกประเภท</option>
-                        {mockVehicleTypes.map(vt => (
+                        {vehicleTypes.map(vt => (
                             <option key={vt.id} value={vt.name}>{vt.name}</option>
                         ))}
                     </select>
@@ -189,6 +229,7 @@ const ManageVehiclesPage: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveVehicle}
                 vehicle={selectedVehicle}
+                availableVehicleTypes={vehicleTypes}
             />
 
             <ConfirmationModal 
