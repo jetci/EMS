@@ -71,11 +71,11 @@ const OfficeManageRidesPage: React.FC = () => {
     const filteredRides = useMemo(() => {
         return rides.filter(r => {
             const searchLower = searchTerm.toLowerCase();
-            const matchesSearch = r.patientName.toLowerCase().includes(searchLower) || r.id.toLowerCase().includes(searchLower);
+            const matchesSearch = (r.patientName || '').toLowerCase().includes(searchLower) || (r.id || '').toLowerCase().includes(searchLower);
             const matchesStatus = filters.status === 'All' || r.status === filters.status;
-            const matchesDriver = filters.driver === 'All' || r.driverName === filters.driver;
-            const matchesVillage = filters.village === 'All' || r.village === filters.village;
-            const matchesTripType = filters.tripType === 'All' || r.tripType === filters.tripType;
+            const matchesDriver = filters.driver === 'All' || (r.driverName || '') === filters.driver;
+            const matchesVillage = filters.village === 'All' || (r.village || '') === filters.village;
+            const matchesTripType = filters.tripType === 'All' || (r.tripType || '') === filters.tripType;
             
             let matchesDate = true;
             if (filters.startDate && filters.endDate) {

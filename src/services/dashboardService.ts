@@ -27,7 +27,7 @@ export const dashboardService = {
 
   // Admin Dashboard
   getAdminDashboard: async () => {
-    return apiRequest('/admin/dashboard');
+    return apiRequest('/dashboard/admin');
   },
 
   getSystemStats: async () => {

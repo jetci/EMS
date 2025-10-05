@@ -50,7 +50,7 @@ const OfficeManageDriversPage: React.FC = () => {
 
     const filteredDrivers = useMemo(() => {
         return drivers.filter(d => {
-            const matchesSearch = d.fullName.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = (d.fullName || '').toLowerCase().includes(searchTerm.toLowerCase());
             const matchesStatus = statusFilter === 'All' || d.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
