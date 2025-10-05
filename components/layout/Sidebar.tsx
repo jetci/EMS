@@ -39,7 +39,8 @@ const getNavItems = (role: User['role']) => {
         { id: 'rides', label: 'จัดการการเดินทาง', icon: RidesIcon },
       ];
     case 'OFFICER':
-    case 'office':
+    case 'radio':
+    case 'radio_center':
        return [
         { id: 'dashboard', label: 'ภาพรวม', icon: DashboardIcon },
         { id: 'rides', label: 'จัดการการเดินทาง', icon: RidesIcon },

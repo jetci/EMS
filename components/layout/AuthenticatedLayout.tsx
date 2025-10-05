@@ -41,7 +41,8 @@ const getInitialView = (role: User['role']): AuthenticatedView => {
     switch (role) {
         case 'driver': return 'today_jobs';
         case 'community': return 'dashboard';
-        case 'office': return 'dashboard';
+        case 'radio': return 'dashboard';
+        case 'radio_center': return 'dashboard';
         case 'OFFICER': return 'dashboard';
         case 'admin': return 'dashboard';
         case 'EXECUTIVE': return 'executive_dashboard';
@@ -100,7 +101,8 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
             default: return <CommunityDashboard setActiveView={handleSetView} />;
         }
       case 'OFFICER':
-      case 'office':
+      case 'radio':
+      case 'radio_center':
         switch (activeView as OfficeView) {
             case 'dashboard': return <OfficeDashboard setActiveView={handleSetView} />;
             case 'rides': return <OfficeManageRidesPage />;

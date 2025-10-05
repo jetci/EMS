@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import GoogleIcon from './icons/GoogleIcon';
+import { authAPI } from '../src/services/api';
 
 interface RegisterScreenProps {
   onLoginClick: () => void;
@@ -15,7 +16,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginClick }) => {
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
@@ -31,17 +32,33 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginClick }) => {
     }
 
     setIsLoading(true);
-    // Simulate API call for registration
-    setTimeout(() => {
-      console.log('Registered user:', { firstName, lastName, email });
+    
+    try {
+      const fullName = `${firstName} ${lastName}`.trim();
+      await authAPI.register({
+        name: fullName,
+        email: email,
+        password: password
+      });
+      
       setSuccess('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
       setFirstName('');
       setLastName('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
+      
+      // Auto redirect to login after 2 seconds
+      setTimeout(() => {
+        onLoginClick();
+      }, 2000);
+      
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'การสมัครสมาชิกล้มเหลว กรุณาลองอีกครั้ง');
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (

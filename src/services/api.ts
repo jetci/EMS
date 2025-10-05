@@ -45,6 +45,11 @@ export const authAPI = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  register: (data: { name: string; email: string; password: string; phone?: string }) =>
+    apiRequest('/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // --- Patients API ---

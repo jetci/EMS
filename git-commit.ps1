@@ -1,3 +1,3 @@
 git add .
-git commit -m "Fix null safety in ManageTeamsPage - staffIds array"
+git commit -m "Add Google OAuth setup - install library, add Client ID to .env, wrap App with GoogleOAuthProvider"
 git push

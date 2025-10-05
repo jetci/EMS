@@ -10,7 +10,8 @@ import ChevronRightIcon from '../components/icons/ChevronRightIcon';
 import UsersIcon from '../components/icons/UsersIcon';
 import { formatDateToThai } from '../utils/dateUtils';
 
-// FIX: Expanded mock patient data to fully conform to the Patient interface.
+// ManagePatientsPage now uses OfficeManagePatientsPage which loads from API
+// This component is kept for Community role but should be migrated to use API
 const mockPatients: Patient[] = [
     { 
         id: 'PAT-001', 

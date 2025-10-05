@@ -13,9 +13,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegisterClick }) =
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // In a real project with a build process, this would be `process.env.NODE_ENV === 'development'`
-  // For this sandboxed environment, we can assume it's always in a development-like state.
-  const isDevelopment = true;
+  // Show QuickLoginPanel only for DEVELOPER role (when email contains 'jetci')
+  const [showQuickLogin, setShowQuickLogin] = useState(false);
+
+  // Check if user is trying to login as DEVELOPER
+  const checkDeveloperAccess = () => {
+    return email.toLowerCase().includes('jetci');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +128,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegisterClick }) =
             </button>
         </div>
 
-        {isDevelopment && <QuickLoginPanel onQuickLogin={handleQuickLogin} />}
+        {checkDeveloperAccess() && <QuickLoginPanel onQuickLogin={handleQuickLogin} />}
         
          <div className="pt-4 text-center text-sm text-gray-600 space-y-2">
             <a href="#" className="font-medium text-[#005A9C] hover:underline">

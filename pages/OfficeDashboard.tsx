@@ -102,7 +102,7 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
         <div className="space-y-8">
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                <h1 className="text-4xl font-bold text-gray-800">ศูนย์บัญชาการ (Command Center)</h1>
+                <h1 className="text-4xl font-bold text-gray-800">ศูนย์วิทยุ EMS</h1>
                 <p className="text-md text-gray-500 font-medium">{currentDate}</p>
             </div>
             

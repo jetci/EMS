@@ -14,7 +14,7 @@ import AssignDriverModal from '../components/modals/AssignDriverModal';
 import Toast from '../components/Toast';
 import { formatDateTimeToThai } from '../utils/dateUtils';
 import ThaiDatePicker from '../components/ui/ThaiDatePicker';
-import { mockDrivers } from '../data/mockData';
+import { driversAPI } from '../src/services/api';
 import UserSwitchIcon from '../components/icons/UserSwitchIcon';
 import WheelchairIcon from '../components/icons/WheelchairIcon';
 import { ridesAPI } from '../src/services/api';
@@ -24,6 +24,7 @@ const tripTypes = ['All', 'นัดหมอตามปกติ', 'รับ�
 
 const OfficeManageRidesPage: React.FC = () => {
     const [rides, setRides] = useState<Ride[]>([]);
+    const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -48,11 +49,15 @@ const OfficeManageRidesPage: React.FC = () => {
         try {
             setLoading(true);
             setError(null);
-            const data = await ridesAPI.getRides();
-            setRides(data || []);
+            const [ridesData, driversData] = await Promise.all([
+                ridesAPI.getRides(),
+                driversAPI.getDrivers()
+            ]);
+            setRides(ridesData || []);
+            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
         } catch (err: any) {
-            console.error('Failed to load rides:', err);
-            setError(err.message || 'ไม่สามารถโหลดข้อมูลการเดินทางได้');
+            console.error('Failed to load data:', err);
+            setError(err.message || 'ไม่สามารถโหลดข้อมูลได้');
         } finally {
             setLoading(false);
         }
@@ -103,7 +108,7 @@ const OfficeManageRidesPage: React.FC = () => {
     };
     
     const handleAssignDriver = (rideId: string, driverId: string) => {
-        const driver = mockDrivers.find(d => d.id === driverId);
+        const driver = drivers.find(d => d.id === driverId);
         if (!driver) return;
 
         setRides(prevRides =>
@@ -166,7 +171,7 @@ const OfficeManageRidesPage: React.FC = () => {
                         <label className="text-xs font-medium text-gray-600">คนขับ</label>
                         <select name="driver" value={filters.driver} onChange={handleFilterChange}>
                             <option value="All">คนขับทั้งหมด</option>
-                            {mockDrivers.map(d => <option key={d.id} value={d.fullName}>{d.fullName}</option>)}
+                            {drivers.map(d => <option key={d.id} value={d.fullName}>{d.fullName}</option>)}
                         </select>
                     </div>
                     <div>
@@ -273,7 +278,7 @@ const OfficeManageRidesPage: React.FC = () => {
                 </div>
             </div>
             
-            {selectedRide && <AssignDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={mockDrivers} allRides={rides} />}
+            {selectedRide && <AssignDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={drivers} allRides={rides} />}
             <Toast message={toastMessage} />
         </div>
     );

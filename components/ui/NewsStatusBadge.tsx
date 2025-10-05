@@ -11,7 +11,7 @@ const statusStyles: { [key in NewsArticle['status']]: { text: string; classes: s
 };
 
 const NewsStatusBadge: React.FC<NewsStatusBadgeProps> = ({ status }) => {
-  const style = statusStyles[status];
+  const style = statusStyles[status] || { text: 'ไม่ทราบสถานะ', classes: 'bg-gray-200 text-gray-700' };
   
   return (
     <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full ${style.classes}`}>
