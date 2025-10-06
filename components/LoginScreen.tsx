@@ -48,7 +48,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegisterClick }) =
         }
         // On success, the App component will switch views, no need to set isLoading to false
     }, 300);
-  }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8] pt-16">

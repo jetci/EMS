@@ -1,3 +1,3 @@
 git add .
-git commit -m "Add database migration scripts and export tools - prepare for production deployment"
+git commit -m "Remove DEVELOPER quick login button and developer info fields from admin settings for production"
 git push

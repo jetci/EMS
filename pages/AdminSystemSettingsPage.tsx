@@ -176,14 +176,6 @@ const AdminSystemSettingsPage: React.FC = () => {
                                     <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700">อีเมลสำหรับติดต่อ (สาธารณะ)</label>
                                     <input type="email" name="contactEmail" id="contactEmail" value={settings.contactEmail} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
                                 </div>
-                                <div className="border-t pt-6">
-                                    <label htmlFor="developerName" className="block text-sm font-medium text-gray-700">ชื่อผู้พัฒนา</label>
-                                    <input type="text" name="developerName" id="developerName" value={settings.developerName || ''} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
-                                </div>
-                                <div>
-                                    <label htmlFor="developerTitle" className="block text-sm font-medium text-gray-700">ตำแหน่ง/สังกัดผู้พัฒนา</label>
-                                    <input type="text" name="developerTitle" id="developerTitle" value={settings.developerTitle || ''} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
-                                </div>
                             </div>
                         </div>
 
