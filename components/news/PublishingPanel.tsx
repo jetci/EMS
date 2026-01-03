@@ -1,7 +1,7 @@
 import React from 'react';
 import { NewsArticle } from '../../types';
 import UploadIcon from '../icons/UploadIcon';
-import ThaiDatePicker from '../ui/ThaiDatePicker';
+import ModernDatePicker from '../ui/ModernDatePicker';
 import ThaiTimePicker from '../ui/ThaiTimePicker';
 
 interface PublishingPanelProps {
@@ -12,7 +12,7 @@ interface PublishingPanelProps {
 }
 
 const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleChange, onSave, isNew }) => {
-    
+
     const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -30,22 +30,22 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
         currentScheduled.setFullYear(parseInt(value.substring(0, 4), 10));
         currentScheduled.setMonth(parseInt(value.substring(5, 7), 10) - 1);
         currentScheduled.setDate(parseInt(value.substring(8, 10), 10));
-        onArticleChange({...article, scheduledDate: currentScheduled.toISOString() });
+        onArticleChange({ ...article, scheduledDate: currentScheduled.toISOString() });
     };
 
     const handleTimeChange = (e: { target: { name: string; value: string } }) => {
-         const { value } = e.target;
+        const { value } = e.target;
         const currentScheduled = article.scheduledDate ? new Date(article.scheduledDate) : new Date();
         currentScheduled.setHours(parseInt(value.substring(0, 2), 10));
         currentScheduled.setMinutes(parseInt(value.substring(3, 5), 10));
-        onArticleChange({...article, scheduledDate: currentScheduled.toISOString() });
+        onArticleChange({ ...article, scheduledDate: currentScheduled.toISOString() });
     };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-6">
             {/* Action Buttons */}
             <div className="space-y-3 border-b pb-6">
-                 <button 
+                <button
                     onClick={() => onSave('draft')}
                     className="w-full text-center px-4 py-2 font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100"
                 >
@@ -58,24 +58,24 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
                     {isNew ? 'เผยแพร่' : 'อัปเดต'}
                 </button>
             </div>
-            
+
             {/* Status */}
             <div>
                 <h3 className="font-semibold text-gray-800 mb-2">สถานะ</h3>
-                 <div className="flex items-center">
-                    <input type="radio" id="status_published" name="status" value="published" checked={article.status === 'published'} onChange={() => onArticleChange({...article, status: 'published'})} />
+                <div className="flex items-center">
+                    <input type="radio" id="status_published" name="status" value="published" checked={article.status === 'published'} onChange={() => onArticleChange({ ...article, status: 'published' })} />
                     <label htmlFor="status_published" className="ml-2">เผยแพร่แล้ว</label>
                 </div>
                 <div className="flex items-center">
-                    <input type="radio" id="status_draft" name="status" value="draft" checked={article.status === 'draft'} onChange={() => onArticleChange({...article, status: 'draft'})} />
+                    <input type="radio" id="status_draft" name="status" value="draft" checked={article.status === 'draft'} onChange={() => onArticleChange({ ...article, status: 'draft' })} />
                     <label htmlFor="status_draft" className="ml-2">ฉบับร่าง</label>
                 </div>
             </div>
 
             {/* Featured Image */}
             <div>
-                 <h3 className="font-semibold text-gray-800 mb-2">รูปภาพหน้าปก</h3>
-                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <h3 className="font-semibold text-gray-800 mb-2">รูปภาพหน้าปก</h3>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                     {article.featuredImageUrl ? (
                         <img src={article.featuredImageUrl} alt="Featured" className="w-full h-auto rounded-md mb-2" />
                     ) : (
@@ -85,7 +85,7 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
                         {article.featuredImageUrl ? 'เปลี่ยนรูปภาพ' : 'อัปโหลดรูปภาพ'}
                         <input type="file" id="featuredImage" accept="image/*" onChange={handleFeaturedImageChange} className="sr-only" />
                     </label>
-                 </div>
+                </div>
             </div>
 
             {/* Scheduling */}
@@ -93,12 +93,14 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
                 <h3 className="font-semibold text-gray-800 mb-2">กำหนดเวลาเผยแพร่</h3>
                 <p className="text-xs text-gray-500 mb-2">หากไม่กำหนด จะเผยแพร่ทันที</p>
                 <div className="space-y-3">
-                    <ThaiDatePicker 
+                    <ModernDatePicker
                         name="scheduledDate"
                         value={article.scheduledDate ? article.scheduledDate.split('T')[0] : ''}
                         onChange={handleDateChange}
+                        min={new Date().toISOString().split('T')[0]}
+                        placeholder="เลือกวันที่เผยแพร่"
                     />
-                    <ThaiTimePicker 
+                    <ThaiTimePicker
                         name="scheduledTime"
                         value={article.scheduledDate ? new Date(article.scheduledDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''}
                         onChange={handleTimeChange}

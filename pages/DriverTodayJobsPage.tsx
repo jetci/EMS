@@ -11,15 +11,15 @@ import DriverCalendarView from '../components/driver/DriverCalendarView';
 import CalendarIcon from '../components/icons/CalendarIcon';
 import ListIcon from '../components/icons/ListIcon';
 import { driversAPI, ridesAPI } from '../src/services/api';
+import DriverLocationTracker from '../components/driver/DriverLocationTracker';
 
-// Helper to get driverId for current user (temporary until auth wiring)
+// Helper to get driverId for current user
 const getCurrentDriverId = (): string | null => {
     try {
         const raw = localStorage.getItem('wecare_user');
         if (!raw) return null;
         const u = JSON.parse(raw);
-        // Try common fields for driver id
-        return u?.driver_id || u?.id || null;
+        return u?.driver_id || null;
     } catch {
         return null;
     }
@@ -60,13 +60,11 @@ const DriverTodayJobsPage: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        // initial fetch
         fetchMyRides();
     }, [fetchMyRides]);
 
     useEffect(() => {
         if (isPolling) {
-            // set up polling every 30s
             const id = window.setInterval(() => {
                 fetchMyRides();
             }, 30000);
@@ -125,10 +123,10 @@ const DriverTodayJobsPage: React.FC = () => {
         try {
             const optimizedOrder = await optimizeRides(activeRides);
             const rideMap = new Map(rides.map(r => [r.id, r]));
-            
+
             const optimizedRides = optimizedOrder.map(id => rideMap.get(id)).filter((r): r is Ride => r !== undefined);
             const otherRides = rides.filter(r => !optimizedOrder.includes(r.id));
-            
+
             setRides([...optimizedRides, ...otherRides]);
             setShowMiniMap(true);
             setTimeout(() => setShowMiniMap(false), 5000);
@@ -153,6 +151,7 @@ const DriverTodayJobsPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            <DriverLocationTracker driverId={getCurrentDriverId()} />
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                 <h1 className="text-3xl font-bold text-gray-800">งานของฉัน</h1>
@@ -163,9 +162,9 @@ const DriverTodayJobsPage: React.FC = () => {
                             <ListIcon className="w-5 h-5" />
                             <span>รายการ</span>
                         </button>
-                         <button onClick={() => setViewMode('calendar')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white text-[var(--wecare-blue)] shadow-sm' : 'text-gray-600'}`}>
-                             <CalendarIcon className="w-5 h-5" />
-                             <span>ปฏิทิน</span>
+                        <button onClick={() => setViewMode('calendar')} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white text-[var(--wecare-blue)] shadow-sm' : 'text-gray-600'}`}>
+                            <CalendarIcon className="w-5 h-5" />
+                            <span>ปฏิทิน</span>
                         </button>
                     </div>
                     {/* Refresh and Auto-Update */}
@@ -191,27 +190,27 @@ const DriverTodayJobsPage: React.FC = () => {
             {viewMode === 'list' && (
                 <>
                     <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-                         <button
+                        <button
                             onClick={handleOptimizeRoute}
                             disabled={isOptimizing || todayActiveRides.filter(r => r.status === RideStatus.ASSIGNED).length < 2}
                             className="w-full flex items-center justify-center gap-2 bg-[var(--wecare-blue)] text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300 shadow-sm border disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed"
                         >
                             {isOptimizing ? (
-                            <>
-                                <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
-                                กำลังประมวลผล...
-                            </>
+                                <>
+                                    <div className="w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></div>
+                                    กำลังประมวลผล...
+                                </>
                             ) : (
-                            <>
-                                <SparklesIcon className="w-5 h-5" />
-                                จัดลำดับให้ฉัน (Powered by Gemini)
-                            </>
+                                <>
+                                    <SparklesIcon className="w-5 h-5" />
+                                    จัดลำดับให้ฉัน (Powered by Gemini)
+                                </>
                             )}
                         </button>
                     </div>
 
                     {showMiniMap && <RouteMiniMap rides={todayActiveRides.filter(r => r.status === RideStatus.ASSIGNED)} />}
-                    
+
                     <RideList rides={todayActiveRides} onUpdateStatus={handleUpdateStatus} isActionable={true} />
                 </>
             )}

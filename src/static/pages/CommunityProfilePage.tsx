@@ -11,6 +11,7 @@ import CameraIcon from '../components/icons/CameraIcon';
 import CameraModal from '../components/modals/CameraModal';
 import { defaultProfileImage } from '../assets/defaultProfile';
 import LogoutIcon from '../components/icons/LogoutIcon';
+import { getAuthToken } from '../utils/auth';
 
 
 interface CommunityProfilePageProps {
@@ -73,13 +74,34 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
 
     const handleConfirmSave = () => {
         setIsConfirmModalOpen(false);
-        // In a real app, you would make an API call here.
-        // For this mock, we'll just log it and show success.
-        console.log("Saving profile:", { ...initialUser, name: `${formData.firstName} ${formData.lastName}`, phone: formData.phone });
-        setIsEditing(false);
-        showToast("✅ บันทึกข้อมูลสำเร็จแล้ว!");
-        // Note: The visual update will happen because formData state is used for display.
-        // In a real app, you might refetch the user or update a global state.
+        const token = getAuthToken();
+        if (!token) {
+            showToast('กรุณาเข้าสู่ระบบใหม่');
+            return;
+        }
+
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+        const payload = { name: `${formData.firstName} ${formData.lastName}`, phone: formData.phone };
+
+        fetch(`${API_BASE}/api/community/users/${initialUser.id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        }).then(async (res) => {
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                showToast('เกิดข้อผิดพลาดในการบันทึก: ' + (j.message || res.statusText));
+                return;
+            }
+            setIsEditing(false);
+            showToast('✅ บันทึกข้อมูลสำเร็จแล้ว!');
+        }).catch((err) => {
+            console.error('Save profile error', err);
+            showToast('เกิดข้อผิดพลาดเครือข่าย');
+        });
     };
     
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,9 +124,31 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
             alert("New password must be at least 6 characters long.");
             return;
         }
-        console.log("Changing password...");
-        alert("Password changed successfully!");
-        setPasswordData({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+        const token = getAuthToken();
+        if (!token) {
+            alert('กรุณาเข้าสู่ระบบใหม่');
+            return;
+        }
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+        fetch(`${API_BASE}/api/auth/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword })
+        }).then(async res => {
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                alert('เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + (j.message || res.statusText));
+                return;
+            }
+            alert('Password changed successfully!');
+            setPasswordData({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+        }).catch(err => {
+            console.error('Change password failed', err);
+            alert('เกิดข้อผิดพลาดเครือข่าย');
+        });
     };
     
     const handleCaptureImage = (imageDataUrl: string) => {

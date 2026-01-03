@@ -1,32 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { Ride, RideStatus } from '../types';
 import RideList from '../components/RideList';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatCard from '../components/dashboard/StatCard';
 import HistoryIcon from '../components/icons/HistoryIcon';
 import CalendarCheckIcon from '../components/icons/CalendarCheckIcon';
-import ThaiDatePicker from '../components/ui/ThaiDatePicker';
+import ModernDatePicker from '../components/ui/ModernDatePicker';
 import XCircleIcon from '../components/icons/XCircleIcon';
+import { driversAPI } from '../src/services/api';
 
-
-const mockRides: Ride[] = [
-    // This month
-    { id: 'RIDE-301', patientName: 'สมชาย ใจดี', pickupLocation: '123 สุขุมวิท', destination: 'รพ. กรุงเทพ', appointmentTime: dayjs().subtract(2, 'day').toISOString(), status: RideStatus.COMPLETED },
-    { id: 'RIDE-302', patientName: 'สมหญิง มีสุข', pickupLocation: '456 พหลโยธิน', destination: 'รพ. บำรุงราษฎร์', appointmentTime: dayjs().subtract(5, 'day').toISOString(), status: RideStatus.COMPLETED },
-    { id: 'RIDE-303', patientName: 'อาทิตย์ แจ่มใส', pickupLocation: '789 พระราม 4', destination: 'รพ. สมิติเวช', appointmentTime: dayjs().subtract(3, 'day').toISOString(), status: RideStatus.CANCELLED },
-    // Last month
-    { id: 'RIDE-201', patientName: 'จันทรา งามวงศ์วาน', pickupLocation: '101 รัชดา', destination: 'รพ. รามาธิบดี', appointmentTime: dayjs().subtract(1, 'month').toISOString(), status: RideStatus.COMPLETED },
-    { id: 'RIDE-202', patientName: 'มานี รักเรียน', pickupLocation: '222 เพชรบุรี', destination: 'รพ. พญาไท', appointmentTime: dayjs().subtract(1, 'month').subtract(2, 'day').toISOString(), status: RideStatus.COMPLETED },
-    { id: 'RIDE-203', patientName: 'ปิติ ชูใจ', pickupLocation: '333 จรัญสนิทวงศ์', destination: 'รพ. ศิริราช', appointmentTime: dayjs().subtract(1, 'month').subtract(5, 'day').toISOString(), status: RideStatus.CANCELLED },
-    // 2 months ago
-    { id: 'RIDE-101', patientName: 'วีระ กล้าหาญ', pickupLocation: '555 ลาดพร้าว', destination: 'รพ. ลาดพร้าว', appointmentTime: dayjs().subtract(2, 'month').toISOString(), status: RideStatus.COMPLETED },
-];
-
+// Extend dayjs with plugins
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 
 const DriverHistoryPage: React.FC = () => {
     const [rides, setRides] = useState<Ride[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string | null>(null);
     const [filters, setFilters] = useState({
         startDate: '',
         endDate: '',
@@ -34,14 +27,34 @@ const DriverHistoryPage: React.FC = () => {
     });
 
     useEffect(() => {
-        setIsLoading(true);
-        setTimeout(() => {
-            const historyRides = mockRides.filter(r => r.status === RideStatus.COMPLETED || r.status === RideStatus.CANCELLED);
-            setRides(historyRides);
-            setIsLoading(false);
-        }, 500);
+        const fetchHistory = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = await driversAPI.getMyHistory();
+                // Map backend data to frontend Ride format
+                const mapped: Ride[] = (data || []).map((r: any) => ({
+                    id: r.id,
+                    patientId: r.patient_id || '',
+                    patientName: r.patient_name || 'Unknown',
+                    patientPhone: r.patient_phone || r.contact_phone || '',
+                    pickupLocation: r.pickup_location || r.pickupLocation || '',
+                    destination: r.destination || r.dropoffLocation || '',
+                    appointmentTime: r.appointment_time || r.appointmentTime || new Date().toISOString(),
+                    status: (r.status as RideStatus) || RideStatus.COMPLETED,
+                }));
+                setRides(mapped);
+            } catch (e: any) {
+                console.error('Failed to load driver history:', e);
+                setError(e.message || 'ไม่สามารถโหลดประวัติได้');
+                setRides([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchHistory();
     }, []);
-    
+
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
         const { name, value } = e.target;
         setFilters(f => ({ ...f, [name]: value }));
@@ -54,7 +67,7 @@ const DriverHistoryPage: React.FC = () => {
     const filteredRides = useMemo(() => {
         return rides.filter(r => {
             const matchesStatus = filters.status === 'All' || r.status === filters.status;
-            
+
             let matchesDate = true;
             if (filters.startDate && filters.endDate) {
                 const rideDate = dayjs(r.appointmentTime);
@@ -62,7 +75,7 @@ const DriverHistoryPage: React.FC = () => {
             } else if (filters.startDate) {
                 matchesDate = dayjs(r.appointmentTime).isSameOrAfter(dayjs(filters.startDate), 'day');
             } else if (filters.endDate) {
-                 matchesDate = dayjs(r.appointmentTime).isSameOrBefore(dayjs(filters.endDate), 'day');
+                matchesDate = dayjs(r.appointmentTime).isSameOrBefore(dayjs(filters.endDate), 'day');
             }
 
             return matchesStatus && matchesDate;
@@ -79,26 +92,35 @@ const DriverHistoryPage: React.FC = () => {
         return <div className="flex justify-center items-center h-[60vh]"><LoadingSpinner /></div>;
     }
 
+
+    const today = new Date().toISOString().split('T')[0];
+
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-gray-800">ประวัติการเดินทาง</h1>
-            
+
+            {error && (
+                <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
+                    ⚠️ {error}
+                </div>
+            )}
+
             {/* Summary Cards */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <StatCard title="เที่ยววิ่งทั้งหมด (สัปดาห์นี้)" value={stats.thisWeek.toString()} icon={HistoryIcon} variant="info" />
                 <StatCard title="เที่ยววิ่งทั้งหมด (เดือนนี้)" value={stats.thisMonth.toString()} icon={CalendarCheckIcon} variant="success" />
             </div>
 
             {/* Toolbar */}
             <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200 space-y-4">
-                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <div className="lg:col-span-1">
                         <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">จากวันที่</label>
-                        <ThaiDatePicker name="startDate" value={filters.startDate} onChange={handleFilterChange} />
+                        <ModernDatePicker name="startDate" value={filters.startDate} onChange={handleFilterChange} max={today} placeholder="เลือกวันเริ่มต้น" />
                     </div>
                     <div className="lg:col-span-1">
                         <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">ถึงวันที่</label>
-                        <ThaiDatePicker name="endDate" value={filters.endDate} onChange={handleFilterChange} />
+                        <ModernDatePicker name="endDate" value={filters.endDate} onChange={handleFilterChange} max={today} placeholder="เลือกวันสิ้นสุด" />
                     </div>
                     <div className="lg:col-span-1">
                         <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">สถานะ</label>
@@ -110,14 +132,21 @@ const DriverHistoryPage: React.FC = () => {
                     </div>
                     <div className="flex items-end">
                         <button onClick={resetFilters} className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 hover:text-red-700 font-medium py-2 px-4 rounded-lg bg-gray-100 hover:bg-red-50 transition-colors">
-                            <XCircleIcon className="w-5 h-5"/>
+                            <XCircleIcon className="w-5 h-5" />
                             <span>ล้างตัวกรอง</span>
                         </button>
                     </div>
-                 </div>
+                </div>
             </div>
 
-            <RideList rides={filteredRides} onUpdateStatus={() => {}} isActionable={false} />
+            {rides.length === 0 && !error ? (
+                <div className="text-center py-12 bg-white rounded-lg shadow-sm">
+                    <HistoryIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">ยังไม่มีประวัติการเดินทาง</p>
+                </div>
+            ) : (
+                <RideList rides={filteredRides} onUpdateStatus={() => { }} isActionable={false} />
+            )}
         </div>
     );
 };

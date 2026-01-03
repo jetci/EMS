@@ -21,7 +21,7 @@ const getBasePath = (): string => {
 
 const basePath = getBasePath();
 (window as any).__BASE_PATH__ = basePath;
-(window as any).__API_BASE__ = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:5000/api';
+(window as any).__API_BASE__ = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 if ((import.meta as any)?.env?.DEV) {
   console.log('[Router] Base Path:', basePath);

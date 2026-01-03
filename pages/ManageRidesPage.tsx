@@ -20,6 +20,7 @@ import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
 import Pagination from '../components/ui/Pagination';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Backend data will be loaded on mount via ridesAPI
 
@@ -44,6 +45,7 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
     const [rideForAssign, setRideForAssign] = useState<Ride | null>(null);
     const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    const [searching, setSearching] = useState(false);
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -66,7 +68,9 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
     const fetchRides = async () => {
         setLoading(true);
         try {
-            const data = await ridesAPI.getRides();
+            const response = await ridesAPI.getRides();
+            // ✅ Backward compatible: support both old (array) and new (object) formats
+            const data = response?.data || response || [];
             const mapped: Ride[] = (data || []).map((r: any) => ({
                 id: r.id,
                 patientName: r.patient_name || r.patientName || '',
@@ -199,7 +203,7 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                 <RidesIcon className="w-24 h-24 text-gray-300" />
                 <h2 className="mt-6 text-2xl font-semibold text-gray-700">คุณยังไม่มีรายการเดินทาง</h2>
                 <p className="mt-2 text-gray-500">เริ่มต้นด้วยการสร้างคำขอการเดินทางครั้งแรกของคุณ</p>
-                <button 
+                <button
                     onClick={() => setActiveView('request_ride')}
                     className="mt-6 flex items-center justify-center px-5 py-3 font-medium text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors"
                 >
@@ -223,7 +227,7 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                 </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={fetchRides} variant="secondary" size="sm" title="รีเฟรชข้อมูล">รีเฟรช</Button>
-                    <button 
+                    <button
                         onClick={() => setActiveView('request_ride')}
                         className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors"
                     >
@@ -236,17 +240,24 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
             {/* Toolbar */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-[var(--border-color)]">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="relative w-full md:w-auto flex-grow">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                            <SearchIcon className="w-5 h-5 text-gray-400" />
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="ค้นหาด้วยชื่อผู้ป่วย หรือ Ride ID..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                            className="w-full md:w-80 pl-10"
-                        />
+                    <div className="relative w-full md:w-auto flex-grow flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                <SearchIcon className="w-5 h-5 text-gray-400" />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="ค้นหาด้วยชื่อผู้ป่วย หรือ Ride ID..."
+                                value={searchTerm}
+                                onChange={e => {
+                                    setSearching(true);
+                                    setSearchTerm(e.target.value);
+                                    setTimeout(() => setSearching(false), 300);
+                                }}
+                                className="w-full md:w-80 pl-10"
+                            />
+                        </div>
+                        {searching && <LoadingSpinner size="sm" />}
                     </div>
                     <div className="relative w-full md:w-auto">
                         <label htmlFor="statusFilter" className="sr-only">กรองตามสถานะ</label>
@@ -344,7 +355,7 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
             {rideForAssign && (
                 <AssignDriverModal
                     isOpen={isAssignModalOpen}
-                    onClose={() => { setIsAssignModalOpen(false); setRideForAssign(null); } }
+                    onClose={() => { setIsAssignModalOpen(false); setRideForAssign(null); }}
                     onAssign={handleAssignDriver}
                     ride={rideForAssign}
                     allDrivers={availableDrivers}

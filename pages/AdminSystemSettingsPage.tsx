@@ -1,30 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { SystemSettings } from '../types';
+import { SystemSettings, User } from '../types';
 import SaveIcon from '../components/icons/SaveIcon';
 import AlertTriangleIcon from '../components/icons/AlertTriangleIcon';
 import ToggleSwitch from '../components/ui/ToggleSwitch';
 import UploadIcon from '../components/icons/UploadIcon';
 import TrashIcon from '../components/icons/TrashIcon';
 import { getAppSettings } from '../utils/settings';
+import { apiRequest } from '../src/services/api';
 
-type SettingsTab = 'general' | 'api' | 'ride_schedule';
+type SettingsTab = 'general' | 'api' | 'ride_schedule' | 'developer';
 
-const AdminSystemSettingsPage: React.FC = () => {
+interface AdminSystemSettingsPageProps {
+    currentUser: User;
+}
+
+const AdminSystemSettingsPage: React.FC<AdminSystemSettingsPageProps> = ({ currentUser }) => {
     const [settings, setSettings] = useState<SystemSettings>(getAppSettings());
     const [activeTab, setActiveTab] = useState<SettingsTab>('general');
 
+    useEffect(() => {
+        loadSettings();
+    }, []);
+
+    const loadSettings = async () => {
+        try {
+            const data = await apiRequest('/admin/settings');
+            if (data) setSettings(data);
+        } catch (err) {
+            console.error('Failed to load settings', err);
+        }
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
-        setSettings(prev => ({ 
-            ...prev, 
-            [name]: type === 'number' ? parseFloat(value) || 0 : value 
+        setSettings(prev => ({
+            ...prev,
+            [name]: type === 'number' ? parseFloat(value) || 0 : value
         }));
     };
 
     const handleToggle = (name: keyof SystemSettings, checked: boolean) => {
-        setSettings(prev => ({...prev, [name]: checked}));
+        setSettings(prev => ({ ...prev, [name]: checked }));
     };
-    
+
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -35,55 +53,47 @@ const AdminSystemSettingsPage: React.FC = () => {
             reader.readAsDataURL(file);
         }
     };
-    
+
     const handleRemoveLogo = () => {
         setSettings(prev => ({ ...prev, logoUrl: undefined }));
     };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        
-        let shouldPromptReload = false;
-        const currentSettings = getAppSettings();
 
-        // Check if API key or map center changed
-        if (currentSettings.googleMapsApiKey !== settings.googleMapsApiKey ||
-            currentSettings.mapCenterLat !== settings.mapCenterLat ||
-            currentSettings.mapCenterLng !== settings.mapCenterLng) {
-            shouldPromptReload = true;
-        }
+        try {
+            await apiRequest('/admin/settings', {
+                method: 'PUT',
+                body: JSON.stringify(settings)
+            });
 
-        // Persist to localStorage
-        localStorage.setItem('wecare_appName', settings.appName);
-        localStorage.setItem('wecare_organizationName', settings.organizationName);
-        localStorage.setItem('wecare_organizationAddress', settings.organizationAddress || '');
-        localStorage.setItem('wecare_organizationPhone', settings.organizationPhone || '');
-        localStorage.setItem('wecare_contactEmail', settings.contactEmail);
-        localStorage.setItem('wecare_googleMapsApiKey', settings.googleMapsApiKey);
-        localStorage.setItem('wecare_mapCenterLat', String(settings.mapCenterLat));
-        localStorage.setItem('wecare_mapCenterLng', String(settings.mapCenterLng));
-        localStorage.setItem('wecare_developerName', settings.developerName || '');
-        localStorage.setItem('wecare_developerTitle', settings.developerTitle || '');
+            // Also update localStorage for immediate client-side access (compatibility)
+            localStorage.setItem('wecare_appName', settings.appName);
+            localStorage.setItem('wecare_organizationName', settings.organizationName);
+            localStorage.setItem('wecare_organizationAddress', settings.organizationAddress || '');
+            localStorage.setItem('wecare_organizationPhone', settings.organizationPhone || '');
+            localStorage.setItem('wecare_contactEmail', settings.contactEmail);
+            localStorage.setItem('wecare_googleMapsApiKey', settings.googleMapsApiKey);
+            localStorage.setItem('wecare_mapCenterLat', String(settings.mapCenterLat));
+            localStorage.setItem('wecare_mapCenterLng', String(settings.mapCenterLng));
+            localStorage.setItem('wecare_developerName', settings.developerName || '');
+            localStorage.setItem('wecare_developerTitle', settings.developerTitle || '');
 
-        if (settings.logoUrl) {
-            localStorage.setItem('wecare_logoUrl', settings.logoUrl);
-        } else {
-            localStorage.removeItem('wecare_logoUrl');
-        }
-        
-        window.dispatchEvent(new CustomEvent('settingsChanged'));
-        
-        if (shouldPromptReload) {
-            if (confirm("การตั้งค่า API Key และพิกัดแผนที่ถูกบันทึกแล้ว จำเป็นต้องรีโหลดหน้าเว็บเพื่อให้การเปลี่ยนแปลงสมบูรณ์ รีโหลดเลยหรือไม่?")) {
-                window.location.reload();
+            if (settings.logoUrl) {
+                localStorage.setItem('wecare_logoUrl', settings.logoUrl);
             } else {
-                alert("บันทึกการตั้งค่าสำเร็จ! (กรุณารีโหลดหน้าเว็บเพื่อให้การตั้งค่าแผนที่มีผล)");
+                localStorage.removeItem('wecare_logoUrl');
             }
-        } else {
+
+            window.dispatchEvent(new CustomEvent('settingsChanged'));
+
             alert("บันทึกการตั้งค่าสำเร็จ!");
+        } catch (err) {
+            console.error('Failed to save settings:', err);
+            alert("เกิดข้อผิดพลาดในการบันทึกการตั้งค่า");
         }
     };
-    
+
     const TabButton: React.FC<{ tabId: SettingsTab; label: string }> = ({ tabId, label }) => {
         const isActive = activeTab === tabId;
         return (
@@ -92,11 +102,10 @@ const AdminSystemSettingsPage: React.FC = () => {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tabId)}
-                className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors duration-200 focus:outline-none ${
-                    isActive
-                        ? 'border-b-2 border-[var(--wecare-blue)] text-[var(--wecare-blue)]'
-                        : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors duration-200 focus:outline-none ${isActive
+                    ? 'border-b-2 border-[var(--wecare-blue)] text-[var(--wecare-blue)]'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
             >
                 {label}
             </button>
@@ -115,11 +124,12 @@ const AdminSystemSettingsPage: React.FC = () => {
                     <TabButton tabId="general" label="การตั้งค่าทั่วไป" />
                     <TabButton tabId="api" label="API & Integration" />
                     <TabButton tabId="ride_schedule" label="การตั้งค่าการเดินทาง" />
+                    {currentUser.role === 'DEVELOPER' && <TabButton tabId="developer" label="Developer Zone" />}
                 </nav>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="space-y-8">
-                
+
                 {activeTab === 'general' && (
                     <div className="space-y-8 animate-scale-in">
                         {/* General Settings */}
@@ -131,8 +141,8 @@ const AdminSystemSettingsPage: React.FC = () => {
                                     <input type="text" name="appName" id="appName" value={settings.appName} onChange={handleChange} className="mt-1 w-full md:w-1/2" />
                                 </div>
                                 <div>
-                                     <label className="block text-sm font-medium text-gray-700">โลโก้องค์กร</label>
-                                     <div className="mt-2 flex items-center gap-6">
+                                    <label className="block text-sm font-medium text-gray-700">โลโก้องค์กร</label>
+                                    <div className="mt-2 flex items-center gap-6">
                                         <div className="w-32 h-16 bg-gray-100 border rounded-md flex items-center justify-center">
                                             {settings.logoUrl ? (
                                                 <img src={settings.logoUrl} alt="Logo Preview" className="max-w-full max-h-full object-contain" />
@@ -151,7 +161,7 @@ const AdminSystemSettingsPage: React.FC = () => {
                                                 </button>
                                             )}
                                         </div>
-                                     </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -205,10 +215,10 @@ const AdminSystemSettingsPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-                
-                 {activeTab === 'api' && (
-                     <div className="space-y-8 animate-scale-in">
-                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+
+                {activeTab === 'api' && (
+                    <div className="space-y-8 animate-scale-in">
+                        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                             <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">Google Maps Settings</h2>
                             <div className="space-y-6">
                                 <div>
@@ -217,11 +227,11 @@ const AdminSystemSettingsPage: React.FC = () => {
                                     <p className="text-xs text-gray-500 mt-1">จำเป็นต้องรีโหลดหน้าเว็บใหม่หลังการเปลี่ยนแปลง</p>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                     <div>
+                                    <div>
                                         <label htmlFor="mapCenterLat" className="block text-sm font-medium text-gray-700">พิกัดศูนย์กลาง (ละติจูด)</label>
                                         <input type="number" step="any" name="mapCenterLat" id="mapCenterLat" value={settings.mapCenterLat} onChange={handleChange} className="mt-1 w-full" />
                                     </div>
-                                     <div>
+                                    <div>
                                         <label htmlFor="mapCenterLng" className="block text-sm font-medium text-gray-700">พิกัดศูนย์กลาง (ลองจิจูด)</label>
                                         <input type="number" step="any" name="mapCenterLng" id="mapCenterLng" value={settings.mapCenterLng} onChange={handleChange} className="mt-1 w-full" />
                                     </div>
@@ -229,9 +239,9 @@ const AdminSystemSettingsPage: React.FC = () => {
                                 <p className="text-xs text-gray-500">ใช้สำหรับกำหนดค่าเริ่มต้นของแผนที่เมื่อเปิดใช้งานครั้งแรก (เช่น ศูนย์กลางของพื้นที่ให้บริการ)</p>
                             </div>
                         </div>
-                     </div>
+                    </div>
                 )}
-                
+
                 {activeTab === 'ride_schedule' && (
                     <div className="animate-scale-in">
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -252,6 +262,47 @@ const AdminSystemSettingsPage: React.FC = () => {
                                         <span className="block text-sm text-gray-600 mt-1">เจ้าหน้าที่ OFFICE จะจัดทีม (คนขับ+เจ้าหน้าที่) และกำหนดวันเข้าเวรแบบ 24 ชั่วโมงให้กับทั้งทีม</span>
                                     </div>
                                 </label>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'developer' && currentUser.role === 'DEVELOPER' && (
+                    <div className="animate-scale-in">
+                        <div className="bg-gray-900 text-white p-6 rounded-lg shadow-lg border border-gray-700">
+                            <h2 className="text-xl font-bold text-green-400 mb-4 font-mono">Terminal / Developer Console</h2>
+                            <div className="space-y-6 font-mono text-sm">
+                                <div>
+                                    <h3 className="text-gray-400 mb-2">System Information</h3>
+                                    <div className="bg-gray-800 p-4 rounded border border-gray-700">
+                                        <p><span className="text-blue-400">Environment:</span> development</p>
+                                        <p><span className="text-blue-400">Database:</span> SQLite (wecare.db)</p>
+                                        <p><span className="text-blue-400">API Endpoint:</span> /api</p>
+                                        <p><span className="text-blue-400">User ID:</span> {currentUser.id}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-gray-400 mb-2">Quick Actions</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <button type="button" onClick={() => window.open('/api/audit-logs', '_blank')} className="p-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-left">
+                                            <span className="block text-green-400 font-bold">View Raw Audit Logs</span>
+                                            <span className="text-xs text-gray-500">Open JSON response in new tab</span>
+                                        </button>
+                                        <button type="button" onClick={() => window.open('/api/users', '_blank')} className="p-3 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded text-left">
+                                            <span className="block text-green-400 font-bold">View Raw Users Data</span>
+                                            <span className="text-xs text-gray-500">Open JSON response in new tab</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-red-900/30 border border-red-800 rounded">
+                                    <h3 className="text-red-400 font-bold mb-2">⚠️ Danger Zone</h3>
+                                    <p className="text-gray-400 mb-4">Actions here are irreversible. Proceed with caution.</p>
+                                    <button type="button" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold opacity-50 cursor-not-allowed" title="Not implemented yet">
+                                        Reset Database (Coming Soon)
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

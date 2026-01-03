@@ -1,76 +1,519 @@
 import express from 'express';
+import { sqliteDB } from '../db/sqliteDB';
+import { authenticateToken, AuthRequest, requireRole } from '../middleware/auth';
+import { auditService } from '../services/auditService';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import { validatePatientData, validateJSON } from '../utils/validators';
+import { checkDuplicatePatient } from '../middleware/idempotency';
+import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 
 const router = express.Router();
 
-// Mock patients data
-const mockPatients: any[] = [
-  { id: 'PAT-001', full_name: 'Patient One', phone: '0891111111', address: 'หมู่ 1', patient_types: 'ฟอกไต', key_info: 'ต้องการรถเข็น', registered_date: '2024-01-01' },
-  { id: 'PAT-002', full_name: 'Patient Two', phone: '0892222222', address: 'หมู่ 2', patient_types: 'กายภาพบำบัด', key_info: '', registered_date: '2024-01-02' },
-  { id: 'PAT-003', full_name: 'Patient Three', phone: '0893333333', address: 'หมู่ 3', patient_types: 'รับยา', key_info: '', registered_date: '2024-01-03' },
-];
+// File upload configuration with security validation
+const ALLOWED_FILE_TYPES = {
+  images: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  documents: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+};
 
-// GET /api/patients - fetch all patients
-router.get('/', async (_req, res) => {
+const ALLOWED_MIMETYPES = [...ALLOWED_FILE_TYPES.images, ...ALLOWED_FILE_TYPES.documents];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
+const MAX_FILES = 5; // Maximum 5 files per upload
+
+// Configure Multer with security validation
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, '../../uploads/patients');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Sanitize filename to prevent path traversal
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(sanitizedName);
+    const basename = path.basename(sanitizedName, ext);
+    cb(null, `${basename}-${uniqueSuffix}${ext}`);
+  }
+});
+
+// File filter for validation
+const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  // Check file type
+  if (!ALLOWED_MIMETYPES.includes(file.mimetype)) {
+    const error = new Error(
+      `Invalid file type: ${file.mimetype}. Allowed types: JPEG, PNG, WEBP, PDF, DOC, DOCX`
+    ) as any;
+    error.code = 'INVALID_FILE_TYPE';
+    return cb(error);
+  }
+
+  // Check file extension matches mimetype
+  const ext = path.extname(file.originalname).toLowerCase();
+  const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.pdf', '.doc', '.docx'];
+
+  if (!validExtensions.includes(ext)) {
+    const error = new Error(
+      `Invalid file extension: ${ext}. Allowed: ${validExtensions.join(', ')}`
+    ) as any;
+    error.code = 'INVALID_FILE_EXTENSION';
+    return cb(error);
+  }
+
+  cb(null, true);
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+    files: MAX_FILES
+  },
+  fileFilter: fileFilter
+});
+
+// Patient interface matching SQLite schema
+interface Patient {
+  id: string;
+  full_name: string;
+  national_id?: string;
+  dob?: string;
+  age?: number;
+  gender?: string;
+  blood_type?: string;
+  rh_factor?: string;
+  health_coverage?: string;
+  contact_phone?: string;
+
+  // Address fields
+  current_house_number?: string;
+  current_village?: string;
+  current_tambon?: string;
+  current_amphoe?: string;
+  current_changwat?: string;
+
+  // Location
+  landmark?: string;
+  latitude?: string;
+  longitude?: string;
+
+  // Medical info (JSON strings)
+  patient_types?: string;
+  chronic_diseases?: string;
+  allergies?: string;
+
+  // Metadata
+  profile_image_url?: string;
+  registered_date?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Helper to generate patient ID
+const generatePatientId = (): string => {
+  const patients = sqliteDB.all<{ id: string }>('SELECT id FROM patients ORDER BY id DESC LIMIT 1');
+  if (patients.length === 0) return 'PAT-001';
+  const lastId = patients[0].id;
+  const num = parseInt(lastId.split('-')[1]) + 1;
+  return `PAT-${String(num).padStart(3, '0')}`;
+};
+
+// Apply authentication to all routes
+router.use(authenticateToken);
+
+// Helper to map DB snake_case to API camelCase
+const mapPatientToResponse = (p: any, attachments: any[] = []) => {
+  return {
+    id: p.id,
+    fullName: p.full_name,
+    nationalId: p.national_id,
+    dob: p.dob,
+    age: p.age,
+    gender: p.gender,
+    bloodType: p.blood_type,
+    rhFactor: p.rh_factor,
+    healthCoverage: p.health_coverage,
+    contactPhone: p.contact_phone,
+
+    // Address
+    currentAddress: {
+      houseNumber: p.current_house_number,
+      village: p.current_village,
+      tambon: p.current_tambon,
+      amphoe: p.current_amphoe,
+      changwat: p.current_changwat
+    },
+
+    // Location
+    landmark: p.landmark,
+    latitude: p.latitude,
+    longitude: p.longitude,
+
+    // Medical (Parse JSON if string)
+    patientTypes: p.patient_types ? (typeof p.patient_types === 'string' ? JSON.parse(p.patient_types) : p.patient_types) : [],
+    chronicDiseases: p.chronic_diseases ? (typeof p.chronic_diseases === 'string' ? JSON.parse(p.chronic_diseases) : p.chronic_diseases) : [],
+    allergies: p.allergies ? (typeof p.allergies === 'string' ? JSON.parse(p.allergies) : p.allergies) : [],
+
+    // Metadata
+    profileImageUrl: p.profile_image_url,
+    registeredDate: p.registered_date,
+    createdBy: p.created_by,
+
+    // Attachments
+    attachments: attachments.map(a => ({
+      id: a.id,
+      name: a.file_name,
+      url: a.file_path,
+      type: a.file_type,
+      size: a.file_size
+    }))
+  };
+};
+
+// GET /api/patients - fetch patients (filtered by created_by for community users)
+router.get('/', async (req: AuthRequest, res) => {
   try {
-    res.json(mockPatients);
+    // Parse pagination parameters
+    const { page, limit, offset } = parsePaginationParams(req.query);
+
+    // Build WHERE clause
+    let whereClause = '';
+    const params: any[] = [];
+
+    // Filter by created_by if user is community role
+    if (req.user?.role === 'community' && req.user?.id) {
+      whereClause = 'WHERE created_by = ?';
+      params.push(req.user.id);
+    } else if (
+      req.user?.role !== 'admin' &&
+      req.user?.role !== 'DEVELOPER' &&
+      req.user?.role !== 'radio_center' &&
+      req.user?.role !== 'radio' &&
+      req.user?.role !== 'OFFICER' &&
+      req.user?.role !== 'EXECUTIVE'
+    ) {
+      // If not an authorized role, deny access to full list
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get total count
+    const countSql = `SELECT COUNT(*) as count FROM patients ${whereClause}`;
+    const countResult = sqliteDB.get<{ count: number }>(countSql, params);
+    const total = countResult?.count || 0;
+
+    // Get paginated data
+    const dataSql = `SELECT * FROM patients ${whereClause} ORDER BY registered_date DESC LIMIT ? OFFSET ?`;
+    const patients = sqliteDB.all<Patient>(dataSql, [...params, limit, offset]);
+
+    // Map all patients
+    const mappedPatients = patients.map(p => mapPatientToResponse(p));
+
+    // Return paginated response
+    res.json(createPaginatedResponse(mappedPatients, page, limit, total));
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET /api/patients/:id - fetch patient by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
-    const patient = mockPatients.find(p => p.id === id);
+    const patient = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ?', [id]);
     if (!patient) {
       return res.status(404).json({ error: 'Patient not found' });
     }
-    res.json(patient);
+
+    // Check ownership for community users
+    if (req.user?.role === 'community' && patient.created_by && patient.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Fetch attachments
+    const attachments = sqliteDB.all('SELECT * FROM patient_attachments WHERE patient_id = ?', [id]);
+
+    const response = mapPatientToResponse(patient, attachments);
+
+    res.json(response);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // POST /api/patients - create new patient
-router.post('/', async (req, res) => {
+router.post('/', checkDuplicatePatient, upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'attachments', maxCount: 5 }]), async (req: AuthRequest, res) => {
   try {
+    // Validate latitude/longitude if provided
+    const { latitude, longitude } = req.body;
+    if (latitude && longitude) {
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      if (
+        Number.isNaN(lat) ||
+        Number.isNaN(lng) ||
+        lat < -90 || lat > 90 ||
+        lng < -180 || lng > 180
+      ) {
+        return res.status(400).json({ error: 'Invalid latitude/longitude' });
+      }
+    }
+
+    const newId = generatePatientId();
+
+    // Parse JSON strings from FormData with validation
+    let currentAddress: any = {};
+    try {
+      currentAddress = req.body.currentAddress ? JSON.parse(req.body.currentAddress) : {};
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON in currentAddress field' });
+    }
+
+    let patientTypes = [];
+    try {
+      if (req.body.patientTypes) {
+        validateJSON('patientTypes', req.body.patientTypes);
+        patientTypes = JSON.parse(req.body.patientTypes);
+      }
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message || 'Invalid JSON in patientTypes field' });
+    }
+
+    let chronicDiseases = [];
+    try {
+      if (req.body.chronicDiseases) {
+        validateJSON('chronicDiseases', req.body.chronicDiseases);
+        chronicDiseases = JSON.parse(req.body.chronicDiseases);
+      }
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message || 'Invalid JSON in chronicDiseases field' });
+    }
+
+    let allergies = [];
+    try {
+      if (req.body.allergies) {
+        validateJSON('allergies', req.body.allergies);
+        allergies = JSON.parse(req.body.allergies);
+      }
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message || 'Invalid JSON in allergies field' });
+    }
+
+    // Handle Profile Image
+    let profileImageUrl = req.body.profileImageUrl || null;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (files && files['profileImage'] && files['profileImage'][0]) {
+      // In a real app, we would serve this file statically. 
+      // For now, let's store the relative path.
+      // Assuming we serve 'uploads' folder statically
+      profileImageUrl = '/uploads/patients/' + files['profileImage'][0].filename;
+    }
+
     const newPatient = {
-      id: `PAT-${String(mockPatients.length + 1).padStart(3, '0')}`,
-      ...req.body,
-      registered_date: new Date().toISOString().split('T')[0]
+      id: newId,
+      full_name: req.body.fullName,
+      national_id: req.body.nationalId || null,
+      dob: req.body.dob || null,
+      age: req.body.age || null,
+      gender: req.body.gender || null,
+      blood_type: req.body.bloodType || null,
+      rh_factor: req.body.rhFactor || null,
+      health_coverage: req.body.healthCoverage || null,
+      contact_phone: req.body.contactPhone || null,
+
+      // Address
+      current_house_number: currentAddress.houseNumber || null,
+      current_village: currentAddress.village || null,
+      current_tambon: currentAddress.tambon || null,
+      current_amphoe: currentAddress.amphoe || null,
+      current_changwat: currentAddress.changwat || null,
+
+      // Location
+      landmark: req.body.landmark || null,
+      latitude: req.body.latitude || null,
+      longitude: req.body.longitude || null,
+
+      // Medical info (stringify arrays)
+      patient_types: JSON.stringify(patientTypes),
+      chronic_diseases: JSON.stringify(chronicDiseases),
+      allergies: JSON.stringify(allergies),
+
+      // Metadata
+      profile_image_url: profileImageUrl,
+      registered_date: new Date().toISOString().split('T')[0],
+      created_by: req.user?.id || null
     };
-    mockPatients.push(newPatient);
-    res.status(201).json(newPatient);
+
+    sqliteDB.insert('patients', newPatient);
+
+    // Handle Attachments
+    if (files && files['attachments']) {
+      for (const file of files['attachments']) {
+        const attachmentId = crypto.randomUUID();
+        sqliteDB.insert('patient_attachments', {
+          id: attachmentId,
+          patient_id: newId,
+          file_name: file.originalname,
+          file_path: '/uploads/patients/' + file.filename,
+          file_type: file.mimetype,
+          file_size: file.size
+        });
+      }
+    }
+
+    // Audit Log
+    if (req.user) {
+      auditService.log(
+        req.user.email || 'unknown',
+        req.user.role || 'unknown',
+        'CREATE_PATIENT',
+        newId,
+        { fullName: newPatient.full_name }
+      );
+    }
+
+    const created = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ?', [newId]);
+    res.status(201).json(created);
   } catch (err: any) {
+    console.error('Error creating patient:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // PUT /api/patients/:id - update patient
-router.put('/:id', async (req, res) => {
+router.put('/:id', upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'attachments', maxCount: 5 }]), async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
-    const index = mockPatients.findIndex(p => p.id === id);
-    if (index === -1) {
+    const existing = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ?', [id]);
+    if (!existing) {
       return res.status(404).json({ error: 'Patient not found' });
     }
-    mockPatients[index] = { ...mockPatients[index], ...req.body };
-    res.json(mockPatients[index]);
+
+    // Check ownership for community users
+    if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Validate latitude/longitude if provided in update
+    const { latitude, longitude } = req.body;
+    if (latitude && longitude) {
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      if (
+        Number.isNaN(lat) ||
+        Number.isNaN(lng) ||
+        lat < -90 || lat > 90 ||
+        lng < -180 || lng > 180
+      ) {
+        return res.status(400).json({ error: 'Invalid latitude/longitude' });
+      }
+    }
+
+    const updateData: any = {};
+    if (req.body.fullName) updateData.full_name = req.body.fullName;
+    if (req.body.nationalId) updateData.national_id = req.body.nationalId;
+    if (req.body.dob) updateData.dob = req.body.dob;
+    if (req.body.age) updateData.age = req.body.age;
+    if (req.body.gender) updateData.gender = req.body.gender;
+    if (req.body.bloodType) updateData.blood_type = req.body.bloodType;
+    if (req.body.contactPhone) updateData.contact_phone = req.body.contactPhone;
+
+    // Address (Parse JSON)
+    if (req.body.currentAddress) {
+      try {
+        const addr = JSON.parse(req.body.currentAddress);
+        if (addr.houseNumber) updateData.current_house_number = addr.houseNumber;
+        if (addr.village) updateData.current_village = addr.village;
+        if (addr.tambon) updateData.current_tambon = addr.tambon;
+        if (addr.amphoe) updateData.current_amphoe = addr.amphoe;
+        if (addr.changwat) updateData.current_changwat = addr.changwat;
+      } catch (e) { }
+    }
+
+    // Location
+    if (req.body.latitude) updateData.latitude = req.body.latitude;
+    if (req.body.longitude) updateData.longitude = req.body.longitude;
+    if (req.body.landmark) updateData.landmark = req.body.landmark;
+
+    // Medical info
+    if (req.body.patientTypes) updateData.patient_types = req.body.patientTypes; // Already JSON string from FormData
+    if (req.body.chronicDiseases) updateData.chronic_diseases = req.body.chronicDiseases;
+    if (req.body.allergies) updateData.allergies = req.body.allergies;
+
+    // Handle Profile Image
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    if (files && files['profileImage'] && files['profileImage'][0]) {
+      updateData.profile_image_url = '/uploads/patients/' + files['profileImage'][0].filename;
+    }
+
+    sqliteDB.update('patients', id, updateData);
+
+    // Handle New Attachments
+    if (files && files['attachments']) {
+      for (const file of files['attachments']) {
+        const attachmentId = crypto.randomUUID();
+        sqliteDB.insert('patient_attachments', {
+          id: attachmentId,
+          patient_id: id,
+          file_name: file.originalname,
+          file_path: '/uploads/patients/' + file.filename,
+          file_type: file.mimetype,
+          file_size: file.size
+        });
+      }
+    }
+
+    // Audit Log
+    if (req.user) {
+      auditService.log(
+        req.user.email || 'unknown',
+        req.user.role || 'unknown',
+        'UPDATE_PATIENT',
+        id,
+        { fullName: updateData.full_name || existing.full_name }
+      );
+    }
+
+    const updated = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ?', [id]);
+    res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // DELETE /api/patients/:id - delete patient
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
-    const index = mockPatients.findIndex(p => p.id === id);
-    if (index === -1) {
+    const existing = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ?', [id]);
+    if (!existing) {
       return res.status(404).json({ error: 'Patient not found' });
     }
-    mockPatients.splice(index, 1);
+
+    // Check ownership for community users
+    if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Audit Log
+    if (req.user) {
+      auditService.log(
+        req.user.email || 'unknown',
+        req.user.role || 'unknown',
+        'DELETE_PATIENT',
+        id,
+        { fullName: existing.full_name }
+      );
+    }
+
+    // Delete attachments first (optional if CASCADE works, but good for cleanup)
+    // TODO: Delete actual files from disk
+    sqliteDB.delete('patients', id);
     res.status(204).send();
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ManagedUser, User, UserStatus } from '../types';
 import UserPlusIcon from '../components/icons/UserPlusIcon';
 import SearchIcon from '../components/icons/SearchIcon';
-import FilterIcon from '../components/icons/FilterIcon';
 import EditIcon from '../components/icons/EditIcon';
 import PowerIcon from '../components/icons/PowerIcon';
 import KeyIcon from '../components/icons/KeyIcon';
@@ -46,8 +45,8 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                 fullName: u.full_name || u.name || u.username || '',
                 email: u.email || '',
                 role: u.role || 'community',
-                dateCreated: u.created_at || new Date().toISOString(),
-                status: (u.is_active === false ? 'Inactive' : 'Active') as UserStatus,
+                dateCreated: u.created_at || u.dateCreated || new Date().toISOString(),
+                status: (u.status || (u.is_active === false ? 'Inactive' : 'Active')) as UserStatus,
                 profileImageUrl: u.profile_image_url || undefined,
             }));
             setUsers(mapped);
@@ -60,11 +59,9 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
     };
 
     const visibleUsers = useMemo(() => {
-        // AC-6: If the logged-in user is an ADMIN, they MUST NOT see the DEVELOPER account.
         if (currentUser.role === 'admin') {
             return users.filter(u => u.role !== 'DEVELOPER');
         }
-        // AC-5: DEVELOPER can see everyone, including ADMINs.
         return users;
     }, [users, currentUser]);
 
@@ -86,22 +83,27 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
         setIsModalOpen(true);
     };
 
-    const handleSaveUser = async (userToSave: ManagedUser) => {
+    const handleSaveUser = async (userToSave: ManagedUser & { password?: string }) => {
         try {
             if (selectedUser) {
                 await apiRequest(`/users/${userToSave.id}`, {
                     method: 'PUT',
                     body: JSON.stringify({
-                        username: userToSave.fullName,
+                        full_name: userToSave.fullName,
                         email: userToSave.email,
+                        role: userToSave.role,
+                        status: userToSave.status
                     }),
                 });
             } else {
                 await apiRequest('/users', {
                     method: 'POST',
                     body: JSON.stringify({
-                        username: userToSave.fullName,
+                        full_name: userToSave.fullName,
                         email: userToSave.email,
+                        role: userToSave.role,
+                        status: 'Active',
+                        password: userToSave.password
                     }),
                 });
             }
@@ -110,6 +112,38 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
         } catch (err: any) {
             console.error('Failed to save user:', err);
             alert('ไม่สามารถบันทึกข้อมูลผู้ใช้ได้');
+        }
+    };
+
+    const handleToggleStatus = async (user: ManagedUser) => {
+        const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
+        if (!window.confirm(`คุณแน่ใจหรือไม่ที่จะเปลี่ยนสถานะเป็น ${newStatus}?`)) return;
+
+        try {
+            await apiRequest(`/users/${user.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: newStatus })
+            });
+            await loadUsers();
+        } catch (err: any) {
+            console.error('Failed to update status:', err);
+            alert('ไม่สามารถเปลี่ยนสถานะได้');
+        }
+    };
+
+    const handleResetPassword = async (user: ManagedUser) => {
+        const newPassword = prompt(`กรุณากรอกรหัสผ่านใหม่สำหรับ ${user.fullName}:`);
+        if (!newPassword) return;
+
+        try {
+            await apiRequest(`/users/${user.id}/reset-password`, {
+                method: 'POST',
+                body: JSON.stringify({ newPassword })
+            });
+            alert('รีเซ็ตรหัสผ่านสำเร็จ');
+        } catch (err: any) {
+            console.error('Failed to reset password:', err);
+            alert('ไม่สามารถรีเซ็ตรหัสผ่านได้');
         }
     };
 
@@ -142,7 +176,7 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                     <span>เพิ่มผู้ใช้ใหม่</span>
                 </button>
             </div>
-            
+
             {/* Filtering Toolbar */}
             <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -152,32 +186,32 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                     </div>
                     <div>
                         <label className="text-xs font-medium text-gray-600">Role</label>
-                        <select value={filters.role} onChange={e => setFilters(f => ({...f, role: e.target.value}))}>
-                           <option value="All">All Roles</option>
-                           <option value="admin">Admin</option>
-                           <option value="office">Office</option>
-                           <option value="OFFICER">Officer</option>
-                           <option value="driver">Driver</option>
-                           <option value="community">Community</option>
-                           <option value="EXECUTIVE">Executive</option>
+                        <select value={filters.role} onChange={e => setFilters(f => ({ ...f, role: e.target.value }))}>
+                            <option value="All">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="office">Office</option>
+                            <option value="OFFICER">Officer</option>
+                            <option value="driver">Driver</option>
+                            <option value="community">Community</option>
+                            <option value="EXECUTIVE">Executive</option>
                         </select>
                     </div>
                     <div>
                         <label className="text-xs font-medium text-gray-600">สถานะ</label>
-                        <select value={filters.status} onChange={e => setFilters(f => ({...f, status: e.target.value}))}>
-                           <option value="All">All Statuses</option>
-                           <option value="Active">Active</option>
-                           <option value="Inactive">Inactive</option>
+                        <select value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
+                            <option value="All">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-             {/* Data Table */}
+            {/* Data Table */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left text-gray-600">
-                         <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
                             <tr>
                                 <th className="px-6 py-3 font-semibold">ผู้ใช้</th>
                                 <th className="px-6 py-3 font-semibold">Role</th>
@@ -204,8 +238,8 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center space-x-3">
                                             <button onClick={() => handleOpenModal(user)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button className="p-2 rounded-full text-gray-400 hover:text-yellow-600" title="รีเซ็ตรหัสผ่าน"><KeyIcon className="w-5 h-5" /></button>
-                                            <button className={`p-2 rounded-full text-gray-400 hover:text-${user.status === 'Active' ? 'red' : 'green'}-600`} title={user.status === 'Active' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}><PowerIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleResetPassword(user)} className="p-2 rounded-full text-gray-400 hover:text-yellow-600" title="รีเซ็ตรหัสผ่าน"><KeyIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleToggleStatus(user)} className={`p-2 rounded-full text-gray-400 hover:text-${user.status === 'Active' ? 'red' : 'green'}-600`} title={user.status === 'Active' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}><PowerIcon className="w-5 h-5" /></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -214,17 +248,17 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                     </table>
                 </div>
             </div>
-            
+
             {/* Pagination */}
             <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-gray-700">ผลลัพธ์ {paginatedUsers.length} จาก {filteredUsers.length} รายการ</span>
                 <div className="inline-flex items-center space-x-2">
-                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5" /></button>
                     <span className="text-sm font-semibold">Page {currentPage} of {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>
-            
+
             <EditUserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={selectedUser} onSave={handleSaveUser} />
         </div>
     );

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../db/connection';
+import { jsonDB } from '../db/jsonDB';
 
 export interface AuthUser {
   id: string;
@@ -13,7 +14,10 @@ export interface AuthRequest extends Request {
   user?: AuthUser;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET must be set in environment variables');
+}
 
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -32,14 +36,13 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     }
 
     // Load user metadata if needed (email/role).
-    // If users table exists, enrich the user info; otherwise, proceed with decoded info.
     try {
-      const userRes = await db.query('SELECT id, email, role FROM users WHERE id = $1', [userId]);
-      if (userRes.rows.length > 0) {
-        decoded.email = decoded.email || userRes.rows[0].email;
-        decoded.role = decoded.role || userRes.rows[0].role;
+      const user = jsonDB.findById<any>('users', userId);
+      if (user) {
+        decoded.email = decoded.email || user.email;
+        decoded.role = decoded.role || user.role;
       }
-    } catch {}
+    } catch { }
 
     // Determine driver_id. Priority:
     // 1) driver_id from token
@@ -47,16 +50,15 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     // 3) drivers.email matches user email (if available)
     if (!decoded.driver_id) {
       try {
-        const byUserId = await db.query('SELECT id FROM drivers WHERE user_id = $1 LIMIT 1', [userId]);
-        if (byUserId.rows.length > 0) {
-          decoded.driver_id = byUserId.rows[0].id;
-        } else if (decoded.email) {
-          const byEmail = await db.query('SELECT id FROM drivers WHERE email = $1 LIMIT 1', [decoded.email]);
-          if (byEmail.rows.length > 0) {
-            decoded.driver_id = byEmail.rows[0].id;
-          }
+        const drivers = jsonDB.read<any>('drivers');
+        let driver = drivers.find((d: any) => d.user_id === userId);
+        if (!driver && decoded.email) {
+          driver = drivers.find((d: any) => d.email === decoded.email);
         }
-      } catch {}
+        if (driver) {
+          decoded.driver_id = driver.id;
+        }
+      } catch { }
     }
 
     req.user = decoded;
@@ -64,4 +66,34 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   } catch (error) {
     return res.status(403).json({ error: 'Invalid or expired token' });
   }
+};
+
+// Optional auth - extracts user from token if present, but doesn't require it
+export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+      req.user = decoded;
+    } catch {
+      // Invalid token, just continue without user
+    }
+  }
+  next();
+};
+
+export const requireRole = (roles: string[]) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user || !req.user.role) {
+      return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+    }
+
+    next();
+  };
 };

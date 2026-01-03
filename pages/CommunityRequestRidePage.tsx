@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CommunityView, Patient, Notification } from '../types';
 import { formatDateToThai } from '../utils/dateUtils';
-import ThaiDatePicker from '../components/ui/ThaiDatePicker';
+import ModernDatePicker from '../components/ui/ModernDatePicker';
 import ThaiTimePicker from '../components/ui/ThaiTimePicker';
 import SuccessModal from '../components/modals/SuccessModal';
 import TagInput from '../components/ui/TagInput';
@@ -32,17 +32,18 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         pickupLocation: '',
         destination: 'โรงพยาบาลฝาง',
     });
-    const [patients, setPatients] = useState<Array<{ id: string; fullName: string }>>([]);
+    const [patients, setPatients] = useState<Array<{ id: string; fullName: string; phone?: string; address?: string }>>([]);
     const [loadingPatients, setLoadingPatients] = useState<boolean>(false);
 
     const [specialNeeds, setSpecialNeeds] = useState<string[]>([]);
     const [minTime, setMinTime] = useState<string | null>(null);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const today = new Date().toISOString().split('T')[0];
 
     useEffect(() => {
-        if(preselectedPatientId) {
-            setFormData(prev => ({...prev, patientId: preselectedPatientId}));
+        if (preselectedPatientId) {
+            setFormData(prev => ({ ...prev, patientId: preselectedPatientId }));
         }
     }, [preselectedPatientId]);
 
@@ -51,7 +52,22 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             setLoadingPatients(true);
             try {
                 const data = await patientsAPI.getPatients();
-                const mapped = (data || []).map((p: any) => ({ id: p.id, fullName: p.full_name || p.fullName }));
+                const mapped = (data || []).map((p: any) => {
+                    const addressParts = [
+                        p.current_house_number,
+                        p.current_village,
+                        p.current_tambon,
+                        p.current_amphoe,
+                        p.current_changwat
+                    ].filter(Boolean);
+
+                    return {
+                        id: p.id,
+                        fullName: p.full_name || p.fullName,
+                        phone: p.contact_phone || p.phone || p.key_info?.contact_phone || '',
+                        address: addressParts.length > 0 ? addressParts.join(' ') : (p.address || '')
+                    };
+                });
                 setPatients(mapped);
             } catch (e) {
                 addNotification({ message: 'ไม่สามารถโหลดรายชื่อผู้ป่วยได้', isRead: false });
@@ -65,13 +81,13 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
     useEffect(() => {
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
-        
+
         if (formData.appointmentDate === todayStr) {
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
             const newMinTime = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
             setMinTime(newMinTime);
-            
+
             if (formData.appointmentTime) {
                 const [selectedHour, selectedMinute] = formData.appointmentTime.split(':').map(Number);
                 if (selectedHour < currentHour || (selectedHour === currentHour && selectedMinute < currentMinute)) {
@@ -79,12 +95,27 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                 }
             }
         } else {
-            setMinTime(null); 
+            setMinTime(null);
         }
     }, [formData.appointmentDate, formData.appointmentTime]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+
+        // Auto-populate when patient is selected
+        if (name === 'patientId' && value) {
+            const selectedPatient = patients.find(p => p.id === value);
+            if (selectedPatient) {
+                setFormData(prev => ({
+                    ...prev,
+                    patientId: value,
+                    pickupLocation: selectedPatient.address || '',
+                    contactPhone: selectedPatient.phone || '',
+                }));
+                return;
+            }
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: name === 'caregiverCount' ? Math.max(0, parseInt(value, 10) || 0) : value
@@ -93,26 +124,29 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!formData.patientId || !formData.appointmentDate || !formData.appointmentTime || !formData.pickupLocation || !formData.destination) {
             addNotification({ message: 'กรุณากรอกข้อมูลให้ครบถ้วน', isRead: false });
             return;
         }
 
         const apptIso = new Date(`${formData.appointmentDate}T${formData.appointmentTime}:00`).toISOString();
+        const selectedPatient = patients.find(p => p.id === formData.patientId);
         const payload = {
             patient_id: formData.patientId,
+            patient_name: selectedPatient?.fullName || 'Unknown Patient',
             appointment_time: apptIso,
             pickup_location: formData.pickupLocation,
             destination: formData.destination,
             special_needs: specialNeeds.join(', '),
             caregiver_count: formData.caregiverCount,
             contact_phone: formData.contactPhone,
+            trip_type: formData.tripType, // Added trip_type
         } as any;
 
+        setIsSubmitting(true);
         try {
             await ridesAPI.createRide(payload);
-            const selectedPatient = patients.find(p => p.id === formData.patientId);
             addNotification({ message: `ส่งคำขอเดินทางสำหรับคุณ ${selectedPatient?.fullName || ''} เรียบร้อยแล้ว`, isRead: false });
             setIsSuccessModalOpen(true);
             setFormData({
@@ -128,6 +162,8 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             setSpecialNeeds([]);
         } catch (e) {
             addNotification({ message: 'ไม่สามารถสร้างคำขอเดินทางได้ กรุณาลองใหม่', isRead: false });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -139,6 +175,28 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-gray-800">สร้างคำขอการเดินทางใหม่</h1>
+
+            {!loadingPatients && patients.length === 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                    <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0">
+                            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-yellow-800 mb-2">ยังไม่มีผู้ป่วยในระบบ</h3>
+                            <p className="text-yellow-700 mb-4">คุณต้องลงทะเบียนผู้ป่วยก่อนจึงจะสามารถจองรถได้</p>
+                            <button
+                                onClick={() => setActiveView('register_patient')}
+                                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
+                            >
+                                ลงทะเบียนผู้ป่วยเลย
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white p-6 md:p-8 rounded-lg shadow-sm border border-gray-200">
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -203,21 +261,22 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                                 ))}
                             </select>
                         </div>
-                        
+
                         {/* Appointment Date & Time */}
                         <div>
                             <label htmlFor="appointmentDate" className="block text-sm font-medium text-gray-700 mb-1">วันนัดหมาย</label>
-                            <ThaiDatePicker
+                            <ModernDatePicker
                                 name="appointmentDate"
                                 value={formData.appointmentDate}
                                 onChange={handleChange}
                                 required
                                 min={today}
+                                placeholder="เลือกวันนัดหมาย"
                             />
                         </div>
                         <div>
                             <label htmlFor="appointmentTime" className="block text-sm font-medium text-gray-700 mb-1">เวลานัดหมาย</label>
-                             <ThaiTimePicker
+                            <ThaiTimePicker
                                 name="appointmentTime"
                                 value={formData.appointmentTime}
                                 onChange={handleChange}
@@ -228,14 +287,14 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
 
                         {/* Special Needs */}
                         <div className="md:col-span-2">
-                             <label className="block text-sm font-medium text-gray-700 mb-1">ความต้องการพิเศษของผู้ป่วย</label>
-                             <TagInput 
-                                tags={specialNeeds} 
+                            <label className="block text-sm font-medium text-gray-700 mb-1">ความต้องการพิเศษของผู้ป่วย</label>
+                            <TagInput
+                                tags={specialNeeds}
                                 setTags={setSpecialNeeds}
                                 placeholder="พิมพ์แล้วกด + หรือ Enter (เช่น 'ต้องใช้วีลแชร์')"
                             />
                         </div>
-                        
+
                         {/* Caregiver Count */}
                         <div>
                             <label htmlFor="caregiverCount" className="block text-sm font-medium text-gray-700 mb-1">จำนวนผู้ดูแลที่จะเดินทางไปด้วย</label>
@@ -248,7 +307,7 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                                 min="0"
                             />
                         </div>
-                        
+
                         {/* Contact Phone */}
                         <div>
                             <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรติดต่อระหว่างเดินทาง</label>
@@ -264,14 +323,18 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                         </div>
 
                     </div>
-                    
+
                     {/* Action Buttons */}
                     <div className="flex justify-end items-center gap-4 pt-4 border-t border-gray-200 mt-8">
-                        <button type="button" onClick={() => setActiveView('dashboard')} className="px-6 py-2.5 font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">
+                        <button type="button" onClick={() => setActiveView('dashboard')} className="px-6 py-2.5 font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors" disabled={isSubmitting}>
                             ยกเลิก
                         </button>
-                        <button type="submit" className="px-6 py-2.5 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors">
-                            ส่งคำขอการเดินทาง
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className={`px-6 py-2.5 font-semibold text-white rounded-lg shadow-sm transition-colors ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-[var(--wecare-green)] hover:bg-green-600'}`}
+                        >
+                            {isSubmitting ? 'กำลังส่ง...' : 'ส่งคำขอการเดินทาง'}
                         </button>
                     </div>
                 </form>

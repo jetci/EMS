@@ -7,6 +7,7 @@ import AboutUsScreen from './components/AboutUsScreen';
 import PublicFooter from './components/PublicFooter';
 import ContactUsScreen from './components/ContactUsScreen';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 import { User } from './types';
 import PublicNewsListingPage from './pages/PublicNewsListingPage';
 import PublicSingleNewsPage from './pages/PublicSingleNewsPage';
@@ -73,36 +74,28 @@ const App: React.FC = () => {
         const parsed = JSON.parse(userData);
         setUser(parsed as User);
       }
-    } catch {}
+    } catch { }
   }, []);
 
-  const handleLogin = (email: string, pass: string): boolean => {
-    // Kick off async login via backend API; keep boolean return for LoginScreen UX
-    (async () => {
+  const handleLogin = async (email: string, pass: string): Promise<boolean> => {
+    try {
+      const { user: loggedInUser, token } = await authAPI.login(email, pass);
+      const mappedUser: User = {
+        id: loggedInUser?.id,
+        name: loggedInUser?.full_name || loggedInUser?.name || email,
+        email: loggedInUser?.email || email,
+        role: (loggedInUser?.role || 'user') as User['role'],
+      };
       try {
-        const lowerEmail = email.toLowerCase();
-        const { user: loggedInUser, token } = await authAPI.login(email, pass);
-        const mappedUser: User = {
-          id: loggedInUser?.id,
-          name: loggedInUser?.full_name || loggedInUser?.name || email,
-          email: loggedInUser?.email || email,
-          role: (loggedInUser?.role || 'user') as User['role'],
-        };
-        if (lowerEmail === 'office1@wecare.dev' && pass === 'password') {
-          setUser({ name: 'Radio Center Staff', email: 'office1@wecare.dev', role: 'radio' });
-          return true;
-        }
-        try {
-          localStorage.setItem('wecare_token', token);
-          localStorage.setItem('wecare_user', JSON.stringify(mappedUser));
-        } catch {}
-        setUser(mappedUser);
-      } catch (e) {
-        console.error('Login error', e);
-        alert('ไม่สามารถเข้าสู่ระบบได้ กรุณาตรวจสอบอีเมล/รหัสผ่าน');
-      }
-    })();
-    return true;
+        localStorage.setItem('wecare_token', token);
+        localStorage.setItem('wecare_user', JSON.stringify(mappedUser));
+      } catch { }
+      setUser(mappedUser);
+      return true;
+    } catch (e) {
+      console.error('Login error', e);
+      return false;
+    }
   };
 
   const handleLogout = () => {
@@ -112,7 +105,10 @@ const App: React.FC = () => {
       localStorage.removeItem('jwt');
       localStorage.removeItem('wecare_token');
       localStorage.removeItem('wecare_user');
-    } catch {}
+      // Clear CSRF token
+      const { clearCsrfToken } = require('./src/services/api');
+      clearCsrfToken();
+    } catch { }
   };
 
   const navigate = (path: string) => {
@@ -134,21 +130,21 @@ const App: React.FC = () => {
 
   if (user) {
     return (
-        <AuthenticatedLayout user={user} onLogout={handleLogout} />
+      <AuthenticatedLayout user={user} onLogout={handleLogout} />
     );
   }
-  
+
   const showFooter = publicView === 'landing' || publicView === 'about' || publicView === 'contact' || publicView === 'news' || publicView === 'news_single';
-  
+
   const renderPublicContent = () => {
-    switch(publicView) {
+    switch (publicView) {
       case 'landing': return <LandingPage onRegisterClick={showRegister} />;
       case 'login': return <LoginScreen onLogin={handleLogin} onRegisterClick={showRegister} />;
       case 'register': return <RegisterScreen onLoginClick={showLogin} />;
       case 'about': return <AboutUsScreen />;
       case 'contact': return <ContactUsScreen />;
       case 'news': return <PublicNewsListingPage onViewArticle={handleViewArticle} />;
-      case 'news_single': 
+      case 'news_single':
         if (selectedArticleId) {
           return <PublicSingleNewsPage articleId={selectedArticleId} onBackToList={showNews} />;
         }
@@ -158,20 +154,22 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="bg-slate-50 min-h-screen">
-      <PublicHeader
+    <ErrorBoundary>
+      <div className="bg-slate-50 min-h-screen">
+        <PublicHeader
           onLoginClick={showLogin}
           onRegisterClick={showRegister}
           onLogoClick={showLanding}
           onAboutClick={showAbout}
           onContactClick={showContact}
           onNewsClick={showNews}
-      />
-      <main>
+        />
+        <main>
           {renderPublicContent()}
-      </main>
-      {showFooter && <PublicFooter />}
-    </div>
+        </main>
+        {showFooter && <PublicFooter />}
+      </div>
+    </ErrorBoundary>
   );
 };
 

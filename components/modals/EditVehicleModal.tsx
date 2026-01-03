@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Vehicle, VehicleStatus } from '../../types';
 import XIcon from '../icons/XIcon';
-import ThaiDatePicker from '../ui/ThaiDatePicker';
+import ModernDatePicker from '../ui/ModernDatePicker';
 
 interface EditVehicleModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (vehicle: Vehicle) => void;
-  vehicle: Vehicle | null;
-  availableVehicleTypes: any[];
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (vehicle: Vehicle) => void;
+    vehicle: Vehicle | null;
+    availableVehicleTypes: any[];
 }
 
 const emptyVehicle: Omit<Vehicle, 'id'> = {
@@ -61,7 +61,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
                                 <label htmlFor="licensePlate" className="block text-sm font-medium text-gray-700">ทะเบียนรถ</label>
                                 <input type="text" name="licensePlate" id="licensePlate" value={formData.licensePlate} onChange={handleChange} className="mt-1" required />
                             </div>
-                             <div>
+                            <div>
                                 <label htmlFor="type" className="block text-sm font-medium text-gray-700">ประเภทรถ</label>
                                 <select name="type" id="type" value={formData.type} onChange={handleChange} className="mt-1" required>
                                     <option value="" disabled>-- เลือกประเภทรถ --</option>
@@ -72,16 +72,16 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div>
+                            <div>
                                 <label htmlFor="brand" className="block text-sm font-medium text-gray-700">ยี่ห้อ</label>
                                 <input type="text" name="brand" id="brand" value={formData.brand} onChange={handleChange} className="mt-1" />
                             </div>
-                             <div>
+                            <div>
                                 <label htmlFor="model" className="block text-sm font-medium text-gray-700">รุ่น</label>
                                 <input type="text" name="model" id="model" value={formData.model} onChange={handleChange} className="mt-1" />
                             </div>
                         </div>
-                         <div>
+                        <div>
                             <label htmlFor="status" className="block text-sm font-medium text-gray-700">สถานะ</label>
                             <select name="status" id="status" value={formData.status} onChange={handleChange} className="mt-1" required>
                                 <option value={VehicleStatus.AVAILABLE}>พร้อมใช้งาน</option>
@@ -91,11 +91,12 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
                         </div>
                         <div>
                             <label htmlFor="nextMaintenanceDate" className="block text-sm font-medium text-gray-700">วันตรวจสภาพครั้งต่อไป</label>
-                             <ThaiDatePicker
+                            <ModernDatePicker
                                 name="nextMaintenanceDate"
                                 value={formData.nextMaintenanceDate || ''}
                                 onChange={handleChange}
                                 min={new Date().toISOString().split('T')[0]}
+                                placeholder="เลือกวันตรวจสภาพ"
                             />
                         </div>
                     </div>

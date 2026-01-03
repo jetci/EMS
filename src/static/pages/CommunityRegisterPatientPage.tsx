@@ -94,12 +94,12 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
     const handleWizardComplete = async (finalData: any) => {
         console.log("Final data for submission:", finalData);
         
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                alert('กรุณาเข้าสู่ระบบใหม่');
-                return;
-            }
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                        alert('กรุณาเข้าสู่ระบบใหม่');
+                        return;
+                    }
             
             const requestData = {
                 ...finalData,
@@ -148,21 +148,18 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                         onNext={(data) => setFormData(prev => ({ ...prev, ...data }))}
                     />
                 </Step>
-                {/* Step 3: ข้อมูลติดต่อ & ที่อยู่ (Contact & Address) */}
                 <Step title="ข้อมูลติดต่อ & ที่อยู่">
                     <Step3Contact 
                         currentData={formData}
                         onNext={(data) => setFormData(prev => ({ ...prev, ...data }))}
                     />
                 </Step>
-                {/* Step 4: เอกสารแนบ (Attachments) */}
                 <Step title="เอกสารแนบ">
                     <Step4Attachments 
                         currentData={formData}
                         onNext={(data) => setFormData(prev => ({ ...prev, ...data }))}
                     />
                 </Step>
-                {/* Step 5: ตรวจสอบ & ยืนยัน (Review & Submit) */}
                 <Step title="ตรวจสอบ & ยืนยัน">
                     <Step5Review 
                         currentData={formData}

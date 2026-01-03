@@ -11,6 +11,7 @@ import CameraIcon from '../components/icons/CameraIcon';
 import CameraModal from '../components/modals/CameraModal';
 import { defaultProfileImage } from '../assets/defaultProfile';
 import LogoutIcon from '../components/icons/LogoutIcon';
+import { authAPI } from '../src/services/api';
 
 
 interface CommunityProfilePageProps {
@@ -71,17 +72,28 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
         setIsConfirmModalOpen(true);
     };
 
-    const handleConfirmSave = () => {
+    const handleConfirmSave = async () => {
         setIsConfirmModalOpen(false);
-        // In a real app, you would make an API call here.
-        // For this mock, we'll just log it and show success.
-        console.log("Saving profile:", { ...initialUser, name: `${formData.firstName} ${formData.lastName}`, phone: formData.phone });
-        setIsEditing(false);
-        showToast("✅ บันทึกข้อมูลสำเร็จแล้ว!");
-        // Note: The visual update will happen because formData state is used for display.
-        // In a real app, you might refetch the user or update a global state.
+        try {
+            await authAPI.updateProfile({
+                fullName: `${formData.firstName} ${formData.lastName}`.trim(),
+                phone: formData.phone,
+            });
+            // Update localStorage with new user data
+            const storedUser = localStorage.getItem('wecare_user');
+            if (storedUser) {
+                const userData = JSON.parse(storedUser);
+                userData.name = `${formData.firstName} ${formData.lastName}`.trim();
+                userData.phone = formData.phone;
+                localStorage.setItem('wecare_user', JSON.stringify(userData));
+            }
+            setIsEditing(false);
+            showToast("✅ บันทึกข้อมูลสำเร็จแล้ว!");
+        } catch (error: any) {
+            showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+        }
     };
-    
+
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -92,21 +104,33 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
         setPasswordData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handlePasswordSave = (e: React.FormEvent) => {
+    const handlePasswordSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (passwordData.newPassword !== passwordData.confirmNewPassword) {
-            alert("New passwords do not match!");
+            showToast("❌ รหัสผ่านใหม่ไม่ตรงกัน");
             return;
         }
         if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
-            alert("New password must be at least 6 characters long.");
+            showToast("❌ รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร");
             return;
         }
-        console.log("Changing password...");
-        alert("Password changed successfully!");
-        setPasswordData({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+        if (!passwordData.currentPassword) {
+            showToast("❌ กรุณากรอกรหัสผ่านปัจจุบัน");
+            return;
+        }
+        try {
+            await authAPI.changePassword(
+                initialUser.id || '',
+                passwordData.currentPassword,
+                passwordData.newPassword
+            );
+            showToast("✅ เปลี่ยนรหัสผ่านสำเร็จแล้ว!");
+            setPasswordData({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+        } catch (error: any) {
+            showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+        }
     };
-    
+
     const handleCaptureImage = (imageDataUrl: string) => {
         setProfileImage(imageDataUrl);
         setIsCameraModalOpen(false);
@@ -137,17 +161,17 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
     return (
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-gray-800">โปรไฟล์และการตั้งค่า</h1>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Column 1: Profile Information */}
                 <div className="lg:col-span-2">
                     <form onSubmit={handleSaveClick}>
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                             <div className="flex justify-between items-center mb-6">
+                            <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold text-[var(--wecare-blue)]">ข้อมูลส่วนตัว</h2>
                                 {!isEditing && (
                                     <button type="button" onClick={handleEditClick} className="flex items-center text-sm font-semibold text-white bg-[var(--wecare-blue)] px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                                        <EditIcon className="w-4 h-4 mr-2"/>
+                                        <EditIcon className="w-4 h-4 mr-2" />
                                         แก้ไขข้อมูล
                                     </button>
                                 )}
@@ -176,7 +200,7 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                                     </div>
                                     <div>
                                         <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">นามสกุล</label>
-                                         {isEditing ? (
+                                        {isEditing ? (
                                             <input type="text" name="lastName" id="lastName" value={formData.lastName} onChange={handleProfileChange} className="mt-1 w-full" />
                                         ) : (
                                             <p className="mt-1 text-lg text-gray-900">{formData.lastName}</p>
@@ -202,8 +226,8 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                                             ยกเลิก
                                         </button>
                                         <button type="submit" className="flex items-center justify-center px-6 py-2 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors">
-                                           <SaveIcon className="w-5 h-5 mr-2"/>
-                                           บันทึก
+                                            <SaveIcon className="w-5 h-5 mr-2" />
+                                            บันทึก
                                         </button>
                                     </div>
                                 )}
@@ -215,26 +239,26 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                 {/* Column 2: Security Settings */}
                 <div className="space-y-8">
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                         <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">เปลี่ยนรหัสผ่าน</h2>
-                         <form onSubmit={handlePasswordSave} className="space-y-4">
+                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">เปลี่ยนรหัสผ่าน</h2>
+                        <form onSubmit={handlePasswordSave} className="space-y-4">
                             <div>
-                                <label htmlFor="currentPassword"  className="block text-sm font-medium text-gray-700">รหัสผ่านปัจจุบัน</label>
+                                <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">รหัสผ่านปัจจุบัน</label>
                                 <input type="password" name="currentPassword" id="currentPassword" value={passwordData.currentPassword} onChange={handlePasswordChange} className="mt-1 w-full" />
                             </div>
-                             <div>
-                                <label htmlFor="newPassword"  className="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
+                            <div>
+                                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
                                 <input type="password" name="newPassword" id="newPassword" value={passwordData.newPassword} onChange={handlePasswordChange} className="mt-1 w-full" />
                             </div>
                             <div>
-                                <label htmlFor="confirmNewPassword"  className="block text-sm font-medium text-gray-700">ยืนยันรหัสผ่านใหม่</label>
+                                <label htmlFor="confirmNewPassword" className="block text-sm font-medium text-gray-700">ยืนยันรหัสผ่านใหม่</label>
                                 <input type="password" name="confirmNewPassword" id="confirmNewPassword" value={passwordData.confirmNewPassword} onChange={handlePasswordChange} className="mt-1 w-full" />
                             </div>
-                             <div className="pt-2">
+                            <div className="pt-2">
                                 <button type="submit" className="w-full flex items-center justify-center px-4 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
-                                   เปลี่ยนรหัสผ่าน
+                                    เปลี่ยนรหัสผ่าน
                                 </button>
                             </div>
-                         </form>
+                        </form>
                     </div>
 
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -248,15 +272,15 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                     </div>
                 </div>
             </div>
-            
-            <ConfirmationModal 
+
+            <ConfirmationModal
                 isOpen={isConfirmModalOpen}
                 onClose={() => setIsConfirmModalOpen(false)}
                 onConfirm={handleConfirmSave}
                 title="ยืนยันการแก้ไขข้อมูล"
                 message="คุณต้องการบันทึกการเปลี่ยนแปลงข้อมูลส่วนตัวใช่หรือไม่?"
             />
-            <ActionSheet 
+            <ActionSheet
                 isOpen={isActionSheetOpen}
                 onClose={() => setIsActionSheetOpen(false)}
                 title="เปลี่ยนรูปโปรไฟล์"

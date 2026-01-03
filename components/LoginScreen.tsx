@@ -3,7 +3,7 @@ import GoogleIcon from './icons/GoogleIcon';
 import QuickLoginPanel from './dev/QuickLoginPanel';
 
 interface LoginScreenProps {
-  onLogin: (email: string, pass: string) => boolean;
+  onLogin: (email: string, pass: string) => Promise<boolean>;
   onRegisterClick: () => void;
 }
 
@@ -21,33 +21,26 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegisterClick }) =
     return email.toLowerCase().includes('jetci');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Simulate network request
-    setTimeout(() => {
-      const success = onLogin(email, password);
-      if (!success) {
-        setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง');
-      }
-      setIsLoading(false);
-    }, 1000);
+    const success = await onLogin(email, password);
+    if (!success) {
+      setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง');
+    }
+    setIsLoading(false);
   };
   
-  const handleQuickLogin = (quickEmail: string, quickPass: string) => {
+  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
     setError('');
     setIsLoading(true);
-    // Use a shorter timeout for a snappier dev experience
-    setTimeout(() => {
-        const success = onLogin(quickEmail, quickPass);
-        if(!success) {
-            setError('Quick login failed for this user.');
-            setIsLoading(false);
-        }
-        // On success, the App component will switch views, no need to set isLoading to false
-    }, 300);
+    const success = await onLogin(quickEmail, quickPass);
+    if(!success) {
+      setError('Quick login failed for this user.');
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -128,7 +121,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onRegisterClick }) =
             </button>
         </div>
 
-        {checkDeveloperAccess() && <QuickLoginPanel onQuickLogin={handleQuickLogin} />}
+        <QuickLoginPanel onQuickLogin={handleQuickLogin} />
         
          <div className="pt-4 text-center text-sm text-gray-600 space-y-2">
             <a href="#" className="font-medium text-[#005A9C] hover:underline">

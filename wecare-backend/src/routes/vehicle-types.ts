@@ -1,59 +1,99 @@
 import express from 'express';
+import { authenticateToken, requireRole } from '../middleware/auth';
+import { sqliteDB } from '../db/sqliteDB';
 
 const router = express.Router();
 
-// Mock vehicle types data
-const mockVehicleTypes = [
-  { id: 'VT-001', name: 'รถตู้', capacity: 8, description: 'รถตู้ขนาดกลาง', wheelchairAccessible: true },
-  { id: 'VT-002', name: 'รถกระบะ', capacity: 4, description: 'รถกระบะ 4 ที่นั่ง', wheelchairAccessible: false },
-  { id: 'VT-003', name: 'รถเก๋ง', capacity: 4, description: 'รถเก๋งส่วนบุคคล', wheelchairAccessible: false },
-];
+interface VehicleType {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  capacity?: number;
+  features?: string; // JSON
+}
+
+const generateVehicleTypeId = (): string => {
+  const types = sqliteDB.all<{ id: string }>('SELECT id FROM vehicle_types ORDER BY id DESC LIMIT 1');
+  if (types.length === 0) return 'VT-001';
+  const lastId = types[0].id;
+  const num = parseInt(lastId.split('-')[1]) + 1;
+  return `VT-${String(num).padStart(3, '0')}`;
+};
+
+router.use(authenticateToken);
 
 // GET /api/vehicle-types
 router.get('/', async (_req, res) => {
   try {
-    res.json(mockVehicleTypes);
+    const types = sqliteDB.all<VehicleType>('SELECT * FROM vehicle_types ORDER BY name');
+    const parsed = types.map(t => ({
+      ...t,
+      features: t.features ? JSON.parse(t.features) : []
+    }));
+    res.json(parsed);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/vehicle-types/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const type = sqliteDB.get<VehicleType>('SELECT * FROM vehicle_types WHERE id = ?', [req.params.id]);
+    if (!type) return res.status(404).json({ error: 'Vehicle type not found' });
+    res.json({
+      ...type,
+      features: type.features ? JSON.parse(type.features) : []
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // POST /api/vehicle-types
-router.post('/', async (req, res) => {
+router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
+    const newId = generateVehicleTypeId();
     const newType = {
-      id: `VT-${String(mockVehicleTypes.length + 1).padStart(3, '0')}`,
-      ...req.body
+      id: newId,
+      name: req.body.name,
+      description: req.body.description || null,
+      icon: req.body.icon || null,
+      capacity: req.body.capacity || null,
+      features: JSON.stringify(req.body.features || [])
     };
-    mockVehicleTypes.push(newType);
-    res.status(201).json(newType);
+    sqliteDB.insert('vehicle_types', newType);
+    const created = sqliteDB.get<VehicleType>('SELECT * FROM vehicle_types WHERE id = ?', [newId]);
+    res.status(201).json(created);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // PUT /api/vehicle-types/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
-    const index = mockVehicleTypes.findIndex(t => t.id === req.params.id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Vehicle type not found' });
-    }
-    mockVehicleTypes[index] = { ...mockVehicleTypes[index], ...req.body };
-    res.json(mockVehicleTypes[index]);
+    const updateData: any = {};
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.body.description) updateData.description = req.body.description;
+    if (req.body.capacity) updateData.capacity = req.body.capacity;
+    if (req.body.features) updateData.features = JSON.stringify(req.body.features);
+
+    sqliteDB.update('vehicle_types', req.params.id, updateData);
+    const updated = sqliteDB.get<VehicleType>('SELECT * FROM vehicle_types WHERE id = ?', [req.params.id]);
+    if (!updated) return res.status(404).json({ error: 'Vehicle type not found' });
+    res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // DELETE /api/vehicle-types/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
-    const index = mockVehicleTypes.findIndex(t => t.id === req.params.id);
-    if (index === -1) {
-      return res.status(404).json({ error: 'Vehicle type not found' });
-    }
-    mockVehicleTypes.splice(index, 1);
+    const result = sqliteDB.delete('vehicle_types', req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Vehicle type not found' });
     res.status(204).send();
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -13,6 +13,7 @@ interface Step4AttachmentsProps {
 
 const Step4Attachments: React.FC<Step4AttachmentsProps> = ({
   onNext,
+  onBack,
   currentData = {},
 }) => {
   const [attachments, setAttachments] = useState<File[]>(currentData.attachments || []);
@@ -22,6 +23,11 @@ const Step4Attachments: React.FC<Step4AttachmentsProps> = ({
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
+      const maxFileSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxFileSize) {
+        alert('ขนาดไฟล์รูปโปรไฟล์ต้องไม่เกิน 5MB');
+        return;
+      }
       setProfileImage({ file, previewUrl: URL.createObjectURL(file) });
     }
   };
@@ -29,11 +35,25 @@ const Step4Attachments: React.FC<Step4AttachmentsProps> = ({
   const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+      const maxFileSize = 5 * 1024 * 1024; // 5MB per file
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png'];
       if (attachments.length + newFiles.length > 5) {
         alert('คุณสามารถอัปโหลดเอกสารได้สูงสุด 5 ไฟล์เท่านั้น');
         return;
       }
-      setAttachments((prev) => [...prev, ...newFiles]);
+      const filtered: File[] = [];
+      for (const f of newFiles) {
+        if (f.size > maxFileSize) {
+          alert(`ไฟล์ ${f.name} มีขนาดเกิน 5MB และจะไม่ถูกอัปโหลด`);
+          continue;
+        }
+        if (f.type && !allowedTypes.includes(f.type)) {
+          alert(`ชนิดไฟล์ ${f.name} (${f.type || 'unknown'}) ไม่รองรับและจะข้าม`);
+          continue;
+        }
+        filtered.push(f);
+      }
+      setAttachments((prev) => [...prev, ...filtered]);
     }
   };
 
@@ -135,6 +155,21 @@ const Step4Attachments: React.FC<Step4AttachmentsProps> = ({
           {attachments.length === 0 && (
             <p className="text-sm text-gray-500 mt-4 text-center">ยังไม่มีเอกสารแนบ</p>
           )}
+        </div>
+        <div className="flex justify-between mt-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+          >
+            ← ย้อนกลับ
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            ถัดไป →
+          </button>
         </div>
       </form>
     </div>

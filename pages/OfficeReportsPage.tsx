@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import ReportCard from '../components/reports/ReportCard';
-import ThaiDatePicker from '../components/ui/ThaiDatePicker';
+import ModernDatePicker from '../components/ui/ModernDatePicker';
 import MultiSelectAutocomplete from '../components/ui/MultiSelectAutocomplete';
-import { driversAPI, teamsAPI } from '../src/services/api';
+import { driversAPI, teamsAPI, apiRequest } from '../src/services/api';
+import ReportPreviewModal from '../components/modals/ReportPreviewModal';
 import WrenchIcon from '../components/icons/WrenchIcon';
 
-const mockVillages = [
+const VILLAGE_OPTIONS = [
     "หมู่ 1 บ้านหนองตุ้ม", "หมู่ 2 ป่าบง", "หมู่ 3 เต๋าดิน, เวียงสุทโธ",
     "หมู่ 4 สวนดอก", "หมู่ 5 ต้นหนุน", "หมู่ 6 สันทรายคองน้อย",
     "หมู่ 7 แม่ใจใต้", "หมู่ 8 แม่ใจเหนือ", "หมู่ 9 ริมฝาง,สันป่าไหน่",
@@ -20,6 +21,10 @@ const OfficeReportsPage: React.FC = () => {
     const [loadingReport, setLoadingReport] = useState<string | null>(null);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
+
+    // Report Result State
+    const [reportResult, setReportResult] = useState<any[] | null>(null);
+    const [reportTitle, setReportTitle] = useState('');
 
     useEffect(() => {
         loadData();
@@ -40,28 +45,47 @@ const OfficeReportsPage: React.FC = () => {
 
     // 1. Roster/Shift Report State
     const [rosterData, setRosterData] = useState({ startDate: '', endDate: '', teamId: 'all' });
-    
+
     // 2. Personnel Report State
     const [personnelData, setPersonnelData] = useState({ startDate: '', endDate: '', driverId: 'all' });
 
     // 3. Maintenance Report State
     const [maintenanceStatus, setMaintenanceStatus] = useState('all');
-    
+
     // 4. Patient Data Report State
     const [patientData, setPatientData] = useState({ startDate: '', endDate: '' });
     const [selectedVillages, setSelectedVillages] = useState<string[]>([]);
-    
+
     const handleStateChange = (setter: React.Dispatch<React.SetStateAction<any>>, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
         setter((prev: any) => ({ ...prev, [e.target.name]: e.target.value }));
     };
-    
-    const handleCreateReport = (reportName: string) => {
+
+    const handleCreateReport = async (reportName: string) => {
         setLoadingReport(reportName);
-        console.log(`Generating report: ${reportName}`);
-        setTimeout(() => {
-            alert(`สร้าง "${reportName}" สำเร็จแล้ว`);
+        try {
+            let data: any[] = [];
+            if (reportName === 'รายงานเวร') {
+                const params = new URLSearchParams({ startDate: rosterData.startDate, endDate: rosterData.endDate, teamId: rosterData.teamId });
+                data = await apiRequest(`/office/reports/roster?${params}`);
+            } else if (reportName === 'รายงานข้อมูลบุคลากร') {
+                const params = new URLSearchParams({ startDate: personnelData.startDate, endDate: personnelData.endDate, driverId: personnelData.driverId });
+                data = await apiRequest(`/office/reports/personnel?${params}`);
+            } else if (reportName === 'รายงานซ่อมบำรุง') {
+                const params = new URLSearchParams({ status: maintenanceStatus });
+                data = await apiRequest(`/office/reports/maintenance?${params}`);
+            } else if (reportName === 'รายงานข้อมูลผู้ป่วย') {
+                const params = new URLSearchParams({ startDate: patientData.startDate, endDate: patientData.endDate, villages: selectedVillages.join(',') });
+                data = await apiRequest(`/office/reports/patients?${params}`);
+            }
+
+            setReportResult(data);
+            setReportTitle(reportName);
+        } catch (err) {
+            console.error('Report generation failed:', err);
+            alert('เกิดข้อผิดพลาดในการสร้างรายงาน');
+        } finally {
             setLoadingReport(null);
-        }, 2000);
+        }
     };
 
     // Validation Logic
@@ -83,7 +107,7 @@ const OfficeReportsPage: React.FC = () => {
                 <ReportCard
                     title="1. รายงานเวร"
                     description="สรุปการปฏิบัติงานและตารางเวรของทีม"
-                    actionButtonText="สร้างรายงาน (PDF)"
+                    actionButtonText="สร้างรายงาน"
                     onActionClick={() => handleCreateReport('รายงานเวร')}
                     isLoading={loadingReport === 'รายงานเวร'}
                     disabled={isRosterDisabled}
@@ -92,11 +116,11 @@ const OfficeReportsPage: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ช่วงวันที่ *</label>
                             <div className="flex flex-col gap-2">
-                                <ThaiDatePicker name="startDate" value={rosterData.startDate} onChange={(e) => handleStateChange(setRosterData, e)} max={today} />
-                                <ThaiDatePicker name="endDate" value={rosterData.endDate} onChange={(e) => handleStateChange(setRosterData, e)} max={today} />
+                                <ModernDatePicker name="startDate" value={rosterData.startDate} onChange={(e) => handleStateChange(setRosterData, e)} max={today} placeholder="เลือกวันเริ่มต้น" />
+                                <ModernDatePicker name="endDate" value={rosterData.endDate} onChange={(e) => handleStateChange(setRosterData, e)} max={today} placeholder="เลือกวันสิ้นสุด" />
                             </div>
                         </div>
-                         <div>
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">เลือกทีม</label>
                             <select name="teamId" value={rosterData.teamId} onChange={(e) => handleStateChange(setRosterData, e)}>
                                 <option value="all">ทุกทีม</option>
@@ -112,17 +136,17 @@ const OfficeReportsPage: React.FC = () => {
                 <ReportCard
                     title="2. รายงานข้อมูลบุคลากร"
                     description="ข้อมูลเชิงลึกของคนขับแต่ละคน"
-                    actionButtonText="สร้างรายงาน (PDF)"
+                    actionButtonText="สร้างรายงาน"
                     onActionClick={() => handleCreateReport('รายงานข้อมูลบุคลากร')}
                     isLoading={loadingReport === 'รายงานข้อมูลบุคลากร'}
                     disabled={isPersonnelDisabled}
                 >
-                     <div className="space-y-4">
+                    <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ช่วงวันที่ *</label>
                             <div className="flex flex-col gap-2">
-                                <ThaiDatePicker name="startDate" value={personnelData.startDate} onChange={(e) => handleStateChange(setPersonnelData, e)} max={today} />
-                                <ThaiDatePicker name="endDate" value={personnelData.endDate} onChange={(e) => handleStateChange(setPersonnelData, e)} max={today} />
+                                <ModernDatePicker name="startDate" value={personnelData.startDate} onChange={(e) => handleStateChange(setPersonnelData, e)} max={today} placeholder="เลือกวันเริ่มต้น" />
+                                <ModernDatePicker name="endDate" value={personnelData.endDate} onChange={(e) => handleStateChange(setPersonnelData, e)} max={today} placeholder="เลือกวันสิ้นสุด" />
                             </div>
                         </div>
                         <div>
@@ -136,12 +160,12 @@ const OfficeReportsPage: React.FC = () => {
                         </div>
                     </div>
                 </ReportCard>
-                
+
                 {/* Card 3: Vehicle Maintenance Report */}
                 <ReportCard
                     title="3. รายงานซ่อมบำรุง"
                     description="ติดตามและวางแผนการนำรถเข้าตรวจสภาพตาม 'วันตรวจสภาพครั้งต่อไป'"
-                    actionButtonText="สร้างรายงาน (Excel/CSV)"
+                    actionButtonText="สร้างรายงาน"
                     icon={WrenchIcon}
                     onActionClick={() => handleCreateReport('รายงานซ่อมบำรุง')}
                     isLoading={loadingReport === 'รายงานซ่อมบำรุง'}
@@ -158,28 +182,28 @@ const OfficeReportsPage: React.FC = () => {
                         </div>
                     </div>
                 </ReportCard>
-                
+
                 {/* Card 4: Patient Data Report */}
                 <ReportCard
                     title="4. รายงานข้อมูลผู้ป่วย"
                     description="ข้อมูลผู้ป่วยในเชิงสถิติเพื่อการวิเคราะห์"
-                    actionButtonText="สร้างรายงาน (Excel/CSV)"
+                    actionButtonText="สร้างรายงาน"
                     onActionClick={() => handleCreateReport('รายงานข้อมูลผู้ป่วย')}
                     isLoading={loadingReport === 'รายงานข้อมูลผู้ป่วย'}
                     disabled={isPatientDataDisabled}
                 >
                     <div className="space-y-4">
-                         <div>
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ช่วงวันที่ลงทะเบียน *</label>
                             <div className="flex flex-col gap-2">
-                                <ThaiDatePicker name="startDate" value={patientData.startDate} onChange={(e) => handleStateChange(setPatientData, e)} max={today} />
-                                <ThaiDatePicker name="endDate" value={patientData.endDate} onChange={(e) => handleStateChange(setPatientData, e)} max={today} />
+                                <ModernDatePicker name="startDate" value={patientData.startDate} onChange={(e) => handleStateChange(setPatientData, e)} max={today} placeholder="เลือกวันเริ่มต้น" />
+                                <ModernDatePicker name="endDate" value={patientData.endDate} onChange={(e) => handleStateChange(setPatientData, e)} max={today} placeholder="เลือกวันสิ้นสุด" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">เลือกหมู่บ้าน *</label>
-                            <MultiSelectAutocomplete 
-                                options={mockVillages}
+                            <MultiSelectAutocomplete
+                                options={VILLAGE_OPTIONS}
                                 selectedItems={selectedVillages}
                                 setSelectedItems={setSelectedVillages}
                                 placeholder="เลือกหมู่บ้าน (อย่างน้อย 1)..."
@@ -188,7 +212,14 @@ const OfficeReportsPage: React.FC = () => {
                     </div>
                 </ReportCard>
             </div>
-             <p className="text-xs text-gray-500 mt-4">* จำเป็นต้องกรอกข้อมูล</p>
+            <p className="text-xs text-gray-500 mt-4">* จำเป็นต้องกรอกข้อมูล</p>
+
+            <ReportPreviewModal
+                isOpen={!!reportResult}
+                onClose={() => setReportResult(null)}
+                title={reportTitle}
+                data={reportResult || []}
+            />
         </div>
     );
 };

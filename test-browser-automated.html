@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMS WeCare - Automated Browser Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .config {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .config label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+
+        .config input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .config input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status-bar {
+            padding: 20px 30px;
+            background: #fff;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-item {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 150px;
+        }
+
+        .status-item.total {
+            background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+        }
+
+        .status-item.pass {
+            background: linear-gradient(135deg, #11998e20 0%, #38ef7d20 100%);
+        }
+
+        .status-item.fail {
+            background: linear-gradient(135deg, #eb334920 0%, #f45c4320 100%);
+        }
+
+        .status-item.running {
+            background: linear-gradient(135deg, #4facfe20 0%, #00f2fe20 100%);
+        }
+
+        .status-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #212529;
+        }
+
+        .content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .test-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            height: 600px;
+            overflow-y: auto;
+        }
+
+        .test-panel h2 {
+            margin-bottom: 20px;
+            color: #495057;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .test-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #dee2e6;
+            transition: all 0.3s ease;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .test-item.running {
+            border-left-color: #4facfe;
+            background: linear-gradient(90deg, #4facfe10 0%, white 100%);
+        }
+
+        .test-item.pass {
+            border-left-color: #38ef7d;
+            background: linear-gradient(90deg, #38ef7d10 0%, white 100%);
+        }
+
+        .test-item.fail {
+            border-left-color: #f45c43;
+            background: linear-gradient(90deg, #f45c4310 0%, white 100%);
+        }
+
+        .test-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-status {
+            font-size: 20px;
+        }
+
+        .test-message {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .test-time {
+            font-size: 12px;
+            color: #adb5bd;
+            margin-top: 5px;
+        }
+
+        .screenshot-panel {
+            position: relative;
+        }
+
+        .screenshot-container {
+            background: #212529;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .screenshot-container img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .screenshot-placeholder {
+            color: #6c757d;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .report-section {
+            grid-column: 1 / -1;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .report-section h2 {
+            margin-bottom: 20px;
+            color: #495057;
+        }
+
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .report-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .report-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .report-card .value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #212529;
+        }
+
+        .report-card .label {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 EMS WeCare - Automated Test Suite</h1>
+            <p>ระบบทดสอบอัตโนมัติพร้อมบันทึกหลักฐาน</p>
+        </div>
+
+        <div class="controls">
+            <div class="config">
+                <label>Backend URL:</label>
+                <input type="text" id="baseUrl" value="http://localhost:5000/api">
+            </div>
+            <button class="btn btn-primary" onclick="startAllTests()">
+                🚀 เริ่มทดสอบทั้งหมด
+            </button>
+            <button class="btn btn-success" onclick="startQuickTest()">
+                ⚡ ทดสอบด่วน
+            </button>
+            <button class="btn btn-info" onclick="exportReport()">
+                📊 ส่งออกรายงาน
+            </button>
+            <button class="btn btn-danger" onclick="clearResults()">
+                🗑️ ล้างผลลัพธ์
+            </button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item total">
+                <div class="status-label">Total Tests</div>
+                <div class="status-value" id="totalTests">0</div>
+            </div>
+            <div class="status-item pass">
+                <div class="status-label">Passed</div>
+                <div class="status-value" id="passedTests">0</div>
+            </div>
+            <div class="status-item fail">
+                <div class="status-label">Failed</div>
+                <div class="status-value" id="failedTests">0</div>
+            </div>
+            <div class="status-item running">
+                <div class="status-label">Running</div>
+                <div class="status-value" id="runningTest">-</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="test-panel">
+                <h2>📋 Test Results</h2>
+                <div id="testResults"></div>
+            </div>
+
+            <div class="test-panel screenshot-panel">
+                <h2>📸 Current Test Screenshot</h2>
+                <div class="screenshot-container" id="screenshotContainer">
+                    <div class="screenshot-placeholder">
+                        รอการทดสอบ...
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="report-section">
+                <h2>📈 Test Summary Report</h2>
+                <div class="report-grid" id="reportGrid">
+                    <div class="report-card">
+                        <h3>Success Rate</h3>
+                        <div class="value" id="successRate">0%</div>
+                        <div class="label">Overall Pass Rate</div>
+                    </div>
+                    <div class="report-card">
+                        <h3>Total Duration</h3>
+                        <div class="value" id="totalDuration">0s</div>
+                        <div class="label">Test Execution Time</div>
+                    </div>
+                    <div class="report-card">
+                        <h3>Avg Response Time</h3>
+                        <div class="value" id="avgResponse">0ms</div>
+                        <div class="label">API Performance</div>
+                    </div>
+                    <div class="report-card">
+                        <h3>Test Status</h3>
+                        <div class="value" id="testStatus">Ready</div>
+                        <div class="label">Current State</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let totalTests = 0;
+        let passedTests = 0;
+        let failedTests = 0;
+        let startTime = null;
+        let responseTimes = [];
+
+        const testSuites = {
+            quick: [
+                { name: 'Backend Health Check', test: testBackendHealth },
+                { name: 'Admin Login', test: () => testLogin('admin@wecare.dev', 'password', 'Admin') },
+                { name: 'Office Login', test: () => testLogin('office1@wecare.dev', 'password', 'Office') },
+                { name: 'List Patients', test: testListPatients },
+                { name: 'List Rides', test: testListRides }
+            ],
+            full: [
+                { name: 'Backend Health Check', test: testBackendHealth },
+                { name: 'Admin Login', test: () => testLogin('admin@wecare.dev', 'password', 'Admin') },
+                { name: 'Office Login', test: () => testLogin('office1@wecare.dev', 'password', 'Office') },
+                { name: 'Driver Login', test: () => testLogin('driver1@wecare.dev', 'password', 'Driver') },
+                { name: 'Community Login', test: () => testLogin('community1@wecare.dev', 'password', 'Community') },
+                { name: 'Executive Login', test: () => testLogin('executive@wecare.dev', 'password', 'Executive') },
+                { name: 'List Patients', test: testListPatients },
+                { name: 'Create Patient', test: testCreatePatient },
+                { name: 'List Rides', test: testListRides },
+                { name: 'List Drivers', test: testListDrivers },
+                { name: 'List Vehicles', test: testListVehicles },
+                { name: 'Unauthorized Access Test', test: testUnauthorizedAccess }
+            ]
+        };
+
+        async function startAllTests() {
+            await runTestSuite(testSuites.full);
+        }
+
+        async function startQuickTest() {
+            await runTestSuite(testSuites.quick);
+        }
+
+        async function runTestSuite(tests) {
+            clearResults();
+            startTime = Date.now();
+            totalTests = tests.length;
+            updateStats();
+
+            for (let i = 0; i < tests.length; i++) {
+                const testCase = tests[i];
+                updateRunningTest(testCase.name);
+                updateProgress((i / tests.length) * 100);
+
+                await runTest(testCase.name, testCase.test);
+                await sleep(500); // Delay for visibility
+            }
+
+            updateProgress(100);
+            updateRunningTest('Completed');
+            updateTestStatus('✅ Completed');
+            generateFinalReport();
+        }
+
+        async function runTest(name, testFn) {
+            const startTime = Date.now();
+            
+            try {
+                const result = await testFn();
+                const duration = Date.now() - startTime;
+                
+                if (result.success) {
+                    passedTests++;
+                    addTestResult(name, 'pass', result.message, duration);
+                    responseTimes.push(duration);
+                } else {
+                    failedTests++;
+                    addTestResult(name, 'fail', result.message, duration);
+                }
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                failedTests++;
+                addTestResult(name, 'fail', error.message, duration);
+            }
+
+            updateStats();
+        }
+
+        async function testBackendHealth() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const response = await fetch(`${baseUrl}/health`);
+            
+            if (response.ok) {
+                return { success: true, message: 'Backend is healthy and responding' };
+            } else {
+                return { success: false, message: `Backend returned status ${response.status}` };
+            }
+        }
+
+        async function testLogin(email, password, role) {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const response = await fetch(`${baseUrl}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.token) {
+                // Store token for later tests
+                window[`${role}Token`] = data.token;
+                return { success: true, message: `${role} logged in successfully` };
+            } else {
+                return { success: false, message: data.message || 'Login failed' };
+            }
+        }
+
+        async function testListPatients() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const token = window.OfficeToken || window.CommunityToken;
+            
+            if (!token) {
+                return { success: false, message: 'No auth token available' };
+            }
+
+            const response = await fetch(`${baseUrl}/patients`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, message: `Found ${data.length} patients` };
+            } else {
+                return { success: false, message: `Failed with status ${response.status}` };
+            }
+        }
+
+        async function testCreatePatient() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const token = window.CommunityToken;
+            
+            if (!token) {
+                return { success: false, message: 'No Community auth token' };
+            }
+
+            const patient = {
+                fullName: `Test Patient ${Date.now()}`,
+                dateOfBirth: '1990-01-01',
+                gender: 'male',
+                phoneNumber: '0812345678',
+                address: 'Test Address'
+            };
+
+            const response = await fetch(`${baseUrl}/patients`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(patient)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Clean up
+                if (data.id) {
+                    await fetch(`${baseUrl}/patients/${data.id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                }
+                return { success: true, message: 'Patient created and deleted successfully' };
+            } else {
+                return { success: false, message: `Failed with status ${response.status}` };
+            }
+        }
+
+        async function testListRides() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const token = window.OfficeToken;
+            
+            if (!token) {
+                return { success: false, message: 'No Office auth token' };
+            }
+
+            const response = await fetch(`${baseUrl}/rides`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, message: `Found ${data.length} rides` };
+            } else {
+                return { success: false, message: `Failed with status ${response.status}` };
+            }
+        }
+
+        async function testListDrivers() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const token = window.OfficeToken;
+            
+            if (!token) {
+                return { success: false, message: 'No Office auth token' };
+            }
+
+            const response = await fetch(`${baseUrl}/drivers`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, message: `Found ${data.length} drivers` };
+            } else {
+                return { success: false, message: `Failed with status ${response.status}` };
+            }
+        }
+
+        async function testListVehicles() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const token = window.OfficeToken;
+            
+            if (!token) {
+                return { success: false, message: 'No Office auth token' };
+            }
+
+            const response = await fetch(`${baseUrl}/vehicles`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                return { success: true, message: `Found ${data.length} vehicles` };
+            } else {
+                return { success: false, message: `Failed with status ${response.status}` };
+            }
+        }
+
+        async function testUnauthorizedAccess() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const response = await fetch(`${baseUrl}/patients`);
+
+            if (response.status === 401) {
+                return { success: true, message: 'Correctly blocked unauthorized access' };
+            } else {
+                return { success: false, message: 'Security issue: Unauthorized access not blocked!' };
+            }
+        }
+
+        function addTestResult(name, status, message, duration) {
+            const result = { name, status, message, duration, timestamp: new Date() };
+            testResults.push(result);
+
+            const resultsDiv = document.getElementById('testResults');
+            const testItem = document.createElement('div');
+            testItem.className = `test-item ${status}`;
+            
+            const statusIcon = status === 'pass' ? '✅' : '❌';
+            
+            testItem.innerHTML = `
+                <div class="test-name">
+                    <span class="test-status">${statusIcon}</span>
+                    <span>${name}</span>
+                </div>
+                <div class="test-message">${message}</div>
+                <div class="test-time">${duration}ms - ${result.timestamp.toLocaleTimeString('th-TH')}</div>
+            `;
+
+            resultsDiv.insertBefore(testItem, resultsDiv.firstChild);
+        }
+
+        function updateStats() {
+            document.getElementById('totalTests').textContent = totalTests;
+            document.getElementById('passedTests').textContent = passedTests;
+            document.getElementById('failedTests').textContent = failedTests;
+
+            const successRate = totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(1) : 0;
+            document.getElementById('successRate').textContent = `${successRate}%`;
+
+            if (responseTimes.length > 0) {
+                const avg = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+                document.getElementById('avgResponse').textContent = `${Math.round(avg)}ms`;
+            }
+
+            if (startTime) {
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById('totalDuration').textContent = `${duration}s`;
+            }
+        }
+
+        function updateRunningTest(name) {
+            document.getElementById('runningTest').textContent = name;
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+
+        function updateTestStatus(status) {
+            document.getElementById('testStatus').textContent = status;
+        }
+
+        function clearResults() {
+            testResults = [];
+            totalTests = 0;
+            passedTests = 0;
+            failedTests = 0;
+            responseTimes = [];
+            startTime = null;
+            
+            document.getElementById('testResults').innerHTML = '';
+            updateStats();
+            updateProgress(0);
+            updateRunningTest('-');
+            updateTestStatus('Ready');
+        }
+
+        function generateFinalReport() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                summary: {
+                    total: totalTests,
+                    passed: passedTests,
+                    failed: failedTests,
+                    successRate: ((passedTests / totalTests) * 100).toFixed(2),
+                    duration: ((Date.now() - startTime) / 1000).toFixed(2),
+                    avgResponseTime: responseTimes.length > 0 ? 
+                        Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length) : 0
+                },
+                tests: testResults
+            };
+
+            console.log('Test Report:', report);
+            window.testReport = report;
+        }
+
+        function exportReport() {
+            if (!window.testReport) {
+                alert('กรุณารันการทดสอบก่อนส่งออกรายงาน');
+                return;
+            }
+
+            const report = window.testReport;
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `test-report-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            alert('รายงานถูกส่งออกเรียบร้อยแล้ว!');
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Initialize
+        updateStats();
+    </script>
+</body>
+</html>

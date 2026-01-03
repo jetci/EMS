@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import TopHeader from './TopHeader';
-import { User, AuthenticatedView, DriverView, CommunityView, OfficeView, AdminView, Notification, ExecutiveView } from '../../types';
+import { User, AuthenticatedView, DriverView, CommunityView, OfficerView, AdminView, Notification, ExecutiveView } from '../../types';
 import CommunityDashboard from '../../pages/CommunityDashboard';
 import ManagePatientsPage from '../../pages/ManagePatientsPage';
 import ManageRidesPage from '../../pages/ManageRidesPage';
@@ -10,6 +9,8 @@ import DriverTodayJobsPage from '../../pages/DriverTodayJobsPage';
 import DriverHistoryPage from '../../pages/DriverHistoryPage';
 import DriverProfilePage from '../../pages/DriverProfilePage';
 import OfficeDashboard from '../../pages/OfficeDashboard';
+import RadioDashboard from '../../pages/RadioDashboard';
+import RadioCenterDashboard from '../../pages/RadioCenterDashboard';
 import OfficeManageRidesPage from '../../pages/OfficeManageRidesPage';
 import OfficeManagePatientsPage from '../../pages/OfficeManagePatientsPage';
 import OfficeManageDriversPage from '../../pages/OfficeManageDriversPage';
@@ -31,6 +32,9 @@ import ManageNewsPage from '../../pages/ManageNewsPage';
 import NewsEditorPage from '../../pages/NewsEditorPage';
 import ExecutiveDashboardPage from '../../pages/ExecutiveDashboardPage';
 import OfficeReportsPage from '../../pages/OfficeReportsPage';
+import MapCommandPage from '../../pages/MapCommandPage';
+import DeveloperDashboardPage from '../../pages/DeveloperDashboardPage';
+import SystemLogsPage from '../../pages/SystemLogsPage';
 
 interface AuthenticatedLayoutProps {
   user: User;
@@ -38,23 +42,23 @@ interface AuthenticatedLayoutProps {
 }
 
 const getInitialView = (role: User['role']): AuthenticatedView => {
-    switch (role) {
-        case 'driver': return 'today_jobs';
-        case 'community': return 'dashboard';
-        case 'radio': return 'dashboard';
-        case 'radio_center': return 'dashboard';
-        case 'OFFICER': return 'dashboard';
-        case 'admin': return 'dashboard';
-        case 'EXECUTIVE': return 'executive_dashboard';
-        case 'DEVELOPER': return 'dashboard';
-        default: return 'dashboard';
-    }
+  switch (role) {
+    case 'driver': return 'today_jobs';
+    case 'community': return 'dashboard';
+    case 'radio': return 'dashboard';
+    case 'radio_center': return 'dashboard';
+    case 'OFFICER': return 'dashboard';
+    case 'admin': return 'dashboard';
+    case 'EXECUTIVE': return 'executive_dashboard';
+    case 'DEVELOPER': return 'dashboard';
+    default: return 'dashboard';
+  }
 }
 
 const mockInitialNotifications: Notification[] = [
-    { id: 'N01', message: 'คำขอเดินทาง #RIDE-105 ได้รับการอนุมัติแล้ว', timestamp: new Date().toISOString(), isRead: false },
-    { id: 'N02', message: 'คนขับ สมศักดิ์ เริ่มเดินทางไปรับผู้ป่วยแล้ว', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false },
-    { id: 'N03', message: 'การเดินทาง #RIDE-103 เสร็จสิ้น', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), isRead: true },
+  { id: 'N01', message: 'คำขอเดินทาง #RIDE-105 ได้รับการอนุมัติแล้ว', timestamp: new Date().toISOString(), isRead: false },
+  { id: 'N02', message: 'คนขับ สมศักดิ์ เริ่มเดินทางไปรับผู้ป่วยแล้ว', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false },
+  { id: 'N03', message: 'การเดินทาง #RIDE-103 เสร็จสิ้น', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), isRead: true },
 ];
 
 const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogout }) => {
@@ -80,67 +84,101 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
     switch (user.role) {
       case 'driver':
         switch (activeView as DriverView) {
-            case 'today_jobs': return <DriverTodayJobsPage />;
-            case 'history': return <DriverHistoryPage />;
-            case 'profile': return <DriverProfilePage user={user} onLogout={onLogout} />;
-            default: return <DriverTodayJobsPage />;
+          case 'today_jobs': return <DriverTodayJobsPage />;
+          case 'history': return <DriverHistoryPage />;
+          case 'profile': return <DriverProfilePage user={user} onLogout={onLogout} />;
+          default: return <DriverTodayJobsPage />;
         }
       case 'community':
         switch (activeView as CommunityView) {
-            case 'dashboard': return <CommunityDashboard setActiveView={handleSetView} />;
-            case 'patients': return <ManagePatientsPage setActiveView={handleSetView} />;
-            case 'rides': return <ManageRidesPage setActiveView={handleSetView} initialFilter={viewContext?.filter} />;
-            case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
-            case 'register_patient': return <CommunityRegisterPatientPage setActiveView={handleSetView} />;
-            case 'request_ride': return <CommunityRequestRidePage setActiveView={handleSetView} preselectedPatientId={viewContext?.patientId} addNotification={addNotification} />;
-            case 'patient_detail':
-              if (viewContext?.patientId) {
-                return <PatientDetailPage patientId={viewContext.patientId} setActiveView={handleSetView} />;
-              }
-              return <ManagePatientsPage setActiveView={handleSetView} />; // Fallback
-            default: return <CommunityDashboard setActiveView={handleSetView} />;
+          case 'dashboard': return <CommunityDashboard setActiveView={handleSetView} />;
+          case 'patients': return <ManagePatientsPage setActiveView={handleSetView} />;
+          case 'rides': return <ManageRidesPage setActiveView={handleSetView} initialFilter={viewContext?.filter} />;
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
+          case 'register_patient': return <CommunityRegisterPatientPage setActiveView={handleSetView} />;
+          case 'request_ride': return <CommunityRequestRidePage setActiveView={handleSetView} preselectedPatientId={viewContext?.patientId} addNotification={addNotification} />;
+          case 'patient_detail':
+            if (viewContext?.patientId) {
+              return <PatientDetailPage patientId={viewContext.patientId} setActiveView={handleSetView} />;
+            }
+            return <ManagePatientsPage setActiveView={handleSetView} />; // Fallback
+          default: return <CommunityDashboard setActiveView={handleSetView} />;
         }
       case 'OFFICER':
+        switch (activeView as OfficerView) {
+          case 'dashboard': return <OfficeDashboard setActiveView={handleSetView} />;
+          case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
+          case 'rides': return <OfficeManageRidesPage />;
+          case 'patients': return <OfficeManagePatientsPage />;
+          case 'drivers': return <OfficeManageDriversPage />;
+          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_schedules': return <ManageSchedulePage />;
+          case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
+          case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'reports': return <OfficeReportsPage />;
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
+          default: return <OfficeDashboard setActiveView={handleSetView} />;
+        }
       case 'radio':
+        switch (activeView as OfficerView) {
+          case 'dashboard': return <RadioDashboard setActiveView={handleSetView} />;
+          case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
+          case 'rides': return <OfficeManageRidesPage />;
+          case 'patients': return <OfficeManagePatientsPage />;
+          case 'drivers': return <OfficeManageDriversPage />;
+          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_schedules': return <ManageSchedulePage />;
+          case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
+          case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'reports': return <OfficeReportsPage />;
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
+          default: return <RadioDashboard setActiveView={handleSetView} />;
+        }
       case 'radio_center':
-        switch (activeView as OfficeView) {
-            case 'dashboard': return <OfficeDashboard setActiveView={handleSetView} />;
-            case 'rides': return <OfficeManageRidesPage />;
-            case 'patients': return <OfficeManagePatientsPage />;
-            case 'drivers': return <OfficeManageDriversPage />;
-            case 'manage_teams': return <ManageTeamsPage />;
-            case 'manage_schedules': return <ManageSchedulePage />;
-            case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
-            case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
-            case 'reports': return <OfficeReportsPage />;
-            case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
-            default: return <OfficeDashboard setActiveView={handleSetView} />;
+        switch (activeView as OfficerView) {
+          case 'dashboard': return <RadioCenterDashboard setActiveView={handleSetView} />;
+          case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
+          case 'rides': return <OfficeManageRidesPage />;
+          case 'patients': return <OfficeManagePatientsPage />;
+          case 'drivers': return <OfficeManageDriversPage />;
+          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_schedules': return <ManageSchedulePage />;
+          case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
+          case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'reports': return <OfficeReportsPage />;
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
+          default: return <RadioCenterDashboard setActiveView={handleSetView} />;
         }
       case 'EXECUTIVE':
         switch (activeView as ExecutiveView) {
-            case 'executive_dashboard': return <ExecutiveDashboardPage />;
-            default: return <ExecutiveDashboardPage />;
+          case 'executive_dashboard': return <ExecutiveDashboardPage />;
+          default: return <ExecutiveDashboardPage />;
         }
       case 'DEVELOPER':
+        switch (activeView as AdminView) {
+          case 'dashboard': return <DeveloperDashboardPage setActiveView={handleSetView} />;
+          case 'logs': return <SystemLogsPage />;
+          case 'test_map': return <TestMapPage />;
+          default: return <DeveloperDashboardPage setActiveView={handleSetView} />;
+        }
       case 'admin':
         switch (activeView as AdminView) {
-            case 'dashboard': return <AdminDashboardPage setActiveView={handleSetView} />;
-            case 'users': return <AdminUserManagementPage currentUser={user} />;
-            case 'rides': return <OfficeManageRidesPage />; // Admins can use the comprehensive Office page
-            case 'patients': return <OfficeManagePatientsPage />;
-            case 'drivers': return <OfficeManageDriversPage />;
-            case 'manage_teams': return <ManageTeamsPage />;
-            case 'manage_schedules': return <ManageSchedulePage />;
-            case 'manage_vehicles': return <ManageVehiclesPage />;
-            case 'manage_vehicle_types': return <ManageVehicleTypesPage />;
-            case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
-            case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
-            case 'reports': return <OfficeReportsPage />;
-            case 'logs': return <AdminAuditLogsPage />;
-            case 'settings': return <AdminSystemSettingsPage />;
-            case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
-            case 'test_map': return <TestMapPage />;
-            default: return <AdminDashboardPage setActiveView={handleSetView} />;
+          case 'dashboard': return <AdminDashboardPage setActiveView={handleSetView} />;
+          case 'users': return <AdminUserManagementPage currentUser={user} />;
+
+          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_schedules': return <ManageSchedulePage />;
+          case 'manage_vehicles': return <ManageVehiclesPage />;
+          case 'manage_vehicle_types': return <ManageVehicleTypesPage />;
+          case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
+          case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'reports': return <OfficeReportsPage />;
+          case 'logs': return <AdminAuditLogsPage />;
+          case 'settings': return <AdminSystemSettingsPage currentUser={user} />;
+          case 'test_map': return <TestMapPage />;
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} />;
+
+          default: return <AdminDashboardPage setActiveView={handleSetView} />;
         }
       default:
         return null;

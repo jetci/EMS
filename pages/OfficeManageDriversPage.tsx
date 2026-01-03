@@ -12,6 +12,7 @@ import DriverStatusBadge from '../components/ui/DriverStatusBadge';
 import PowerIcon from '../components/icons/PowerIcon';
 import { defaultProfileImage } from '../assets/defaultProfile';
 import { driversAPI, apiRequest } from '../src/services/api';
+import Toast from '../components/Toast';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -25,10 +26,16 @@ const OfficeManageDriversPage: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     useEffect(() => {
         loadAllData();
     }, []);
+
+    const showToast = (message: string) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
 
     const loadAllData = async () => {
         try {
@@ -68,24 +75,38 @@ const OfficeManageDriversPage: React.FC = () => {
         try {
             if (selectedDriver) {
                 await driversAPI.updateDriver(updatedDriver.id, updatedDriver);
+                showToast('✅ อัปเดตข้อมูลคนขับสำเร็จ');
             } else {
                 await driversAPI.createDriver(updatedDriver);
+                showToast('✅ เพิ่มคนขับใหม่สำเร็จ');
             }
             await loadAllData();
             setIsModalOpen(false);
         } catch (err: any) {
             console.error('Failed to save driver:', err);
-            alert('ไม่สามารถบันทึกข้อมูลคนขับได้');
+            showToast(`❌ ไม่สามารถบันทึกข้อมูลได้: ${err.message}`);
         }
     };
-    
-    const handleToggleActive = (driverId: string) => {
-        setDrivers(prev => prev.map(d => {
-            if (d.id === driverId) {
-                return {...d, status: d.status === DriverStatus.INACTIVE ? DriverStatus.OFFLINE : DriverStatus.INACTIVE};
-            }
-            return d;
-        }));
+
+    const handleToggleActive = async (driverId: string) => {
+        const driver = drivers.find(d => d.id === driverId);
+        if (!driver) return;
+
+        const newStatus = driver.status === DriverStatus.INACTIVE ? DriverStatus.OFFLINE : DriverStatus.INACTIVE;
+        const confirmMsg = newStatus === DriverStatus.INACTIVE
+            ? 'คุณต้องการปิดการใช้งานคนขับรายนี้ใช่หรือไม่?'
+            : 'คุณต้องการเปิดใช้งานคนขับรายนี้ใช่หรือไม่?';
+
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            await driversAPI.updateDriver(driverId, { ...driver, status: newStatus });
+            showToast(`✅ ${newStatus === DriverStatus.INACTIVE ? 'ปิด' : 'เปิด'}การใช้งานคนขับสำเร็จ`);
+            await loadAllData();
+        } catch (err: any) {
+            console.error('Failed to update status:', err);
+            showToast(`❌ เกิดข้อผิดพลาด: ${err.message}`);
+        }
     };
 
     return (
@@ -165,13 +186,14 @@ const OfficeManageDriversPage: React.FC = () => {
             <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-gray-700">ผลลัพธ์ {paginatedDrivers.length} จาก {filteredDrivers.length} รายการ</span>
                 <div className="inline-flex items-center space-x-2">
-                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5" /></button>
                     <span className="text-sm font-semibold">Page {currentPage} of {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>
 
             <EditDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} driver={selectedDriver} onSave={handleSaveDriver} availableStaff={staff} availableDrivers={drivers} />
+            <Toast message={toastMessage} />
         </div>
     );
 };

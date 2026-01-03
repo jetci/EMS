@@ -13,22 +13,46 @@ interface StepProps {
   onNext?: (data: any) => boolean; // Return true if validation passes
   onBack?: () => void;
   isLastStep?: boolean;
+  currentData?: any;
 }
 
-export const Step: React.FC<StepProps> = ({ children }) => {
-  return <div>{children}</div>;
+export const Step: React.FC<StepProps> = ({ children, onNext, onBack, isLastStep, currentData }) => {
+  return (
+    <>
+      {React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement, {
+            onNext,
+            onBack,
+            isLastStep,
+            currentData
+          });
+        }
+        return child;
+      })}
+    </>
+  );
 };
 
-const StepWizard: React.FC<StepWizardProps> = ({ 
-  children, 
-  onComplete, 
-  className = "" 
+const StepWizard: React.FC<StepWizardProps> = ({
+  children,
+  onComplete,
+  className = ""
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<any>({});
 
-  const totalSteps = React.Children.count(children);
+  // Filter children to only count valid Step components (ignore comments, fragments, etc.)
+  const validChildren = React.Children.toArray(children).filter(
+    (child) => React.isValidElement(child)
+  );
+  const totalSteps = validChildren.length;
   const progressPercentage = ((currentStep + 1) / totalSteps) * 100;
+
+  // Debug logging
+  console.log('[StepWizard] Total Steps:', totalSteps);
+  console.log('[StepWizard] Current Step:', currentStep);
+  console.log('[StepWizard] Is Last Step:', currentStep === totalSteps - 1);
 
   const handleNext = (stepData?: any) => {
     if (stepData) {
@@ -68,26 +92,24 @@ const StepWizard: React.FC<StepWizardProps> = ({
             ขั้นตอนที่ {currentStep + 1} จาก {totalSteps}
           </span>
         </div>
-        
+
         {/* Progress Steps */}
         <div className="flex items-center justify-between mb-4">
           {Array.from({ length: totalSteps }, (_, index) => (
             <div key={index} className="flex items-center">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer transition-colors ${
-                  index <= currentStep
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-600'
-                }`}
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium cursor-pointer transition-colors ${index <= currentStep
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-600'
+                  }`}
                 onClick={() => goToStep(index)}
               >
                 {index + 1}
               </div>
               {index < totalSteps - 1 && (
                 <div
-                  className={`flex-1 h-1 mx-2 transition-colors ${
-                    index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
+                  className={`flex-1 h-1 mx-2 transition-colors ${index < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
                 />
               )}
             </div>
@@ -105,7 +127,7 @@ const StepWizard: React.FC<StepWizardProps> = ({
 
       {/* Step Content */}
       <div className="bg-white rounded-lg shadow-lg p-6 min-h-[500px]">
-        {React.Children.map(children, (child, index) => {
+        {validChildren.map((child, index) => {
           if (index === currentStep) {
             return React.cloneElement(child as React.ReactElement, {
               onNext: handleNext,
@@ -118,33 +140,7 @@ const StepWizard: React.FC<StepWizardProps> = ({
         })}
       </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between mt-6">
-        <button
-          type="button"
-          onClick={handleBack}
-          disabled={currentStep === 0}
-          className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-            currentStep === 0
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          ← ย้อนกลับ
-        </button>
-
-        <div className="text-sm text-gray-500 self-center">
-          {Math.round(progressPercentage)}% เสร็จสิ้น
-        </div>
-
-        <button
-          type="button"
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          form={`step-${currentStep}-form`}
-        >
-          {currentStep === totalSteps - 1 ? 'ยืนยันการลงทะเบียน' : 'ถัดไป →'}
-        </button>
-      </div>
+      {/* Navigation Buttons are now rendered within each Step component */}
     </div>
   );
 };

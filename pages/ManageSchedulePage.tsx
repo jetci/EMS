@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import ToggleSwitch from '../components/ui/ToggleSwitch';
 import IndividualShiftCalendar from '../components/schedules/IndividualShiftCalendar';
 import TeamShiftCalendar from '../components/schedules/TeamShiftCalendar';
-import { appData } from '../data/mockData';
 import { driversAPI, teamsAPI, apiRequest } from '../src/services/api';
 
 type SchedulingModel = 'individual' | 'team';
 
 const ManageSchedulePage: React.FC = () => {
-    const [schedulingModel, setSchedulingModel] = useState<SchedulingModel>(appData.systemSettings.schedulingModel);
+    // Read from localStorage or default to 'individual'
+    const savedModel = (localStorage.getItem('wecare_schedulingModel') as SchedulingModel) || 'individual';
+    const [schedulingModel, setSchedulingModel] = useState<SchedulingModel>(savedModel);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
     const [vehicles, setVehicles] = useState<any[]>([]);
@@ -39,8 +40,7 @@ const ManageSchedulePage: React.FC = () => {
     const handleModelChange = (isChecked: boolean) => {
         const newModel = isChecked ? 'team' : 'individual';
         setSchedulingModel(newModel);
-        // Update the centralized "persistent" state
-        appData.systemSettings.schedulingModel = newModel;
+        localStorage.setItem('wecare_schedulingModel', newModel);
     };
 
 
@@ -55,7 +55,7 @@ const ManageSchedulePage: React.FC = () => {
                 {/* This toggle simulates the system setting for demonstration purposes */}
                 <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
                     <span className={`font-semibold ${schedulingModel === 'individual' ? 'text-[#005A9C]' : 'text-gray-500'}`}>รายบุคคล</span>
-                     <ToggleSwitch 
+                    <ToggleSwitch
                         name="schedulingModelToggle"
                         checked={schedulingModel === 'team'}
                         onChange={handleModelChange}

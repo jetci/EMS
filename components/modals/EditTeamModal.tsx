@@ -4,12 +4,12 @@ import XIcon from '../icons/XIcon';
 import MultiSelectAutocomplete from '../ui/MultiSelectAutocomplete';
 
 interface EditTeamModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (team: Team) => void;
-  team: Team | null;
-  availableDrivers: Driver[];
-  availableStaff: User[];
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (team: Team) => void;
+    team: Team | null;
+    availableDrivers: Driver[];
+    availableStaff: User[];
 }
 
 const emptyTeam: Omit<Team, 'id'> = {
@@ -24,11 +24,11 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
     const [driverId, setDriverId] = useState('');
     // State for the MultiSelect component, which works with names (strings)
     const [selectedStaffNames, setSelectedStaffNames] = useState<string[]>([]);
-    
+
     const [error, setError] = useState('');
     const isEditing = !!team;
-    
-    const staffOptions = availableStaff.map(s => s.name);
+
+    const staffOptions = availableStaff.map(s => s.name).filter((name): name is string => !!name);
 
     useEffect(() => {
         if (isOpen) {
@@ -58,7 +58,7 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
         setError('');
         setSelectedStaffNames(selectedNames);
     };
-    
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -77,10 +77,10 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
             driverId: driverId,
             staffIds,
         };
-        
+
         onSave(finalTeamData);
     };
-    
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" role="dialog" aria-modal="true">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
@@ -106,14 +106,14 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
                         </div>
                         <div>
                             <label htmlFor="staffIds" className="block text-sm font-medium text-gray-700">เจ้าหน้าที่ (เลือกได้ 3 คน)</label>
-                            <MultiSelectAutocomplete 
+                            <MultiSelectAutocomplete
                                 id="staffIds"
                                 options={staffOptions}
                                 selectedItems={selectedStaffNames}
                                 setSelectedItems={handleStaffChange}
                                 placeholder="เลือกเจ้าหน้าที่..."
                             />
-                             {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+                            {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
                         </div>
                     </div>
 

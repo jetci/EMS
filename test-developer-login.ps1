@@ -1,45 +1,35 @@
-$body = @{
-    email = "jetci.jm@gmail.com"
-    password = "g0KEk,^],k;yo"
-} | ConvertTo-Json
+$baseUrl = "http://localhost:5000/api"
 
-Write-Host "Testing DEVELOPER Login..." -ForegroundColor Cyan
-
+# 1. Login as Developer
+$loginBody = @{ email = "jetci.jm@gmail.com"; password = "g0KEk,^],k;yo" } | ConvertTo-Json
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3001/api/login" -Method POST -ContentType "application/json" -Body $body
-    Write-Host "`n[SUCCESS] Login successful!" -ForegroundColor Green
-    Write-Host "User: $($response.user.full_name)" -ForegroundColor Green
-    Write-Host "Email: $($response.user.email)" -ForegroundColor Green
-    Write-Host "Role: $($response.user.role)" -ForegroundColor Green
-    Write-Host "Token: $($response.token.Substring(0,30))..." -ForegroundColor Green
-} catch {
-    Write-Host "`n[ERROR] Login failed!" -ForegroundColor Red
-    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
-    if ($_.Exception.Response) {
-        Write-Host "Status Code: $($_.Exception.Response.StatusCode.value__)" -ForegroundColor Red
+    $loginRes = Invoke-RestMethod -Uri "$baseUrl/auth/login" -Method Post -Body $loginBody -ContentType "application/json"
+    $token = $loginRes.token
+    $user = $loginRes.user
+    
+    Write-Host "Login Success" -ForegroundColor Green
+    Write-Host "Role: $($user.role)"
+    
+    if ($user.role -eq "DEVELOPER") {
+        Write-Host "Role Check: PASS" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Role Check: FAIL (Expected DEVELOPER, got $($user.role))" -ForegroundColor Red
+        Exit
     }
 }
+catch {
+    Write-Host "Login Failed: $($_.Exception.Message)" -ForegroundColor Red
+    Exit
+}
 
-Write-Host "`n--- Testing API Endpoints ---" -ForegroundColor Cyan
-
-$endpoints = @(
-    "/api/users",
-    "/api/teams", 
-    "/api/vehicles",
-    "/api/vehicle-types",
-    "/api/news",
-    "/api/audit-logs",
-    "/api/dashboard/admin",
-    "/api/drivers",
-    "/api/patients",
-    "/api/office/patients"
-)
-
-foreach ($endpoint in $endpoints) {
-    try {
-        $result = Invoke-RestMethod -Uri "http://localhost:3001$endpoint" -Method GET
-        Write-Host "[OK] $endpoint - $($result.Count) items" -ForegroundColor Green
-    } catch {
-        Write-Host "[FAIL] $endpoint - $($_.Exception.Message)" -ForegroundColor Red
-    }
+# 2. Access Admin Dashboard API
+$headers = @{ Authorization = "Bearer $token" }
+try {
+    $dashRes = Invoke-RestMethod -Uri "$baseUrl/dashboard/admin" -Method Get -Headers $headers
+    Write-Host "Admin Dashboard Access: PASS" -ForegroundColor Green
+    Write-Host "Total Users: $($dashRes.totalUsers)"
+}
+catch {
+    Write-Host "Admin Dashboard Access: FAIL ($($_.Exception.Message))" -ForegroundColor Red
 }

@@ -8,7 +8,7 @@ import RoleBadge from '../components/ui/RoleBadge';
 import EyeIcon from '../components/icons/EyeIcon';
 import LogDetailsModal from '../components/modals/LogDetailsModal';
 import { formatDateTimeToThai, formatDateToThai } from '../utils/dateUtils';
-import ThaiDatePicker from '../components/ui/ThaiDatePicker';
+import ModernDatePicker from '../components/ui/ModernDatePicker';
 import { apiRequest } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
@@ -83,29 +83,29 @@ const AdminAuditLogsPage: React.FC = () => {
                     <input type="text" placeholder="ค้นหา Keyword..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <input type="text" placeholder="กรองตามผู้ใช้ (Email)..." name="user" value={filters.user} onChange={handleFilterChange} />
                     <select name="role" value={filters.role} onChange={handleFilterChange}>
-                       <option value="All">All Roles</option>
-                       <option value="admin">Admin</option>
-                       <option value="office">Office</option>
-                       <option value="driver">Driver</option>
-                       <option value="community">Community</option>
+                        <option value="All">All Roles</option>
+                        <option value="admin">Admin</option>
+                        <option value="office">Office</option>
+                        <option value="driver">Driver</option>
+                        <option value="community">Community</option>
                     </select>
                     <select name="actionType" value={filters.actionType} onChange={handleFilterChange}>
-                       <option value="All">All Action Types</option>
-                       {Object.values(ActionType).map(action => <option key={action} value={action}>{action}</option>)}
+                        <option value="All">All Action Types</option>
+                        {Object.values(ActionType).map(action => <option key={action} value={action}>{action}</option>)}
                     </select>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">จากวันที่</label>
-                        <ThaiDatePicker name="startDate" value={filters.startDate} onChange={handleFilterChange} />
+                        <ModernDatePicker name="startDate" value={filters.startDate} onChange={handleFilterChange} max={new Date().toISOString().split('T')[0]} placeholder="เลือกวันเริ่มต้น" />
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">ถึงวันที่</label>
-                        <ThaiDatePicker name="endDate" value={filters.endDate} onChange={handleFilterChange} />
+                        <ModernDatePicker name="endDate" value={filters.endDate} onChange={handleFilterChange} max={new Date().toISOString().split('T')[0]} placeholder="เลือกวันสิ้นสุด" />
                     </div>
                     <div className="flex items-end">
                         <button onClick={resetFilters} className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 font-medium py-2.5 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 transition">
-                            <XCircleIcon className="w-5 h-5"/>
+                            <XCircleIcon className="w-5 h-5" />
                             ล้างตัวกรอง
                         </button>
                     </div>
@@ -145,13 +145,13 @@ const AdminAuditLogsPage: React.FC = () => {
                     </table>
                 </div>
             </div>
-             {/* Pagination */}
-             <div className="flex justify-between items-center mt-4">
+            {/* Pagination */}
+            <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-gray-700">ผลลัพธ์ {paginatedLogs.length} จาก {filteredLogs.length} รายการ</span>
                 <div className="inline-flex items-center space-x-2">
-                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5" /></button>
                     <span className="text-sm font-semibold">Page {currentPage} of {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>
 

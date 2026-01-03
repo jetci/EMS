@@ -2,33 +2,23 @@ import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import StatCard from '../components/dashboard/StatCard';
 import UsersIcon from '../components/icons/UsersIcon';
-import ClockWaitingIcon from '../components/icons/ClockWaitingIcon';
 import RidesIcon from '../components/icons/RidesIcon';
-import { RideStatus, Ride, OfficeView } from '../types';
+import { OfficerView, Vehicle, NewsArticle, VehicleStatus } from '../types';
 import UserIcon from '../components/icons/UserIcon';
-import { formatDateTimeToThai, formatFullDateToThai } from '../utils/dateUtils';
-import AssignDriverModal from '../components/modals/AssignDriverModal';
-import RideDetailsModal from '../components/modals/RideDetailsModal';
+import { formatFullDateToThai, formatDateTimeToThai } from '../utils/dateUtils';
 import Toast from '../components/Toast';
-import ScheduleTimeline from '../components/dashboard/ScheduleTimeline';
-import LiveDriverStatusPanel from '../components/dashboard/LiveDriverStatusPanel';
-import WheelchairIcon from '../components/icons/WheelchairIcon';
 import { dashboardService } from '../src/services/dashboardService';
 
 interface OfficeDashboardProps {
-    setActiveView: (view: OfficeView, context?: any) => void;
+    setActiveView: (view: OfficerView, context?: any) => void;
 }
 
 const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
     const currentDate = formatFullDateToThai(new Date());
-    const [urgentRides, setUrgentRides] = useState<Ride[]>([]);
-    const [todaysSchedule, setTodaysSchedule] = useState<Ride[]>([]);
-    const [drivers, setDrivers] = useState<any[]>([]);
     const [stats, setStats] = useState<any>(null);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const [news, setNews] = useState<NewsArticle[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-    const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -38,16 +28,15 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
     const loadDashboardData = async () => {
         try {
             setLoading(true);
-            const [urgentData, scheduleData, driversData, statsData] = await Promise.all([
-                dashboardService.getUrgentRides(),
-                dashboardService.getTodaysSchedule(),
-                dashboardService.getAvailableDrivers(),
+            const [statsData, vehiclesData, newsData] = await Promise.all([
                 dashboardService.getOfficeDashboard(),
+                dashboardService.getVehicles(),
+                dashboardService.getNews(),
             ]);
-            setUrgentRides(urgentData.rides || []);
-            setTodaysSchedule(scheduleData.rides || []);
-            setDrivers(driversData.drivers || []);
+
             setStats(statsData);
+            setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+            setNews(Array.isArray(newsData) ? newsData.slice(0, 5) : []); // Get latest 5 news
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
             showToast('⚠️ ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
@@ -61,34 +50,8 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
         setTimeout(() => setToastMessage(null), 3000);
     };
 
-    const handleOpenAssignModal = (ride: Ride) => {
-        setSelectedRide(ride);
-        setIsAssignModalOpen(true);
-    };
-
-    const handleOpenDetailsModal = (ride: Ride) => {
-        setSelectedRide(ride);
-        setIsDetailsModalOpen(true);
-    };
-
-    const handleAssignDriver = async (rideId: string, driverId: string) => {
-        try {
-            await dashboardService.assignDriver(rideId, driverId);
-            await loadDashboardData();
-            const driver = drivers.find(d => d.id === driverId);
-            showToast(`✅ มอบหมายงาน ${rideId} ให้กับ ${driver?.fullName || 'คนขับ'} สำเร็จแล้ว`);
-            setIsAssignModalOpen(false);
-        } catch (error) {
-            console.error('Failed to assign driver:', error);
-            showToast('⚠️ ไม่สามารถมอบหมายงานได้ กรุณาลองใหม่อีกครั้ง');
-        }
-    };
-    
-    const allRidesForModal = [...urgentRides, ...todaysSchedule];
-    
-    const totalTodayRides = stats?.total_today_rides || todaysSchedule.length;
-    const availableDrivers = stats?.available_drivers || drivers.filter(d => d.status === 'AVAILABLE').length;
-    const totalDrivers = stats?.total_drivers || drivers.length;
+    const availableVehicles = vehicles.filter(v => v.status === VehicleStatus.AVAILABLE).length;
+    const maintenanceVehicles = vehicles.filter(v => v.status === VehicleStatus.MAINTENANCE).length;
 
     if (loading) {
         return (
@@ -101,83 +64,173 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
     return (
         <div className="space-y-8">
             {/* Page Header */}
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                <h1 className="text-4xl font-bold text-gray-800">ศูนย์วิทยุ EMS</h1>
-                <p className="text-md text-gray-500 font-medium">{currentDate}</p>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">แผงบริหารจัดการ (Management)</h1>
+                    <p className="text-gray-500 mt-1">ภาพรวมทรัพยากรและการวางแผน</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-lg font-medium text-[var(--wecare-blue)]">{currentDate}</p>
+                    <p className="text-sm text-gray-400">อัปเดตล่าสุด: {dayjs().format('HH:mm')}</p>
+                </div>
             </div>
-            
-            {/* Quick Statistics */}
+
+            {/* Management Statistics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="คำขอใหม่ (ยังไม่จ่ายงาน)" value={urgentRides.length.toString()} icon={ClockWaitingIcon} variant="warning" onClick={() => setActiveView('rides')} />
-                <StatCard title="การเดินทางวันนี้ทั้งหมด" value={totalTodayRides.toString()} icon={RidesIcon} onClick={() => setActiveView('rides')} />
-                <StatCard title="คนขับที่พร้อมใช้งาน" value={`${availableDrivers} / ${totalDrivers}`} icon={UserIcon} variant="info" onClick={() => setActiveView('drivers')} />
-                <StatCard title="จำนวนผู้ป่วยทั้งหมด" value="42" icon={UsersIcon} onClick={() => setActiveView('patients')} />
+                <StatCard
+                    title="ผู้ป่วยในระบบ"
+                    value={stats?.total_patients?.toString() || '0'}
+                    icon={UsersIcon}
+                    onClick={() => setActiveView('patients')}
+                />
+                <StatCard
+                    title="ยานพาหนะทั้งหมด"
+                    value={`${availableVehicles} / ${vehicles.length}`}
+                    subtitle={`ซ่อมบำรุง: ${maintenanceVehicles}`}
+                    icon={RidesIcon}
+                    variant="info"
+                    onClick={() => setActiveView('manage_vehicles')}
+                />
+                <StatCard
+                    title="บุคลากรขับรถ"
+                    value={stats?.total_drivers?.toString() || '0'}
+                    subtitle={`พร้อมงาน: ${stats?.available_drivers || 0}`}
+                    icon={UserIcon}
+                    variant="success"
+                    onClick={() => setActiveView('drivers')}
+                />
+                <StatCard
+                    title="เที่ยววิ่งวันนี้"
+                    value={stats?.total_today_rides?.toString() || '0'}
+                    subtitle="รอจ่ายงาน: 0"
+                    icon={RidesIcon}
+                    variant="warning"
+                    onClick={() => setActiveView('reports')}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Operations Column */}
+                {/* Left Column: Resource Status */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* A. Urgent Action Table */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-gray-800 p-4 border-b">รายการที่ต้องจัดการด่วน: คำขอเดินทางใหม่</h2>
+
+                    {/* Vehicle Status Overview */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-800">สถานะยานพาหนะ</h2>
+                            <button onClick={() => setActiveView('manage_vehicles')} className="text-sm text-blue-600 hover:underline">จัดการรถทั้งหมด</button>
+                        </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left text-gray-600">
-                                <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
                                     <tr>
-                                        <th scope="col" className="px-6 py-3 font-semibold">ชื่อผู้ป่วย</th>
-                                        <th scope="col" className="px-6 py-3 font-semibold">หมู่บ้าน</th>
-                                        <th scope="col" className="px-6 py-3 font-semibold">เวลานัดหมาย</th>
-                                        <th scope="col" className="px-6 py-3 font-semibold">ประเภท/ความต้องการ</th>
-                                        <th scope="col" className="px-6 py-3 font-semibold text-center">การดำเนินการ</th>
+                                        <th className="px-4 py-3">ทะเบียน</th>
+                                        <th className="px-4 py-3">ยี่ห้อ/รุ่น</th>
+                                        <th className="px-4 py-3">ประเภท</th>
+                                        <th className="px-4 py-3">สถานะ</th>
+                                        <th className="px-4 py-3">ซ่อมบำรุงถัดไป</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {urgentRides.map((ride) => (
-                                        <tr key={ride.id} className="bg-white border-b hover:bg-gray-50/50 last:border-b-0">
-                                            <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">{ride.patientName}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{ride.village}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <span>{ride.tripType}</span>
-                                                    {ride.specialNeeds?.includes('ต้องการวีลแชร์') && (
-                                                        <span className="flex items-center text-xs text-blue-600" title="ต้องการวีลแชร์">
-                                                            <WheelchairIcon className="w-4 h-4" />
-                                                        </span>
-                                                    )}
-                                                </div>
+                                    {vehicles.slice(0, 5).map((vehicle) => (
+                                        <tr key={vehicle.id} className="border-b hover:bg-gray-50">
+                                            <td className="px-4 py-3 font-medium text-gray-900">{vehicle.licensePlate}</td>
+                                            <td className="px-4 py-3">{vehicle.brand} {vehicle.model}</td>
+                                            <td className="px-4 py-3">{vehicle.type}</td>
+                                            <td className="px-4 py-3">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${vehicle.status === VehicleStatus.AVAILABLE ? 'bg-green-100 text-green-800' :
+                                                        vehicle.status === VehicleStatus.MAINTENANCE ? 'bg-red-100 text-red-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                    {vehicle.status}
+                                                </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <div className="flex justify-center items-center gap-2">
-                                                    <button onClick={() => handleOpenAssignModal(ride)} className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--wecare-blue)] rounded-md hover:bg-blue-700 transition-colors">
-                                                        จ่ายงาน
-                                                    </button>
-                                                    <button onClick={() => handleOpenDetailsModal(ride)} className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors">
-                                                        ดูรายละเอียด
-                                                    </button>
-                                                </div>
-                                            </td>
+                                            <td className="px-4 py-3">{vehicle.nextMaintenanceDate ? formatDateTimeToThai(vehicle.nextMaintenanceDate) : '-'}</td>
                                         </tr>
                                     ))}
-                                    {urgentRides.length === 0 && (
-                                        <tr><td colSpan={5} className="text-center py-8 text-gray-500">ไม่มีคำขอเดินทางใหม่ในขณะนี้</td></tr>
+                                    {vehicles.length === 0 && (
+                                        <tr><td colSpan={5} className="text-center py-4 text-gray-500">ไม่พบข้อมูลยานพาหนะ</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    {/* B. Today's Schedule Timeline */}
-                    <ScheduleTimeline rides={todaysSchedule} />
+
+                    {/* Internal News & Announcements */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-800">ประกาศและข่าวสาร</h2>
+                            <button onClick={() => setActiveView('news')} className="text-sm text-blue-600 hover:underline">จัดการข่าวสาร</button>
+                        </div>
+                        <div className="space-y-4">
+                            {news.map((item) => (
+                                <div key={item.id} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
+                                    <div>
+                                        <h3 className="font-semibold text-gray-800">{item.title}</h3>
+                                        <p className="text-sm text-gray-500 line-clamp-2">{item.content.replace(/<[^>]+>/g, '')}</p>
+                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                                            <span>โดย {item.author}</span>
+                                            <span>•</span>
+                                            <span>{item.publishedDate ? formatDateTimeToThai(item.publishedDate) : 'Draft'}</span>
+                                        </div>
+                                    </div>
+                                    <span className={`px-2 py-1 text-xs rounded-full ${item.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                        {item.status === 'published' ? 'เผยแพร่แล้ว' : 'ร่าง'}
+                                    </span>
+                                </div>
+                            ))}
+                            {news.length === 0 && (
+                                <p className="text-center text-gray-500 py-4">ยังไม่มีประกาศข่าวสาร</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
-                {/* C. Live Driver Status Panel */}
-                <div className="lg:col-span-1">
-                    <LiveDriverStatusPanel />
+                {/* Right Column: Quick Actions & Tools */}
+                <div className="space-y-6">
+                    {/* Quick Actions Card */}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4">เมนูด่วน (Quick Actions)</h2>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => setActiveView('manage_teams')} className="p-3 text-center bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                                <span className="block text-2xl mb-1">👥</span>
+                                <span className="text-sm font-medium text-blue-800">จัดทีม/เวร</span>
+                            </button>
+                            <button onClick={() => setActiveView('manage_vehicles')} className="p-3 text-center bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                                <span className="block text-2xl mb-1">🚑</span>
+                                <span className="text-sm font-medium text-green-800">จัดการรถ</span>
+                            </button>
+                            <button onClick={() => setActiveView('reports')} className="p-3 text-center bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+                                <span className="block text-2xl mb-1">📊</span>
+                                <span className="text-sm font-medium text-purple-800">รายงาน</span>
+                            </button>
+                            <button onClick={() => setActiveView('news')} className="p-3 text-center bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">
+                                <span className="block text-2xl mb-1">📢</span>
+                                <span className="text-sm font-medium text-orange-800">ประกาศข่าว</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* System Status (Mock) */}
+                    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg shadow-sm p-6 text-white">
+                        <h2 className="text-lg font-bold mb-4">สถานะระบบ</h2>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-300 text-sm">Database</span>
+                                <span className="text-green-400 text-xs font-bold px-2 py-1 bg-green-400/10 rounded">ONLINE</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-300 text-sm">API Server</span>
+                                <span className="text-green-400 text-xs font-bold px-2 py-1 bg-green-400/10 rounded">ONLINE</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-300 text-sm">Last Backup</span>
+                                <span className="text-gray-400 text-xs">Today, 03:00 AM</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {selectedRide && <AssignDriverModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={drivers} allRides={allRidesForModal} />}
-            <RideDetailsModal isOpen={isDetailsModalOpen} onClose={() => setIsDetailsModalOpen(false)} ride={selectedRide} />
             <Toast message={toastMessage} />
         </div>
     );

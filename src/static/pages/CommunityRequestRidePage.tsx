@@ -5,6 +5,7 @@ import ThaiDatePicker from '../components/ui/ThaiDatePicker';
 import ThaiTimePicker from '../components/ui/ThaiTimePicker';
 import SuccessModal from '../components/modals/SuccessModal';
 import TagInput from '../components/ui/TagInput';
+import { getAuthToken } from '../utils/auth';
 
 // Mock data that would typically come from an API
 const mockPatients: Pick<Patient, 'id' | 'fullName'>[] = [
@@ -83,17 +84,64 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
-        const selectedPatient = mockPatients.find(p => p.id === formData.patientId);
-        
-        console.log("Submitting Ride Request:", { ...formData, specialNeeds });
-        
-        addNotification({
-            message: `ส่งคำขอเดินทางสำหรับคุณ ${selectedPatient?.fullName} เรียบร้อยแล้ว`,
-            isRead: false,
-        });
+        const token = getAuthToken();
+        if (!token) {
+            alert('กรุณาเข้าสู่ระบบ');
+            return;
+        }
 
-        setIsSuccessModalOpen(true);
+        if (!formData.patientId) {
+            alert('กรุณาเลือกผู้ป่วย');
+            return;
+        }
+        if (!formData.appointmentDate || !formData.appointmentTime) {
+            alert('กรุณาเลือกวันและเวลานัดหมาย');
+            return;
+        }
+
+        // Validate appointment is in the future
+        const dateTimeStr = `${formData.appointmentDate}T${formData.appointmentTime}:00`;
+        const appt = new Date(dateTimeStr);
+        const now = new Date();
+        if (isNaN(appt.getTime())) {
+            alert('รูปแบบวัน/เวลาไม่ถูกต้อง');
+            return;
+        }
+        if (appt < now) {
+            alert('ไม่สามารถเลือกเวลาที่ผ่านมาแล้วได้');
+            return;
+        }
+
+        // Sanitize tags to avoid obvious script injection in input sent to server
+        const safeSpecialNeeds = specialNeeds.map(tag => tag.replace(/<[^>]*>/g, ''));
+
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+        const idempotencyKey = `${token}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+
+        fetch(`${API_BASE}/api/community/rides`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Idempotency-Key': idempotencyKey
+            },
+            body: JSON.stringify({ ...formData, specialNeeds: safeSpecialNeeds })
+        }).then(async res => {
+            const j = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                alert('ส่งคำขอล้มเหลว: ' + (j.message || res.statusText));
+                return;
+            }
+            const selectedPatient = mockPatients.find(p => p.id === formData.patientId);
+            addNotification({
+                message: `ส่งคำขอเดินทางสำหรับคุณ ${selectedPatient?.fullName || formData.patientId} เรียบร้อยแล้ว`,
+                isRead: false,
+            });
+            setIsSuccessModalOpen(true);
+        }).catch(err => {
+            console.error('Ride request error', err);
+            alert('เกิดข้อผิดพลาดเครือข่าย ขอลองใหม่');
+        });
     };
 
     const handleCloseSuccessModal = () => {

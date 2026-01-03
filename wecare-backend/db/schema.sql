@@ -1,124 +1,350 @@
--- Create UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- EMS WeCare SQLite Database Schema
+-- Created: 2026-01-01
+-- Purpose: Migrate from JSON to SQLite for better data integrity and performance
 
--- Users table
+-- ============================================
+-- 1. USERS TABLE
+-- ============================================
 CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(255) PRIMARY KEY DEFAULT 'USR-' || substr(uuid_generate_v4()::text, 1, 8),
-    full_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'radio_center', 'officer', 'driver', 'community', 'executive', 'developer')),
-    phone VARCHAR(50),
-    profile_image_url TEXT,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Inactive')),
-    date_created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('DEVELOPER', 'admin', 'OFFICER', 'radio', 'radio_center', 'driver', 'community', 'EXECUTIVE')),
+    full_name TEXT NOT NULL,
+    date_created TEXT NOT NULL,
+    status TEXT DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Patients table
+-- ============================================
+-- 2. PATIENTS TABLE
+-- ============================================
 CREATE TABLE IF NOT EXISTS patients (
-    id VARCHAR(255) PRIMARY KEY DEFAULT 'PAT-' || substr(uuid_generate_v4()::text, 1, 8),
-    full_name VARCHAR(255) NOT NULL,
-    patient_types JSONB NOT NULL,
-    key_info JSONB NOT NULL,
-    chronic_diseases JSONB,
-    allergies JSONB,
-    id_card_address JSONB,
-    current_address JSONB,
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
-    attachments JSONB,
-    registered_by_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
-    registered_date TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id TEXT PRIMARY KEY,
+    full_name TEXT NOT NULL,
+    national_id TEXT UNIQUE,
+    dob TEXT,
+    age INTEGER,
+    gender TEXT,
+    blood_type TEXT,
+    rh_factor TEXT,
+    health_coverage TEXT,
+    contact_phone TEXT,
+    
+    -- Address (ID Card)
+    id_card_house_number TEXT,
+    id_card_village TEXT,
+    id_card_tambon TEXT,
+    id_card_amphoe TEXT,
+    id_card_changwat TEXT,
+    
+    -- Address (Current)
+    current_house_number TEXT,
+    current_village TEXT,
+    current_tambon TEXT,
+    current_amphoe TEXT,
+    current_changwat TEXT,
+    
+    -- Location
+    landmark TEXT,
+    latitude TEXT,
+    longitude TEXT,
+    
+    -- Medical Info (stored as JSON)
+    patient_types TEXT, -- JSON array
+    chronic_diseases TEXT, -- JSON array
+    allergies TEXT, -- JSON array
+    
+    -- Metadata
+    profile_image_url TEXT,
+    registered_date TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
--- Drivers table
+-- ============================================
+-- 2.1 PATIENT ATTACHMENTS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS patient_attachments (
+    id TEXT PRIMARY KEY,
+    patient_id TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_type TEXT,
+    file_size INTEGER,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+);
+
+-- ============================================
+-- 3. DRIVERS TABLE
+-- ============================================
 CREATE TABLE IF NOT EXISTS drivers (
-    id VARCHAR(255) PRIMARY KEY DEFAULT 'DRV-' || substr(uuid_generate_v4()::text, 1, 8),
-    full_name VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL CHECK (status IN ('AVAILABLE', 'ON_TRIP', 'OFFLINE', 'INACTIVE')),
-    license_plate VARCHAR(50),
-    avg_review_score DECIMAL(3, 2),
-    top_compliments JSONB
+    id TEXT PRIMARY KEY,
+    user_id TEXT UNIQUE,
+    full_name TEXT NOT NULL,
+    phone TEXT,
+    license_number TEXT,
+    license_expiry TEXT,
+    status TEXT DEFAULT 'AVAILABLE' CHECK(status IN ('AVAILABLE', 'ON_DUTY', 'OFF_DUTY', 'UNAVAILABLE')),
+    current_vehicle_id TEXT,
+    profile_image_url TEXT,
+    total_trips INTEGER DEFAULT 0,
+    trips_this_month INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (current_vehicle_id) REFERENCES vehicles(id)
 );
 
--- Rides table
-CREATE TABLE IF NOT EXISTS rides (
-    id VARCHAR(255) PRIMARY KEY DEFAULT 'RIDE-' || substr(uuid_generate_v4()::text, 1, 8),
-    patient_id VARCHAR(255) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
-    driver_id VARCHAR(255) REFERENCES drivers(id) ON DELETE SET NULL,
-    requested_by_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-    status VARCHAR(50) NOT NULL CHECK (status IN ('PENDING', 'ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
-    appointment_time TIMESTAMPTZ NOT NULL,
-    pickup_location TEXT NOT NULL,
-    destination TEXT NOT NULL,
-    pickup_coordinates JSONB,
-    special_needs JSONB,
-    caregiver_count INTEGER DEFAULT 0,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    review_tags JSONB,
-    review_comment TEXT,
-    signature_data_url TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Teams table
-CREATE TABLE IF NOT EXISTS teams (
-    id VARCHAR(255) PRIMARY KEY DEFAULT 'TEAM-' || substr(uuid_generate_v4()::text, 1, 8),
-    name VARCHAR(255) NOT NULL,
-    driver_id VARCHAR(255) NOT NULL REFERENCES drivers(id) ON DELETE RESTRICT,
-    staff_ids JSONB NOT NULL
-);
-
--- Vehicles table
+-- ============================================
+-- 4. VEHICLES TABLE
+-- ============================================
 CREATE TABLE IF NOT EXISTS vehicles (
-    id VARCHAR(255) PRIMARY KEY DEFAULT 'VEH-' || substr(uuid_generate_v4()::text, 1, 8),
-    license_plate VARCHAR(50) NOT NULL UNIQUE,
-    type VARCHAR(100) NOT NULL,
-    brand VARCHAR(100),
-    model VARCHAR(100),
-    status VARCHAR(50) NOT NULL CHECK (status IN ('AVAILABLE', 'MAINTENANCE', 'ASSIGNED')),
-    assigned_team_id VARCHAR(255) REFERENCES teams(id) ON DELETE SET NULL,
-    next_maintenance_date DATE
+    id TEXT PRIMARY KEY,
+    license_plate TEXT UNIQUE NOT NULL,
+    vehicle_type_id TEXT,
+    brand TEXT,
+    model TEXT,
+    year INTEGER,
+    color TEXT,
+    capacity INTEGER,
+    status TEXT DEFAULT 'AVAILABLE' CHECK(status IN ('AVAILABLE', 'IN_USE', 'MAINTENANCE', 'RETIRED')),
+    mileage INTEGER DEFAULT 0,
+    last_maintenance_date TEXT,
+    next_maintenance_date TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (vehicle_type_id) REFERENCES vehicle_types(id)
 );
 
--- Audit logs table
+-- ============================================
+-- 5. VEHICLE TYPES TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS vehicle_types (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    icon TEXT,
+    capacity INTEGER,
+    features TEXT, -- JSON array
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
+-- 6. RIDES TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS rides (
+    id TEXT PRIMARY KEY,
+    patient_id TEXT NOT NULL,
+    patient_name TEXT NOT NULL,
+    patient_phone TEXT,
+    driver_id TEXT,
+    driver_name TEXT,
+    vehicle_id TEXT,
+    
+    -- Trip Details
+    pickup_location TEXT NOT NULL,
+    pickup_lat TEXT,
+    pickup_lng TEXT,
+    destination TEXT NOT NULL,
+    destination_lat TEXT,
+    destination_lng TEXT,
+    
+    -- Timing
+    appointment_time TEXT NOT NULL,
+    pickup_time TEXT,
+    dropoff_time TEXT,
+    
+    -- Trip Info
+    trip_type TEXT,
+    special_needs TEXT, -- JSON array
+    notes TEXT,
+    distance_km REAL,
+    
+    -- Status
+    status TEXT DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
+    cancellation_reason TEXT,
+    
+    -- Metadata
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (patient_id) REFERENCES patients(id),
+    FOREIGN KEY (driver_id) REFERENCES drivers(id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- ============================================
+-- 7. RIDE EVENTS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS ride_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ride_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    latitude TEXT,
+    longitude TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (ride_id) REFERENCES rides(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- ============================================
+-- 8. DRIVER LOCATIONS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS driver_locations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    driver_id TEXT NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    accuracy REAL,
+    heading REAL,
+    speed REAL,
+    timestamp TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (driver_id) REFERENCES drivers(id)
+);
+
+-- ============================================
+-- 9. TEAMS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS teams (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    leader_id TEXT,
+    member_ids TEXT, -- JSON array
+    status TEXT DEFAULT 'Active',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (leader_id) REFERENCES users(id)
+);
+
+-- ============================================
+-- 10. NEWS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS news (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    author_id TEXT,
+    author_name TEXT,
+    category TEXT,
+    tags TEXT, -- JSON array
+    image_url TEXT,
+    published_date TEXT,
+    is_published INTEGER DEFAULT 0,
+    views INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (author_id) REFERENCES users(id)
+);
+
+-- ============================================
+-- 11. AUDIT LOGS TABLE
+-- ============================================
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
-    action VARCHAR(255) NOT NULL,
-    table_name VARCHAR(255),
-    record_id VARCHAR(255),
-    old_values JSONB,
-    new_values JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    user_email TEXT,
+    user_role TEXT,
+    action TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    details TEXT, -- JSON
+    ip_address TEXT,
+    user_agent TEXT,
+    timestamp TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Indexes
+-- ============================================
+-- 12. SYSTEM SETTINGS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    description TEXT,
+    updated_by TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (updated_by) REFERENCES users(id)
+);
+
+-- ============================================
+-- 13. MAP DATA TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS map_data (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    type TEXT NOT NULL,
+    coordinates TEXT NOT NULL, -- JSON
+    properties TEXT, -- JSON
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- ============================================
+-- INDEXES FOR PERFORMANCE
+-- ============================================
+
+-- Users
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- Patients
+CREATE INDEX IF NOT EXISTS idx_patients_created_by ON patients(created_by);
+CREATE INDEX IF NOT EXISTS idx_patients_registered_date ON patients(registered_date);
+CREATE INDEX IF NOT EXISTS idx_patients_village ON patients(current_village);
+CREATE INDEX IF NOT EXISTS idx_patient_attachments_patient_id ON patient_attachments(patient_id);
+
+-- Drivers
+CREATE INDEX IF NOT EXISTS idx_drivers_status ON drivers(status);
+CREATE INDEX IF NOT EXISTS idx_drivers_user_id ON drivers(user_id);
+
+-- Rides
 CREATE INDEX IF NOT EXISTS idx_rides_patient_id ON rides(patient_id);
 CREATE INDEX IF NOT EXISTS idx_rides_driver_id ON rides(driver_id);
 CREATE INDEX IF NOT EXISTS idx_rides_status ON rides(status);
 CREATE INDEX IF NOT EXISTS idx_rides_appointment_time ON rides(appointment_time);
-CREATE INDEX IF NOT EXISTS idx_patients_registered_by_id ON patients(registered_by_id);
+CREATE INDEX IF NOT EXISTS idx_rides_created_by ON rides(created_by);
 
--- Updated_at trigger
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Ride Events
+CREATE INDEX IF NOT EXISTS idx_ride_events_ride_id ON ride_events(ride_id);
+CREATE INDEX IF NOT EXISTS idx_ride_events_timestamp ON ride_events(timestamp);
 
-DROP TRIGGER IF EXISTS set_timestamp ON users;
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON users
-FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+-- Driver Locations
+CREATE INDEX IF NOT EXISTS idx_driver_locations_driver_id ON driver_locations(driver_id);
+CREATE INDEX IF NOT EXISTS idx_driver_locations_timestamp ON driver_locations(timestamp);
 
-DROP TRIGGER IF EXISTS set_timestamp ON rides;
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON rides
-FOR EACH ROW
-EXECUTE FUNCTION trigger_set_timestamp();
+-- Audit Logs
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+
+-- News
+CREATE INDEX IF NOT EXISTS idx_news_published_date ON news(published_date);
+CREATE INDEX IF NOT EXISTS idx_news_is_published ON news(is_published);

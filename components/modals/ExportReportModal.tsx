@@ -9,14 +9,42 @@ interface ExportReportModalProps {
 
 const ExportReportModal: React.FC<ExportReportModalProps> = ({ isOpen, onClose }) => {
     const [reportType, setReportType] = useState('summary');
-    const [fileFormat, setFileFormat] = useState('pdf');
+    const [fileFormat, setFileFormat] = useState('csv'); // Default to CSV as it's supported
 
     if (!isOpen) return null;
 
-    const handleDownload = () => {
-        console.log(`Downloading report: ${reportType} as ${fileFormat}`);
-        alert(`กำลังดาวน์โหลดรายงาน: ${reportType} ในรูปแบบ ${fileFormat}`);
-        onClose();
+    const handleDownload = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+            const url = `${baseUrl}/executive/reports/export?type=${reportType}&format=${fileFormat}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to download report');
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.setAttribute('download', `report_${reportType}.${fileFormat}`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(downloadUrl);
+
+            onClose();
+        } catch (err: any) {
+            console.error('Export failed:', err);
+            alert(`เกิดข้อผิดพลาดในการส่งออก: ${err.message}`);
+        }
     };
 
     return (
@@ -48,7 +76,7 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({ isOpen, onClose }
                         <div className="mt-2 space-y-2">
                             <label className="flex items-center">
                                 <input type="radio" name="fileFormat" value="pdf" checked={fileFormat === 'pdf'} onChange={(e) => setFileFormat(e.target.value)} className="h-4 w-4 text-blue-600 border-gray-300" />
-                                <span className="ml-3 text-sm text-gray-700">PDF</span>
+                                <span className="ml-3 text-sm text-gray-700">PDF (เร็วๆ นี้)</span>
                             </label>
                             <label className="flex items-center">
                                 <input type="radio" name="fileFormat" value="csv" checked={fileFormat === 'csv'} onChange={(e) => setFileFormat(e.target.value)} className="h-4 w-4 text-blue-600 border-gray-300" />

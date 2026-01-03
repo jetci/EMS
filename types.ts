@@ -1,11 +1,12 @@
 export enum RideStatus {
-  PENDING = 'PENDING',
-  ASSIGNED = 'ASSIGNED',
-  EN_ROUTE_TO_PICKUP = 'EN_ROUTE_TO_PICKUP', // Driver is on the way to the patient
-  ARRIVED_AT_PICKUP = 'ARRIVED_AT_PICKUP',   // Driver has arrived at the pickup location
-  IN_PROGRESS = 'IN_PROGRESS',             // Patient is in the vehicle
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+    PENDING = 'PENDING',
+    ASSIGNED = 'ASSIGNED',
+    EN_ROUTE_TO_PICKUP = 'EN_ROUTE_TO_PICKUP', // Driver is on the way to the patient
+    ARRIVED_AT_PICKUP = 'ARRIVED_AT_PICKUP',   // Driver has arrived at the pickup location
+    IN_PROGRESS = 'IN_PROGRESS',             // Patient is in the vehicle
+    COMPLETED = 'COMPLETED',
+    CANCELLED = 'CANCELLED',
+    REJECTED = 'REJECTED'
 }
 
 export enum DriverStatus {
@@ -16,54 +17,55 @@ export enum DriverStatus {
 }
 
 export interface Ride {
-  id: string;
-  patientId: string;
-  patientName: string;
-  patientPhone?: string;
-  pickupLocation: string;
-  village?: string;
-  landmark?: string;
-  destination: string;
-  appointmentTime: string;
-  status: RideStatus;
-  driverName?: string;
-  requestedBy?: string;
-  specialNeeds?: string[];
-  caregiverCount?: number;
-  contactPhone?: string;
-  caregiverPhone?: string;
-  pickupCoordinates?: { lat: number; lng: number };
-  driverInfo?: {
-      id: string;
-      fullName: string;
-      phone: string;
-      licensePlate: string;
-      vehicleModel: string;
-  }
-  rating?: number;
-  reviewTags?: string[];
-  reviewComment?: string;
-  tripType?: string;
-  signatureDataUrl?: string;
+    id: string;
+    patientId: string;
+    patientName: string;
+    patientPhone?: string;
+    pickupLocation: string;
+    village?: string;
+    landmark?: string;
+    destination: string;
+    appointmentTime: string;
+    status: RideStatus;
+    driverName?: string;
+    requestedBy?: string;
+    specialNeeds?: string[];
+    caregiverCount?: number;
+    contactPhone?: string;
+    caregiverPhone?: string;
+    pickupCoordinates?: { lat: number; lng: number };
+    driverInfo?: {
+        id: string;
+        fullName: string;
+        phone: string;
+        licensePlate: string;
+        vehicleModel: string;
+    }
+    rating?: number;
+    reviewTags?: string[];
+    reviewComment?: string;
+    tripType?: string;
+    signatureDataUrl?: string;
 }
 
 export enum UserRole {
-  DRIVER = 'driver',
-  COMMUNITY = 'community',
-  RADIO_CENTER = 'radio_center',
-  ADMIN = 'admin',
-  OFFICER = 'OFFICER',
-  EXECUTIVE = 'EXECUTIVE',
-  DEVELOPER = 'DEVELOPER',
+    DRIVER = 'driver',
+    COMMUNITY = 'community',
+    RADIO_CENTER = 'radio_center',
+    RADIO = 'radio',
+    ADMIN = 'admin',
+    OFFICER = 'OFFICER',
+    EXECUTIVE = 'EXECUTIVE',
+    DEVELOPER = 'DEVELOPER',
 }
 
 export interface User {
-  id?: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  phone?: string;
-  profileImageUrl?: string;
+    id?: string;
+    name: string;
+    email: string;
+    role: UserRole;
+    phone?: string;
+    profileImageUrl?: string;
 }
 
 export type UserStatus = 'Active' | 'Inactive';
@@ -89,7 +91,7 @@ export interface Address {
 export interface Attachment {
     name: string;
     url: string;
-    size: string; 
+    size: string;
 }
 
 
@@ -97,7 +99,7 @@ export interface Patient {
     id: string;
     fullName: string;
     profileImageUrl?: string;
-    
+
     // Personal Info
     title: string;
     gender: string;
@@ -120,7 +122,7 @@ export interface Patient {
     landmark: string;
     latitude: string;
     longitude: string;
-    
+
     // Attachments
     attachments: Attachment[];
 
@@ -172,17 +174,17 @@ export enum ActionType {
 }
 
 export interface AuditLog {
-  id: string;
-  timestamp: string;
-  userEmail: string;
-  userRole: UserRole;
-  action: ActionType;
-  targetId?: string;
-  ipAddress: string;
-  dataPayload?: {
-    before?: object;
-    after?: object;
-  };
+    id: string;
+    timestamp: string;
+    userEmail: string;
+    userRole: UserRole;
+    action: ActionType;
+    targetId?: string;
+    ipAddress: string;
+    dataPayload?: {
+        before?: object;
+        after?: object;
+    };
 }
 
 // FIX: Add missing SystemLog interface
@@ -213,11 +215,11 @@ export interface SystemSettings {
 }
 
 export interface Notification {
-  id: string;
-  message: string;
-  timestamp: string;
-  isRead: boolean;
-  link?: string;
+    id: string;
+    message: string;
+    timestamp: string;
+    isRead: boolean;
+    link?: string;
 }
 
 export enum VehicleStatus {
@@ -238,8 +240,8 @@ export interface Vehicle {
 }
 
 export interface VehicleType {
-  id: string;
-  name: string;
+    id: string;
+    name: string;
 }
 
 export interface Team {
@@ -281,8 +283,9 @@ export interface NewsArticle {
 
 export type CommunityView = 'dashboard' | 'patients' | 'rides' | 'profile' | 'register_patient' | 'request_ride' | 'patient_detail' | 'ride_details' | 'edit_ride';
 export type DriverView = 'today_jobs' | 'history' | 'profile';
-export type RadioCenterView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'register_patient' | 'request_ride';
-export type OfficerView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'manage_teams' | 'manage_schedules' | 'news' | 'edit_news' | 'reports' | 'manage_vehicles' | 'register_patient' | 'request_ride';
-export type AdminView = 'dashboard' | 'users' | 'rides' | 'patients' | 'drivers' | 'news' | 'logs' | 'settings' | 'profile' | 'test_map' | 'manage_teams' | 'manage_schedules' | 'manage_vehicles' | 'manage_vehicle_types' | 'edit_news' | 'reports' | 'register_patient' | 'request_ride';
+export type RadioView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'map_command';
+export type RadioCenterView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'map_command' | 'manage_teams' | 'manage_schedules' | 'news' | 'reports';
+export type OfficerView = 'dashboard' | 'map_command' | 'rides' | 'patients' | 'drivers' | 'profile' | 'manage_teams' | 'manage_schedules' | 'news' | 'edit_news' | 'reports' | 'manage_vehicles' | 'register_patient' | 'request_ride';
+export type AdminView = 'dashboard' | 'users' | 'logs' | 'settings' | 'profile' | 'news' | 'edit_news' | 'reports' | 'manage_teams' | 'manage_schedules' | 'manage_vehicles' | 'manage_vehicle_types' | 'test_map';
 export type ExecutiveView = 'executive_dashboard' | 'operational_report' | 'financial_report' | 'patient_demographics_report';
-export type AuthenticatedView = CommunityView | DriverView | OfficerView | RadioCenterView | AdminView | ExecutiveView;
+export type AuthenticatedView = CommunityView | DriverView | OfficerView | RadioView | RadioCenterView | AdminView | ExecutiveView;

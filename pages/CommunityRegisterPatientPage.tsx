@@ -1,51 +1,41 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import { CommunityView } from '../types';
-import MapTest from '../components/MapTest';
-import { formatDateToThai } from '../utils/dateUtils';
-import CameraIcon from '../components/icons/CameraIcon';
-import UploadIcon from '../components/icons/UploadIcon';
-import PaperclipIcon from '../components/icons/PaperclipIcon';
-import TrashIcon from '../components/icons/TrashIcon';
 import { defaultProfileImage } from '../assets/defaultProfile';
-import TagInput from '../components/ui/TagInput';
-import MultiSelectAutocomplete from '../components/ui/MultiSelectAutocomplete';
-import ThaiDatePicker from '../components/ui/ThaiDatePicker';
-import { patientsAPI } from '../src/services/api';
 
-const villages = [
-    "หมู่ 1 บ้านหนองตุ้ม", "หมู่ 2 ป่าบง", "หมู่ 3 เต๋าดิน, เวียงสุทโธ",
-    "หมู่ 4 สวนดอก", "หมู่ 5 ต้นหนุน", "หมู่ 6 สันทรายคองน้อย",
-    "หมู่ 7 แม่ใจใต้", "หมู่ 8 แม่ใจเหนือ", "หมู่ 9 ริมฝาง,สันป่าไหน่",
-    "หมู่ 10 ห้วยเฮี่ยน,สันป่ายางยาง", "หมู่ 11 ท่าสะแล", "หมู่ 12 โป่งถืบ",
-    "หมู่ 13 ห้วยบอน", "หมู่ 14 เสาหิน", "หมู่ 15 โป่งถืบใน",
-    "หมู่ 16 ปางผึ้ง", "หมู่ 17 ใหม่คองน้อย", "หมู่ 18 ศรีดอนชัย",
-    "หมู่ 19 ใหม่ชยาราม", "หมู่ 20 สระนิคม"
-];
-
-const titles = ["นาย", "นาง", "นางสาว", "เด็กชาย", "เด็กหญิง"];
-const bloodTypes = ["A", "B", "AB", "O"];
-const rhFactors = ["Rh+", "Rh-"];
-const healthCoverages = ["สิทธิบัตรทอง (UC)", "ประกันสังคม", "ข้าราชการ", "ชำระเงินเอง", "อื่นๆ"];
-const patientTypeOptions = ['ผู้ป่วยติดเตียง', 'ผู้ป่วยภาวะพึงพิง', 'ผู้ป่วยยากไร้'];
+// Import StepWizard and Step components from the static folder
+import StepWizard, { Step } from '../src/static/components/ui/StepWizard';
+import Step1Identity from '../src/static/components/PatientRegistrationWizard/Step1Identity';
+import Step2Medical from '../src/static/components/PatientRegistrationWizard/Step2Medical';
+import Step3Contact from '../src/static/components/PatientRegistrationWizard/Step3Contact';
+import Step4Attachments from '../src/static/components/PatientRegistrationWizard/Step4Attachments';
+import Step5Review from '../src/static/components/PatientRegistrationWizard/Step5Review';
 
 interface CommunityRegisterPatientPageProps {
-    setActiveView: (view: CommunityView) => void;
+    setActiveView: (view: CommunityView, context?: any) => void;
 }
 
 const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> = ({ setActiveView }) => {
-    const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 4;
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<any>({
+        // Step 1 Data
         title: '',
         firstName: '',
         lastName: '',
+        idCard: '',
+        birthDay: '',
+        birthMonth: '',
+        birthYear: '',
         gender: '',
-        nationalId: '',
-        dob: '',
         age: '',
-        bloodType: '',
+
+        // Step 2 Data
+        patientTypes: [],
+        chronicDiseases: [],
+        allergies: [],
+        bloodGroup: '',
         rhFactor: '',
-        healthCoverage: '',
+        insuranceType: '',
+
+        // Step 3 Data (Address & Contact)
         idCardAddress: {
             houseNumber: '',
             village: '',
@@ -62,372 +52,139 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         },
         addressOption: 'same', // 'same' or 'new'
         contactPhone: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        emergencyContactRelation: '',
         landmark: '',
         latitude: '19.9213',
         longitude: '99.2131',
+
+        // Step 4 Data (Attachments)
+        profileImage: { file: null, previewUrl: null },
+        attachments: [],
+
+        // Step 5 Data (Review & Submit)
     });
-    const [patientTypes, setPatientTypes] = useState<string[]>([]);
-    const [chronicDiseases, setChronicDiseases] = useState<string[]>([]);
-    const [allergies, setAllergies] = useState<string[]>([]);
-    const [profileImage, setProfileImage] = useState<{ file: File | null, previewUrl: string | null }>({ file: null, previewUrl: null });
-    const [attachments, setAttachments] = useState<File[]>([]);
 
-    useEffect(() => {
-        const titleToGenderMap: { [key: string]: string } = {
-            "นาย": "ชาย", "เด็กชาย": "ชาย", "นาง": "หญิง",
-            "นางสาว": "หญิง", "เด็กหญิง": "หญิง",
-        };
-        setFormData(prev => ({ ...prev, gender: titleToGenderMap[prev.title] || '' }));
-    }, [formData.title]);
-    
-    useEffect(() => {
-        if (formData.dob) {
-            const birthDate = new Date(formData.dob);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const m = today.getMonth() - birthDate.getMonth();
-            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-            }
-            setFormData(prev => ({ ...prev, age: age >= 0 ? `${age} ปี` : '' }));
-        } else {
-            setFormData(prev => ({ ...prev, age: '' }));
-        }
-    }, [formData.dob]);
-    
-    useEffect(() => {
-        if (formData.addressOption === 'same') {
-            setFormData(prev => ({
-                ...prev,
-                currentAddress: prev.idCardAddress
-            }));
-        }
-    }, [formData.idCardAddress, formData.addressOption]);
-
-    const handleBasicChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, addressType: 'idCardAddress' | 'currentAddress') => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [addressType]: { ...prev[addressType], [name]: value }
-        }));
-    };
-
-    const handleAddressOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData(prev => ({ ...prev, addressOption: e.target.value }));
-    };
-
-    const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files?.[0]) {
-            const file = e.target.files[0];
-            setProfileImage({ file, previewUrl: URL.createObjectURL(file) });
-        }
-    };
-    
-    const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const newFiles = Array.from(e.target.files);
-            if (attachments.length + newFiles.length > 5) {
-                alert("คุณสามารถอัปโหลดเอกสารได้สูงสุด 5 ไฟล์เท่านั้น");
-                return;
-            }
-            setAttachments(prev => [...prev, ...newFiles]);
-        }
-    };
-
-    const handleRemoveAttachment = (index: number) => {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleLocationChange = (coords: { lat: number; lng: number }) => {
-        setFormData(prev => ({ ...prev, latitude: coords.lat.toString(), longitude: coords.lng.toString() }));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        // Map form data to backend minimal payload
-        const payload = {
-            full_name: `${formData.title ? formData.title + ' ' : ''}${formData.firstName} ${formData.lastName}`.trim(),
-            patient_types: patientTypes,
-            key_info: {
-                summary: formData.landmark || 'ข้อมูลสำคัญ',
-                chronic_diseases: chronicDiseases,
-                allergies,
-                contact_phone: formData.contactPhone,
-                address: formData.currentAddress,
-                latitude: formData.latitude,
-                longitude: formData.longitude,
-            },
-        } as any;
+    const handleWizardComplete = async (finalData: any) => {
+        console.log("Final data for submission:", finalData);
 
         try {
-            await patientsAPI.createPatient(payload);
-            alert('บันทึกข้อมูลผู้ป่วยใหม่สำเร็จ!');
-            setActiveView('patients');
-        } catch (err: any) {
-            alert(`บันทึกไม่สำเร็จ: ${err?.message || 'เกิดข้อผิดพลาด'}`);
+            const token = localStorage.getItem('wecare_token'); // Changed from 'token' to 'wecare_token' to match App.tsx
+            if (!token) {
+                alert('กรุณาเข้าสู่ระบบใหม่');
+                return;
+            }
+
+            // Transform data to match backend expectation if necessary
+            // The backend expects specific fields like 'fullName', 'nationalId', etc.
+            // We might need to map 'firstName' + 'lastName' to 'fullName'
+
+            const requestData = new FormData();
+
+            // Basic Fields
+            requestData.append('title', finalData.title);
+            requestData.append('fullName', `${finalData.firstName} ${finalData.lastName}`);
+            requestData.append('gender', finalData.gender);
+            requestData.append('nationalId', finalData.idCard || '');
+
+            // Construct DOB from day/month/year
+            const dob = `${finalData.birthYear}-${finalData.birthMonth}-${finalData.birthDay}`;
+            requestData.append('dob', dob);
+            requestData.append('age', String(finalData.age));
+
+            requestData.append('bloodType', finalData.bloodGroup || '');
+            requestData.append('rhFactor', finalData.rhFactor || '');
+            requestData.append('healthCoverage', finalData.insuranceType || '');
+            requestData.append('contactPhone', finalData.contactPhone);
+            requestData.append('landmark', finalData.landmark || '');
+            requestData.append('latitude', finalData.latitude);
+            requestData.append('longitude', finalData.longitude);
+
+            // Address Objects (Send as JSON string)
+            requestData.append('idCardAddress', JSON.stringify(finalData.idCardAddress));
+            requestData.append('currentAddress', JSON.stringify(finalData.currentAddress));
+
+            // Arrays (Send as JSON string)
+            requestData.append('patientTypes', JSON.stringify(finalData.patientTypes));
+            requestData.append('chronicDiseases', JSON.stringify(finalData.chronicDiseases));
+            requestData.append('allergies', JSON.stringify(finalData.allergies));
+
+            // Profile Image
+            if (finalData.profileImage?.file) {
+                requestData.append('profileImage', finalData.profileImage.file);
+            }
+
+            // Attachments
+            if (finalData.attachments && finalData.attachments.length > 0) {
+                finalData.attachments.forEach((file: File) => {
+                    requestData.append('attachments', file);
+                });
+            }
+
+            // Using fetch directly or apiRequest from services
+            // Let's use the existing apiRequest if possible, but here we use fetch for FormData
+
+            const API_BASE = 'http://localhost:3001'; // Hardcoded for now or use env
+            const response = await fetch(`${API_BASE}/api/patients`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                    // Content-Type header should NOT be set when sending FormData, browser sets it with boundary
+                },
+                body: requestData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                alert(`บันทึกข้อมูลผู้ป่วยใหม่สำเร็จ!`);
+                setActiveView('patients');
+            } else {
+                throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
+
+        } catch (error: any) {
+            console.error('Error registering patient:', error);
+            alert('เกิดข้อผิดพลาด: ' + error.message);
         }
     };
-    
-    const today = new Date().toISOString().split('T')[0];
-    const currentPosition = { lat: parseFloat(formData.latitude), lng: parseFloat(formData.longitude) };
-
-    const readonlyClasses = "mt-1 w-full bg-gray-100 rounded-lg py-2.5 px-3.5 text-gray-800 text-sm";
-
-    const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
-    const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-800">ลงทะเบียนผู้ป่วยใหม่</h1>
-            
-            {/* Progress Steps */}
-            <div className="flex items-center justify-between mb-8">
-                {[1, 2, 3, 4].map((step) => (
-                    <div key={step} className="flex items-center flex-1">
-                        <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
-                            currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
-                        } font-bold`}>
-                            {step}
-                        </div>
-                        {step < 4 && <div className={`flex-1 h-1 mx-2 ${
-                            currentStep > step ? 'bg-blue-600' : 'bg-gray-300'
-                        }`} />}
-                    </div>
-                ))}
-            </div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">ลงทะเบียนผู้ป่วยใหม่</h1>
+            <StepWizard onComplete={handleWizardComplete}>
+                <Step title="ข้อมูลระบุตัวตน">
+                    <Step1Identity
+                        currentData={formData}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-                {/* Section 1: Personal Identification */}
-                {currentStep === 1 && (
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">1. ข้อมูลระบุตัวตน</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-1 flex flex-col items-center">
-                             <img src={profileImage.previewUrl || defaultProfileImage} alt="Patient profile" className="w-36 h-36 rounded-full object-cover border-4 border-gray-200" />
-                            <label htmlFor="profileImage" className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
-                                อัปโหลดรูปภาพ
-                                <input type="file" id="profileImage" accept="image/*" onChange={handleProfileImageChange} className="sr-only" />
-                            </label>
-                        </div>
-                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">คำนำหน้าชื่อ</label>
-                                <select name="title" value={formData.title} onChange={handleBasicChange} className="mt-1" required>
-                                    <option value="" disabled>-- เลือก --</option>
-                                    {titles.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700">เพศ</label>
-                                <div className={readonlyClasses}>{formData.gender || '-'}</div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">ชื่อ</label>
-                                <input type="text" name="firstName" value={formData.firstName} onChange={handleBasicChange} className="mt-1" required />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">นามสกุล</label>
-                                <input type="text" name="lastName" value={formData.lastName} onChange={handleBasicChange} className="mt-1" required />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700">เลขบัตรประชาชน</label>
-                                <input type="text" name="nationalId" value={formData.nationalId} onChange={handleBasicChange} className="mt-1" maxLength={13} pattern="\d{13}" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">วัน/เดือน/ปีเกิด</label>
-                                <ThaiDatePicker name="dob" value={formData.dob} onChange={handleBasicChange} max={today} required />
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700">อายุ</label>
-                                <div className={readonlyClasses}>{formData.age || '-'}</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-end mt-6">
-                        <button type="button" onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            ถัดไป
-                        </button>
-                    </div>
-                </div>
-                )}
+                    />
+                </Step>
+                <Step title="ข้อมูลทางการแพทย์">
+                    <Step2Medical
+                        currentData={formData}
 
-                {/* Section 2: Health Information */}
-                {currentStep === 2 && (
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">2. ข้อมูลทางการแพทย์เบื้องต้น</h2>
-                    <div className="space-y-6">
-                        <MultiSelectAutocomplete id="patientType" options={patientTypeOptions} selectedItems={patientTypes} setSelectedItems={setPatientTypes} placeholder="เลือกประเภทผู้ป่วย (ได้มากกว่า 1)..."/>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <TagInput tags={chronicDiseases} setTags={setChronicDiseases} placeholder="เพิ่มโรคประจำตัว...ทีละรายการ" />
-                            <TagInput tags={allergies} setTags={setAllergies} placeholder="เพิ่มประวัติการแพ้ยา/อาหาร..." />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div>
-                                <label htmlFor="bloodType" className="block text-sm font-medium text-gray-700">กรุ๊ปเลือด</label>
-                                <select id="bloodType" name="bloodType" value={formData.bloodType} onChange={handleBasicChange} aria-label="กรุ๊ปเลือด">
-                                    <option value="">-- กรุ๊ปเลือด --</option>
-                                    {bloodTypes.map(b => <option key={b} value={b}>{b}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="rhFactor" className="block text-sm font-medium text-gray-700">ปัจจัย Rh</label>
-                                <select id="rhFactor" name="rhFactor" value={formData.rhFactor} onChange={handleBasicChange} aria-label="ปัจจัย Rh">
-                                    <option value="">-- Rh --</option>
-                                    {rhFactors.map(rh => <option key={rh} value={rh}>{rh}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="healthCoverage" className="block text-sm font-medium text-gray-700">สิทธิการรักษา</label>
-                                <select id="healthCoverage" name="healthCoverage" value={formData.healthCoverage} onChange={handleBasicChange} aria-label="สิทธิการรักษา">
-                                    <option value="">-- สิทธิการรักษา --</option>
-                                    {healthCoverages.map(hc => <option key={hc} value={hc}>{hc}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-between mt-6">
-                        <button type="button" onClick={prevStep} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
-                            ย้อนกลับ
-                        </button>
-                        <button type="button" onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            ถัดไป
-                        </button>
-                    </div>
-                </div>
-                )}
+                    />
+                </Step>
+                <Step title="ข้อมูลติดต่อ & ที่อยู่">
+                    <Step3Contact
+                        currentData={formData}
 
-                {/* Section 3: Address & Location */}
-                {currentStep === 3 && (
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">3. ที่อยู่และข้อมูลติดต่อ</h2>
-                    
-                    <div className="border-b border-gray-200 pb-6 mb-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">ส่วนที่ 1: ที่อยู่ตามบัตรประชาชน</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">บ้านเลขที่</label>
-                                <input type="text" name="houseNumber" value={formData.idCardAddress.houseNumber} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1"/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">หมู่บ้าน</label>
-                                <select name="village" value={formData.idCardAddress.village} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1">
-                                    <option value="">-- เลือก --</option>
-                                    {villages.map(v=><option key={v} value={v}>{v}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">ตำบล</label>
-                                <div className="mt-1 p-2.5 bg-gray-100 rounded-lg text-gray-800 text-sm">{formData.idCardAddress.tambon}</div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">อำเภอ</label>
-                                <div className="mt-1 p-2.5 bg-gray-100 rounded-lg text-gray-800 text-sm">{formData.idCardAddress.amphoe}</div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">จังหวัด</label>
-                                <div className="mt-1 p-2.5 bg-gray-100 rounded-lg text-gray-800 text-sm">{formData.idCardAddress.changwat}</div>
-                            </div>
-                        </div>
-                    </div>
+                    />
+                </Step>
+                <Step title="เอกสารแนบ">
+                    <Step4Attachments
+                        currentData={formData}
 
-                    <div className="border-b border-gray-200 pb-6 mb-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">ส่วนที่ 2: ที่อยู่ปัจจุบัน</h3>
-                        <div className="flex items-center space-x-6">
-                            <label className="flex items-center">
-                                <input type="radio" name="addressOption" value="same" checked={formData.addressOption === 'same'} onChange={handleAddressOptionChange} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
-                                <span className="ml-2 text-sm text-gray-700">ใช้ที่อยู่เดียวกับบัตรประชาชน</span>
-                            </label>
-                            <label className="flex items-center">
-                                <input type="radio" name="addressOption" value="new" checked={formData.addressOption === 'new'} onChange={handleAddressOptionChange} className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"/>
-                                <span className="ml-2 text-sm text-gray-700">กรอกที่อยู่ใหม่</span>
-                            </label>
-                        </div>
-                        {formData.addressOption === 'new' && 
-                            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 animate-scale-in">
-                                <div><label className="block text-sm font-medium text-gray-700">บ้านเลขที่</label><input type="text" name="houseNumber" value={formData.currentAddress.houseNumber} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1"/></div>
-                                <div><label className="block text-sm font-medium text-gray-700">หมู่บ้าน</label><select name="village" value={formData.currentAddress.village} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1"><option value="">-- เลือก --</option>{villages.map(v=><option key={v} value={v}>{v}</option>)}</select></div>
-                                <div><label className="block text-sm font-medium text-gray-700">ตำบล</label><input type="text" name="tambon" value={formData.currentAddress.tambon} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1"/></div>
-                                <div><label className="block text-sm font-medium text-gray-700">อำเภอ</label><input type="text" name="amphoe" value={formData.currentAddress.amphoe} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1"/></div>
-                                <div><label className="block text-sm font-medium text-gray-700">จังหวัด</label><input type="text" name="changwat" value={formData.currentAddress.changwat} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1"/></div>
-                            </div>
-                        }
-                    </div>
+                    />
+                </Step>
+                <Step title="ตรวจสอบ & ยืนยัน">
+                    <Step5Review
+                        currentData={formData}
 
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">ส่วนที่ 3: ข้อมูลติดต่อเพิ่มเติม</h3>
-                        <div className="space-y-4">
-                           <div>
-                                <label className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์ผู้ป่วย/ผู้ดูแล</label>
-                                <input type="tel" name="contactPhone" value={formData.contactPhone} onChange={handleBasicChange} className="mt-1" required/>
-                           </div>
-                           <div>
-                                <label className="block text-sm font-medium text-gray-700">จุดสังเกต/รายละเอียดที่อยู่เพิ่มเติม</label>
-                                <textarea name="landmark" rows={2} value={formData.landmark} onChange={handleBasicChange} className="mt-1"></textarea>
-                           </div>
-                           <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">ปักหมุดตำแหน่งที่อยู่ปัจจุบัน</label>
-                                <div className="border rounded-lg overflow-hidden">
-                                    <MapTest position={currentPosition} onLocationChange={handleLocationChange} />
-                                </div>
-                           </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-between mt-6">
-                        <button type="button" onClick={prevStep} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
-                            ย้อนกลับ
-                        </button>
-                        <button type="button" onClick={nextStep} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            ถัดไป
-                        </button>
-                    </div>
-                </div>
-                )}
-
-                {/* Section 4: Additional Documents */}
-                {currentStep === 4 && (
-                <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">4. เอกสารแนบ</h2>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                        <UploadIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <label htmlFor="attachments" className="mt-2 block text-sm font-medium text-blue-600 hover:text-blue-500 cursor-pointer">เลือกไฟล์ (สูงสุด 5 ไฟล์)<input type="file" id="attachments" multiple onChange={handleAttachmentChange} className="sr-only" /></label>
-                    </div>
-                    {attachments.length > 0 ? (
-                        <div className="mt-4">
-                            <h3 className="text-sm font-medium">ไฟล์ที่อัปโหลดแล้ว:</h3>
-                            <ul className="mt-2 divide-y border rounded-md">{attachments.map((file, index) => (
-                                <li key={index} className="flex items-center justify-between p-3">
-                                    <div className="flex items-center min-w-0"><PaperclipIcon className="w-5 h-5 text-gray-400"/><p className="ml-2 text-sm truncate">{file.name}</p></div>
-                                    <button type="button" onClick={() => handleRemoveAttachment(index)} className="text-red-600 hover:text-red-800" aria-label={`ลบไฟล์ ${file.name}`} title="ลบไฟล์"><TrashIcon className="w-5 h-5" /></button>
-                                </li>))}
-                            </ul>
-                        </div>
-                    ) : (
-                        <div className="mt-4 text-center text-sm text-gray-500">
-                            <p>ยังไม่มีเอกสารแนบ</p>
-                        </div>
-                    )}
-                    <div className="flex justify-between mt-6">
-                        <button type="button" onClick={prevStep} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
-                            ย้อนกลับ
-                        </button>
-                        <button type="submit" className="px-8 py-3 bg-[var(--wecare-blue)] text-white text-lg font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                            บันทึกข้อมูล
-                        </button>
-                    </div>
-                </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-4 pt-4 border-t mt-4">
-                    <button type="button" onClick={() => setActiveView('patients')} className="px-6 py-2.5 font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
-                    <button type="submit" className="px-6 py-2.5 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600">บันทึกข้อมูลผู้ป่วย</button>
-                </div>
-            </form>
+                    />
+                </Step>
+            </StepWizard>
         </div>
     );
 };

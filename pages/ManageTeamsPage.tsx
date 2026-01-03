@@ -35,9 +35,31 @@ const ManageTeamsPage: React.FC = () => {
                 driversAPI.getDrivers(),
                 apiRequest('/users'),
             ]);
-            setTeams(Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []));
-            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
-            setStaff(Array.isArray(usersData) ? usersData : (usersData?.users || []));
+
+            // Map Teams (leader_id -> driverId, member_ids -> staffIds)
+            const rawTeams = Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []);
+            const mappedTeams = rawTeams.map((t: any) => ({
+                ...t,
+                driverId: t.driverId || t.leader_id,
+                staffIds: t.staffIds || t.member_ids || []
+            }));
+            setTeams(mappedTeams);
+
+            // Map Drivers (full_name -> fullName)
+            const rawDrivers = Array.isArray(driversData) ? driversData : (driversData?.drivers || []);
+            const mappedDrivers = rawDrivers.map((d: any) => ({
+                ...d,
+                fullName: d.fullName || d.full_name
+            }));
+            setDrivers(mappedDrivers);
+
+            // Map Staff/Users (full_name -> name)
+            const rawUsers = Array.isArray(usersData) ? usersData : (usersData?.users || []);
+            const mappedUsers = rawUsers.map((u: any) => ({
+                ...u,
+                name: u.name || u.full_name
+            }));
+            setStaff(mappedUsers);
         } catch (err: any) {
             console.error('Failed to load data:', err);
             setError(err.message || 'ไม่สามารถโหลดข้อมูลได้');
@@ -70,7 +92,7 @@ const ManageTeamsPage: React.FC = () => {
         setSelectedTeam(team);
         setIsModalOpen(true);
     };
-    
+
     const handleSaveTeam = async (teamData: Team) => {
         try {
             if (selectedTeam) {
@@ -94,10 +116,16 @@ const ManageTeamsPage: React.FC = () => {
         setIsConfirmOpen(true);
     };
 
-    const handleDeleteTeam = () => {
+    const handleDeleteTeam = async () => {
         if (teamToDelete) {
-            setTeams(prev => prev.filter(t => t.id !== teamToDelete.id));
-            showToast(`🗑️ ลบทีม "${teamToDelete.name}" เรียบร้อยแล้ว`);
+            try {
+                await teamsAPI.deleteTeam(teamToDelete.id);
+                showToast(`🗑️ ลบทีม "${teamToDelete.name}" เรียบร้อยแล้ว`);
+                await loadAllData();
+            } catch (err: any) {
+                console.error('Failed to delete team:', err);
+                showToast(`❌ ไม่สามารถลบทีมได้: ${err.message}`);
+            }
         }
         setIsConfirmOpen(false);
         setTeamToDelete(null);
@@ -113,7 +141,7 @@ const ManageTeamsPage: React.FC = () => {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการชุดเวร (Team Management)</h1>
-                <button 
+                <button
                     onClick={handleOpenCreateModal}
                     className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[#005A9C] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
                 >
@@ -145,7 +173,7 @@ const ManageTeamsPage: React.FC = () => {
                     const staffNames = (team.staffIds || []).map(id => userInfoMap.get(id)?.name || 'N/A');
 
                     return (
-                        <TeamCard 
+                        <TeamCard
                             key={team.id}
                             team={team}
                             driverName={driverInfo.name}
@@ -164,13 +192,13 @@ const ManageTeamsPage: React.FC = () => {
                         {searchTerm ? 'ไม่พบทีมที่ตรงกับคำค้นหา' : 'ยังไม่มีทีมที่สร้างไว้'}
                     </h3>
                     <p className="text-gray-500 mt-2">
-                         {searchTerm ? 'ลองใช้คำค้นหาอื่น' : 'คลิก "สร้างทีมใหม่" เพื่อเริ่มต้น'}
+                        {searchTerm ? 'ลองใช้คำค้นหาอื่น' : 'คลิก "สร้างทีมใหม่" เพื่อเริ่มต้น'}
                     </p>
                 </div>
             )}
-            
+
             {/* Modals */}
-            <EditTeamModal 
+            <EditTeamModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveTeam}
@@ -178,15 +206,15 @@ const ManageTeamsPage: React.FC = () => {
                 availableDrivers={drivers}
                 availableStaff={staff}
             />
-            
-            <ConfirmationModal 
+
+            <ConfirmationModal
                 isOpen={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
                 onConfirm={handleDeleteTeam}
                 title={`ยืนยันการลบทีม "${teamToDelete?.name}"`}
                 message="คุณแน่ใจหรือไม่ว่าต้องการลบทีมนี้? การกระทำนี้ไม่สามารถย้อนกลับได้"
             />
-            
+
             <Toast message={toastMessage} />
         </div>
     );

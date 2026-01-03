@@ -12,73 +12,110 @@ import ChevronRightIcon from '../components/icons/ChevronRightIcon';
 import XCircleIcon from '../components/icons/XCircleIcon';
 import EditPatientModal from '../components/modals/EditPatientModal';
 import { formatDateToThai } from '../utils/dateUtils';
-import ThaiDatePicker from '../components/ui/ThaiDatePicker';
+import ModernDatePicker from '../components/ui/ModernDatePicker';
 import StatCard from '../components/dashboard/StatCard';
 import UsersIcon from '../components/icons/UsersIcon';
 import BedIcon from '../components/icons/BedIcon';
 import PrintIcon from '../components/icons/PrintIcon';
 import { patientsAPI } from '../src/services/api';
+import Toast from '../components/Toast';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 dayjs.extend(isSameOrBefore);
 
 const ITEMS_PER_PAGE = 10;
 
+const emptyPatient: Patient = {
+    id: '',
+    fullName: '',
+    title: 'นาย',
+    gender: 'ชาย',
+    nationalId: '',
+    dob: '',
+    age: 0,
+    patientTypes: [],
+    bloodType: '',
+    rhFactor: '',
+    healthCoverage: '',
+    chronicDiseases: [],
+    allergies: [],
+    contactPhone: '',
+    idCardAddress: { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
+    currentAddress: { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
+    landmark: '',
+    latitude: '13.7563',
+    longitude: '100.5018',
+    attachments: [],
+    registeredDate: new Date().toISOString(),
+    registeredBy: 'Office',
+    keyInfo: '',
+};
+
 const OfficeManagePatientsPage: React.FC = () => {
     const [patients, setPatients] = useState<Patient[]>([]);
     const [loadingRemote, setLoadingRemote] = useState<boolean>(false);
     const [remoteError, setRemoteError] = useState<string | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const loadPatients = async () => {
+        setLoadingRemote(true);
+        setRemoteError(null);
+        try {
+            const response = await patientsAPI.getPatients();
+            // Backward compatible: support both old (array) and new (object) formats
+            const data = response?.data || response || [];
+            const patientsData = Array.isArray(data) ? data : [];
+            const mapped: Patient[] = patientsData.map((p: any) => ({
+                id: p.id,
+                fullName: p.full_name ?? '',
+                profileImageUrl: undefined,
+                title: p.title ?? '',
+                gender: p.gender ?? '',
+                nationalId: p.national_id ?? '',
+                dob: p.dob ?? '',
+                age: p.dob ? dayjs().diff(dayjs(p.dob), 'year') : 0,
+                patientTypes: Array.isArray(p.patient_types) ? p.patient_types : [],
+                bloodType: p.blood_type ?? '',
+                rhFactor: p.rh_factor ?? '',
+                healthCoverage: p.health_coverage ?? '',
+                chronicDiseases: Array.isArray(p.chronic_diseases) ? p.chronic_diseases : [],
+                allergies: Array.isArray(p.allergies) ? p.allergies : [],
+                contactPhone: p.contact_phone ?? '',
+                idCardAddress: p.id_card_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
+                currentAddress: p.current_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
+                landmark: p.landmark ?? '',
+                latitude: (p.latitude ?? '').toString(),
+                longitude: (p.longitude ?? '').toString(),
+                attachments: Array.isArray(p.attachments) ? p.attachments : [],
+                registeredDate: p.registered_date ?? new Date().toISOString(),
+                registeredBy: p.registered_by_id ?? 'Unknown',
+                keyInfo: typeof p.key_info === 'string' ? p.key_info : (p.key_info?.summary ?? ''),
+                caregiverName: p.caregiver_name ?? undefined,
+                caregiverPhone: p.caregiver_phone ?? undefined,
+            }));
+            setPatients(mapped);
+        } catch (err: any) {
+            setRemoteError(err?.message || 'Failed to load patients');
+        } finally {
+            setLoadingRemote(false);
+        }
+    };
 
     useEffect(() => {
-        const load = async () => {
-            setLoadingRemote(true);
-            setRemoteError(null);
-            try {
-                const data = await patientsAPI.getPatients();
-                const patientsData = Array.isArray(data) ? data : (data?.patients || []);
-                const mapped: Patient[] = patientsData.map((p: any) => ({
-                    id: p.id,
-                    fullName: p.full_name ?? '',
-                    profileImageUrl: undefined,
-                    title: p.title ?? '',
-                    gender: p.gender ?? '',
-                    nationalId: p.national_id ?? '',
-                    dob: p.dob ?? '',
-                    age: p.dob ? dayjs().diff(dayjs(p.dob), 'year') : 0,
-                    patientTypes: Array.isArray(p.patient_types) ? p.patient_types : [],
-                    bloodType: p.blood_type ?? '',
-                    rhFactor: p.rh_factor ?? '',
-                    healthCoverage: p.health_coverage ?? '',
-                    chronicDiseases: Array.isArray(p.chronic_diseases) ? p.chronic_diseases : [],
-                    allergies: Array.isArray(p.allergies) ? p.allergies : [],
-                    contactPhone: p.contact_phone ?? '',
-                    idCardAddress: p.id_card_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
-                    currentAddress: p.current_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
-                    landmark: p.landmark ?? '',
-                    latitude: (p.latitude ?? '').toString(),
-                    longitude: (p.longitude ?? '').toString(),
-                    attachments: Array.isArray(p.attachments) ? p.attachments : [],
-                    registeredDate: p.registered_date ?? new Date().toISOString(),
-                    registeredBy: p.registered_by_id ?? 'Unknown',
-                    keyInfo: typeof p.key_info === 'string' ? p.key_info : (p.key_info?.summary ?? ''),
-                    caregiverName: p.caregiver_name ?? undefined,
-                    caregiverPhone: p.caregiver_phone ?? undefined,
-                }));
-                setPatients(mapped);
-            } catch (err: any) {
-                setRemoteError(err?.message || 'Failed to load patients');
-                // Keep mockPatients as fallback
-            } finally {
-                setLoadingRemote(false);
-            }
-        };
-        load();
+        loadPatients();
     }, []);
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [searching, setSearching] = useState(false);
     const [filters, setFilters] = useState({ registeredBy: 'All', village: 'All', healthCoverage: 'All', startDate: '', endDate: '' });
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+
+    const showToast = (message: string) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(null), 3000);
+    };
 
     const stats = useMemo(() => {
         const total = patients.length;
@@ -91,7 +128,7 @@ const OfficeManagePatientsPage: React.FC = () => {
         const registrars = new Set(patients.map(p => p.registeredBy));
         return ['All', ...Array.from(registrars)];
     }, [patients]);
-    
+
     const uniqueVillages = useMemo(() => {
         const villages = new Set(patients.map(p => p.currentAddress.village));
         return ['All', ...Array.from(villages)];
@@ -115,7 +152,7 @@ const OfficeManagePatientsPage: React.FC = () => {
             const matchesRegisteredBy = filters.registeredBy === 'All' || p.registeredBy === filters.registeredBy;
             const matchesVillage = filters.village === 'All' || p.currentAddress.village === filters.village;
             const matchesHealthCoverage = filters.healthCoverage === 'All' || p.healthCoverage === filters.healthCoverage;
-            
+
             let matchesDate = true;
             if (filters.startDate && filters.endDate) {
                 const regDate = dayjs(p.registeredDate);
@@ -134,9 +171,65 @@ const OfficeManagePatientsPage: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleSavePatient = (updatedPatient: Patient) => {
-        setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
-        setIsModalOpen(false);
+    const handleCreatePatient = () => {
+        setSelectedPatient(emptyPatient);
+        setIsModalOpen(true);
+    };
+
+    const handleSavePatient = async (updatedPatient: Patient) => {
+        try {
+            // Map frontend Patient to backend format
+            const backendData = {
+                full_name: updatedPatient.fullName,
+                title: updatedPatient.title,
+                gender: updatedPatient.gender,
+                national_id: updatedPatient.nationalId,
+                dob: updatedPatient.dob,
+                patient_types: updatedPatient.patientTypes,
+                blood_type: updatedPatient.bloodType,
+                rh_factor: updatedPatient.rhFactor,
+                health_coverage: updatedPatient.healthCoverage,
+                chronic_diseases: updatedPatient.chronicDiseases,
+                allergies: updatedPatient.allergies,
+                contact_phone: updatedPatient.contactPhone,
+                id_card_address: updatedPatient.idCardAddress,
+                current_address: updatedPatient.currentAddress,
+                landmark: updatedPatient.landmark,
+                latitude: updatedPatient.latitude,
+                longitude: updatedPatient.longitude,
+                attachments: updatedPatient.attachments,
+                key_info: updatedPatient.keyInfo,
+            };
+
+            if (updatedPatient.id) {
+                // Update
+                await patientsAPI.updatePatient(updatedPatient.id, backendData);
+                showToast('✅ บันทึกข้อมูลผู้ป่วยสำเร็จ');
+            } else {
+                // Create
+                await patientsAPI.createPatient(backendData);
+                showToast('✅ ลงทะเบียนผู้ป่วยใหม่สำเร็จ');
+            }
+            await loadPatients();
+            setIsModalOpen(false);
+        } catch (error: any) {
+            console.error('Failed to save patient:', error);
+            showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+        }
+    };
+
+    const handleDeletePatient = async (id: string) => {
+        if (!window.confirm('คุณแน่ใจหรือไม่ที่จะลบข้อมูลผู้ป่วยรายนี้? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
+            return;
+        }
+        try {
+            await patientsAPI.deletePatient(id);
+            showToast('✅ ลบข้อมูลผู้ป่วยสำเร็จ');
+            await loadPatients();
+        } catch (error: any) {
+            console.error('Failed to delete patient:', error);
+            showToast(`❌ เกิดข้อผิดพลาดในการลบ: ${error.message}`);
+        }
     };
 
     const resetFilters = () => {
@@ -152,16 +245,16 @@ const OfficeManagePatientsPage: React.FC = () => {
             {remoteError && (
                 <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">เกิดข้อผิดพลาดในการดึงข้อมูล: {remoteError}</div>
             )}
-            
+
             {/* Page Header */}
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการข้อมูลผู้ป่วยทั้งหมด</h1>
-                <button className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                <button onClick={handleCreatePatient} className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
                     <UserPlusIcon className="w-5 h-5 mr-2" />
                     <span>ลงทะเบียนผู้ป่วยใหม่</span>
                 </button>
             </div>
-            
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <StatCard title="ผู้ป่วยทั้งหมด" value={stats.total.toString()} icon={UsersIcon} variant="default" />
@@ -174,62 +267,76 @@ const OfficeManagePatientsPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="md:col-span-2">
                         <label htmlFor="patientSearch" className="block text-xs font-medium text-gray-600 mb-1">ค้นหา</label>
-                        <input id="patientSearch" type="text" placeholder="ชื่อ, รหัสผู้ป่วย..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        <div className="flex items-center gap-2">
+                            <input
+                                id="patientSearch"
+                                type="text"
+                                placeholder="ชื่อ, รหัสผู้ป่วย..."
+                                value={searchTerm}
+                                onChange={e => {
+                                    setSearching(true);
+                                    setSearchTerm(e.target.value);
+                                    setTimeout(() => setSearching(false), 300);
+                                }}
+                                className="flex-1"
+                            />
+                            {searching && <LoadingSpinner size="sm" />}
+                        </div>
                     </div>
                     <div>
                         <label htmlFor="filterRegisteredBy" className="block text-xs font-medium text-gray-600 mb-1">ชุมชน (ผู้ลงทะเบียน)</label>
-                         <select id="filterRegisteredBy" name="registeredBy" value={filters.registeredBy} onChange={handleFilterChange}>
-                           {uniqueRegistrars.map(r => (
-                               <option key={r} value={r}>
-                                   {r === 'All' ? 'ทั้งหมด' : r}
-                               </option>
-                           ))}
+                        <select id="filterRegisteredBy" name="registeredBy" value={filters.registeredBy} onChange={handleFilterChange}>
+                            {uniqueRegistrars.map(r => (
+                                <option key={r} value={r}>
+                                    {r === 'All' ? 'ทั้งหมด' : r}
+                                </option>
+                            ))}
                         </select>
                     </div>
-                     <div>
+                    <div>
                         <label htmlFor="filterVillage" className="block text-xs font-medium text-gray-600 mb-1">หมู่บ้าน</label>
                         <select id="filterVillage" name="village" value={filters.village} onChange={handleFilterChange}>
-                           {uniqueVillages.map(v => (
-                               <option key={v} value={v}>
-                                   {v === 'All' ? 'ทุกหมู่บ้าน' : v}
-                               </option>
-                           ))}
+                            {uniqueVillages.map(v => (
+                                <option key={v} value={v}>
+                                    {v === 'All' ? 'ทุกหมู่บ้าน' : v}
+                                </option>
+                            ))}
                         </select>
                     </div>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label htmlFor="filterHealthCoverage" className="block text-xs font-medium text-gray-600 mb-1">สิทธิการรักษา</label>
                         <select id="filterHealthCoverage" name="healthCoverage" value={filters.healthCoverage} onChange={handleFilterChange}>
-                           {uniqueHealthCoverages.map(hc => (
-                               <option key={hc} value={hc}>
-                                   {hc === 'All' ? 'ทุกสิทธิ' : hc}
-                               </option>
-                           ))}
+                            {uniqueHealthCoverages.map(hc => (
+                                <option key={hc} value={hc}>
+                                    {hc === 'All' ? 'ทุกสิทธิ' : hc}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
                         <label htmlFor="startDate" className="block text-xs font-medium text-gray-600 mb-1">ลงทะเบียน (จากวันที่)</label>
-                        <ThaiDatePicker name="startDate" value={filters.startDate} onChange={handleFilterChange} />
+                        <ModernDatePicker name="startDate" value={filters.startDate} onChange={handleFilterChange} placeholder="วันเริ่มต้น" />
                     </div>
                     <div>
                         <label htmlFor="endDate" className="block text-xs font-medium text-gray-600 mb-1">ลงทะเบียน (ถึงวันที่)</label>
-                         <ThaiDatePicker name="endDate" value={filters.endDate} onChange={handleFilterChange} />
+                        <ModernDatePicker name="endDate" value={filters.endDate} onChange={handleFilterChange} placeholder="วันสิ้นสุด" />
                     </div>
-                     <div className="flex items-end">
+                    <div className="flex items-end">
                         <button onClick={resetFilters} className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 font-medium py-2.5 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 transition">
-                            <XCircleIcon className="w-5 h-5"/>
+                            <XCircleIcon className="w-5 h-5" />
                             ล้างตัวกรอง
                         </button>
                     </div>
-                 </div>
+                </div>
             </div>
 
-             {/* Data Table */}
+            {/* Data Table */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left text-gray-600">
-                         <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
                             <tr>
                                 <th className="px-4 py-3 font-semibold">Patient ID</th>
                                 <th className="px-4 py-3 font-semibold">ชื่อ-นามสกุล</th>
@@ -250,7 +357,7 @@ const OfficeManagePatientsPage: React.FC = () => {
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-center space-x-3">
                                             <button onClick={() => handleOpenEditModal(patient)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดู/แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => handleDeletePatient(patient.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
                                             <button className="p-2 rounded-full text-gray-400 hover:text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
                                             <button className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="พิมพ์บัตรข้อมูล"><PrintIcon className="w-5 h-5" /></button>
                                         </div>
@@ -261,18 +368,19 @@ const OfficeManagePatientsPage: React.FC = () => {
                     </table>
                 </div>
             </div>
-            
+
             {/* Pagination */}
             <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-gray-700">ผลลัพธ์ {paginatedPatients.length} จาก {filteredPatients.length} รายการ</span>
                 <div className="inline-flex items-center space-x-2">
-                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5" /></button>
                     <span className="text-sm font-semibold">หน้า {currentPage} / {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5"/></button>
+                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>
 
             {selectedPatient && <EditPatientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} patient={selectedPatient} onSave={handleSavePatient} />}
+            <Toast message={toastMessage} />
         </div>
     );
 };

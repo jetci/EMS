@@ -15,20 +15,20 @@ const center = {
 };
 
 function SimpleMapTest() {
-  const apiKey = process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   if (!apiKey) {
     return (
-        <div 
-            style={containerStyle} 
-            className="flex flex-col items-center justify-center h-full bg-gray-100 text-gray-600 p-4 text-center"
-        >
-            <MapPinIcon className="h-12 w-12 mb-3 text-gray-400" />
-            <p className="font-semibold">ไม่สามารถแสดงแผนที่ได้</p>
-            <p className="text-xs mt-1">
-                (จำเป็นต้องใช้ Google Maps API Key)
-            </p>
-        </div>
+      <div
+        style={containerStyle}
+        className="flex flex-col items-center justify-center h-full bg-gray-100 text-gray-600 p-4 text-center"
+      >
+        <MapPinIcon className="h-12 w-12 mb-3 text-gray-400" />
+        <p className="font-semibold">ไม่สามารถแสดงแผนที่ได้</p>
+        <p className="text-xs mt-1">
+          (จำเป็นต้องใช้ Google Maps API Key)
+        </p>
+      </div>
     );
   }
 
@@ -40,17 +40,17 @@ function SimpleMapTest() {
 
   if (loadError) {
     return (
-        <div style={containerStyle} className="flex items-center justify-center bg-red-100 text-red-700">
-            เกิดข้อผิดพลาดในการโหลดแผนที่
-        </div>
+      <div style={containerStyle} className="flex items-center justify-center bg-red-100 text-red-700">
+        เกิดข้อผิดพลาดในการโหลดแผนที่
+      </div>
     );
   }
-  
+
   if (!isLoaded) {
     return (
-        <div style={containerStyle} className="flex items-center justify-center bg-gray-100">
-            <LoadingSpinner />
-        </div>
+      <div style={containerStyle} className="flex items-center justify-center bg-gray-100">
+        <LoadingSpinner />
+      </div>
     );
   }
 

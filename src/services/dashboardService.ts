@@ -15,7 +15,7 @@ export const dashboardService = {
   },
 
   getAvailableDrivers: async () => {
-    return apiRequest('/driver/available');
+    return apiRequest('/drivers/available');
   },
 
   assignDriver: async (rideId: string, driverId: string) => {
@@ -113,16 +113,16 @@ export const dashboardService = {
 
   // Drivers
   getDrivers: async () => {
-    return apiRequest('/office/drivers');
+    return apiRequest('/drivers');
   },
 
   getDriverById: async (id: string) => {
-    return apiRequest(`/office/drivers/${id}`);
+    return apiRequest(`/drivers/${id}`);
   },
 
   // Vehicles
   getVehicles: async () => {
-    return apiRequest('/office/vehicles');
+    return apiRequest('/vehicles');
   },
 
   // News

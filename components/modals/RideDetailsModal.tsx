@@ -9,6 +9,7 @@ import PlusCircleIcon from '../icons/PlusCircleIcon';
 import { formatDateTimeToThai } from '../../utils/dateUtils';
 import StatusBadge from '../ui/StatusBadge';
 import SteeringWheelIcon from '../icons/SteeringWheelIcon';
+import RideTimeline from '../rides/RideTimeline';
 
 interface RideDetailsModalProps {
   isOpen: boolean;
@@ -42,56 +43,61 @@ const RideDetailsModal: React.FC<RideDetailsModalProps> = ({ isOpen, onClose, ri
           {/* Ride Info */}
           <div className="space-y-3">
             <div className="flex items-start">
-                <UserIcon className="w-5 h-5 mr-3 mt-1 text-[#005A9C] flex-shrink-0" />
-                <div>
-                    <p className="text-sm text-gray-500">ผู้ป่วย</p>
-                    <p className="font-semibold text-gray-800">{ride.patientName}</p>
-                </div>
+              <UserIcon className="w-5 h-5 mr-3 mt-1 text-[#005A9C] flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">ผู้ป่วย</p>
+                <p className="font-semibold text-gray-800">{ride.patientName}</p>
+              </div>
             </div>
             <div className="flex items-start">
-                <MapPinIcon className="w-5 h-5 mr-3 mt-1 text-red-500 flex-shrink-0" />
-                <div>
-                    <p className="text-sm text-gray-500">ปลายทาง</p>
-                    <p className="font-semibold text-gray-800">{ride.destination}</p>
-                </div>
+              <MapPinIcon className="w-5 h-5 mr-3 mt-1 text-red-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">ปลายทาง</p>
+                <p className="font-semibold text-gray-800">{ride.destination}</p>
+              </div>
             </div>
-             <div className="flex items-start">
-                <ClockIcon className="w-5 h-5 mr-3 mt-1 text-gray-500 flex-shrink-0" />
-                <div>
-                    <p className="text-sm text-gray-500">เวลานัดหมาย</p>
-                    <p className="font-semibold text-gray-800">{formatDateTimeToThai(ride.appointmentTime)}</p>
-                </div>
+            <div className="flex items-start">
+              <ClockIcon className="w-5 h-5 mr-3 mt-1 text-gray-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">เวลานัดหมาย</p>
+                <p className="font-semibold text-gray-800">{formatDateTimeToThai(ride.appointmentTime)}</p>
+              </div>
             </div>
           </div>
-          
+
           <div className="border-t pt-4 space-y-3">
-              <div className="flex items-start">
-                  <PhoneIcon className="w-5 h-5 mr-3 mt-1 text-gray-500 flex-shrink-0" />
-                  <div>
-                      <p className="text-sm text-gray-500">เบอร์ติดต่อระหว่างเดินทาง</p>
-                      <p className="font-semibold text-gray-800">{ride.contactPhone || 'ไม่มี'}</p>
-                  </div>
+            <div className="flex items-start">
+              <PhoneIcon className="w-5 h-5 mr-3 mt-1 text-gray-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">เบอร์ติดต่อระหว่างเดินทาง</p>
+                <p className="font-semibold text-gray-800">{ride.contactPhone || 'ไม่มี'}</p>
               </div>
-               <div className="flex items-start">
-                  <PlusCircleIcon className="w-5 h-5 mr-3 mt-1 text-gray-500 flex-shrink-0" />
-                  <div>
-                      <p className="text-sm text-gray-500">ความต้องการพิเศษ</p>
-                      <p className="font-semibold text-gray-800">{ride.specialNeeds || 'ไม่มี'}</p>
-                  </div>
+            </div>
+            <div className="flex items-start">
+              <PlusCircleIcon className="w-5 h-5 mr-3 mt-1 text-gray-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm text-gray-500">ความต้องการพิเศษ</p>
+                <p className="font-semibold text-gray-800">{ride.specialNeeds || 'ไม่มี'}</p>
               </div>
+            </div>
           </div>
 
           {/* Driver Info */}
           {(ride.status === 'ASSIGNED' || ride.status === 'IN_PROGRESS' || ride.status === 'COMPLETED') && ride.driverInfo && (
-             <div className="border-t pt-4">
-                <h3 className="text-lg font-bold text-gray-700 mb-3 flex items-center"><SteeringWheelIcon className="w-5 h-5 mr-2 text-[#005A9C]" />ข้อมูลคนขับ</h3>
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-2 text-sm">
-                    <p><span className="font-semibold text-gray-600">ชื่อ:</span> {ride.driverInfo.fullName}</p>
-                    <p><span className="font-semibold text-gray-600">เบอร์โทร:</span> {ride.driverInfo.phone}</p>
-                    <p><span className="font-semibold text-gray-600">รถ:</span> {ride.driverInfo.vehicleModel} ({ride.driverInfo.licensePlate})</p>
-                </div>
-             </div>
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-bold text-gray-700 mb-3 flex items-center"><SteeringWheelIcon className="w-5 h-5 mr-2 text-[#005A9C]" />ข้อมูลคนขับ</h3>
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-2 text-sm">
+                <p><span className="font-semibold text-gray-600">ชื่อ:</span> {ride.driverInfo.fullName}</p>
+                <p><span className="font-semibold text-gray-600">เบอร์โทร:</span> {ride.driverInfo.phone}</p>
+                <p><span className="font-semibold text-gray-600">รถ:</span> {ride.driverInfo.vehicleModel} ({ride.driverInfo.licensePlate})</p>
+              </div>
+            </div>
           )}
+
+          {/* Event Timeline */}
+          <div className="border-t pt-4">
+            <RideTimeline rideId={ride.id} />
+          </div>
         </div>
 
         {/* Footer */}

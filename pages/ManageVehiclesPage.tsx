@@ -10,13 +10,12 @@ import ChevronRightIcon from '../components/icons/ChevronRightIcon';
 import EditVehicleModal from '../components/modals/EditVehicleModal';
 import ConfirmationModal from '../components/modals/ConfirmationModal';
 import Toast from '../components/Toast';
-import { mockTeamsData } from '../data/mockData';
 import { formatDateToThai } from '../utils/dateUtils';
 import { apiRequest } from '../src/services/api';
 
 const ITEMS_PER_PAGE = 10;
 
-const CurrentStatusBadge: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
+const CurrentStatusBadge: React.FC<{ vehicle: Vehicle; teamsMap: Record<string, string> }> = ({ vehicle, teamsMap }) => {
     switch (vehicle.status) {
         case VehicleStatus.AVAILABLE:
             return (
@@ -26,17 +25,17 @@ const CurrentStatusBadge: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
                 </span>
             );
         case VehicleStatus.ASSIGNED:
-            const teamName = vehicle.assignedTeamId ? mockTeamsData[vehicle.assignedTeamId as keyof typeof mockTeamsData] : 'N/A';
+            const teamName = vehicle.assignedTeamId ? teamsMap[vehicle.assignedTeamId] || 'Unknown Team' : 'N/A';
             return (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                     <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
                     กำลังใช้งาน - {teamName}
                 </span>
             );
         case VehicleStatus.MAINTENANCE:
-             return (
+            return (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                     <span className="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-500"></span>
                     ซ่อมบำรุง
                 </span>
             );
@@ -49,6 +48,7 @@ const CurrentStatusBadge: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
 const ManageVehiclesPage: React.FC = () => {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [vehicleTypes, setVehicleTypes] = useState<any[]>([]);
+    const [teamsMap, setTeamsMap] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<'All' | Vehicle['type']>('All');
@@ -66,12 +66,19 @@ const ManageVehiclesPage: React.FC = () => {
     const loadAllData = async () => {
         try {
             setLoading(true);
-            const [vehiclesData, vehicleTypesData] = await Promise.all([
+            const [vehiclesData, vehicleTypesData, teamsData] = await Promise.all([
                 apiRequest('/vehicles'),
                 apiRequest('/vehicle-types'),
+                apiRequest('/teams')
             ]);
             setVehicles(Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []));
             setVehicleTypes(Array.isArray(vehicleTypesData) ? vehicleTypesData : (vehicleTypesData?.vehicleTypes || []));
+
+            const teams = Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []);
+            const map: Record<string, string> = {};
+            teams.forEach((t: any) => map[t.id] = t.name);
+            setTeamsMap(map);
+
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
@@ -132,7 +139,7 @@ const ManageVehiclesPage: React.FC = () => {
         setVehicleToDelete(vehicle);
         setIsConfirmOpen(true);
     };
-    
+
     const handleDeleteVehicle = async () => {
         if (vehicleToDelete) {
             try {
@@ -153,7 +160,7 @@ const ManageVehiclesPage: React.FC = () => {
             {/* Page Header */}
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการยานพาหนะ</h1>
-                <button 
+                <button
                     onClick={handleOpenCreateModal}
                     className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[#005A9C] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
                 >
@@ -199,7 +206,7 @@ const ManageVehiclesPage: React.FC = () => {
                                     <td className="px-4 py-3 font-medium text-gray-900">{vehicle.licensePlate}</td>
                                     <td className="px-4 py-3">{vehicle.type}</td>
                                     <td className="px-4 py-3">{vehicle.brand} {vehicle.model}</td>
-                                    <td className="px-4 py-3"><CurrentStatusBadge vehicle={vehicle} /></td>
+                                    <td className="px-4 py-3"><CurrentStatusBadge vehicle={vehicle} teamsMap={teamsMap} /></td>
                                     <td className="px-4 py-3">{vehicle.nextMaintenanceDate ? formatDateToThai(vehicle.nextMaintenanceDate) : 'N/A'}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-center space-x-3">
@@ -218,9 +225,9 @@ const ManageVehiclesPage: React.FC = () => {
             <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-gray-700">Showing {paginatedVehicles.length} of {filteredVehicles.length} results</span>
                 <div className="inline-flex items-center space-x-2">
-                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="px-3 py-1 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-4 h-4"/></button>
+                    <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="px-3 py-1 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-4 h-4" /></button>
                     <span className="text-sm">Page {currentPage} of {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="px-3 py-1 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-4 h-4"/></button>
+                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="px-3 py-1 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-4 h-4" /></button>
                 </div>
             </div>
 
@@ -232,14 +239,14 @@ const ManageVehiclesPage: React.FC = () => {
                 availableVehicleTypes={vehicleTypes}
             />
 
-            <ConfirmationModal 
+            <ConfirmationModal
                 isOpen={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
                 onConfirm={handleDeleteVehicle}
                 title={`ยืนยันการลบรถทะเบียน "${vehicleToDelete?.licensePlate}"`}
                 message="คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลยานพาหนะนี้? การกระทำนี้ไม่สามารถย้อนกลับได้"
             />
-            
+
             <Toast message={toastMessage} />
         </div>
     );
