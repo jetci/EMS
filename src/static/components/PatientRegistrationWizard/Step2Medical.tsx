@@ -9,12 +9,14 @@ interface Step2MedicalProps {
   isLastStep?: boolean;
 }
 
-const Step2Medical: React.FC<Step2MedicalProps> = ({ 
-  onNext, 
-  currentData = {} 
+const Step2Medical: React.FC<Step2MedicalProps> = ({
+  onNext,
+  onBack,
+  currentData = {}
 }) => {
   const [formData, setFormData] = useState({
     patientTypes: currentData.patientTypes || [],
+    patientTypeOther: currentData.patientTypeOther || '',
     chronicDiseases: currentData.chronicDiseases || [],
     allergies: currentData.allergies || [],
     bloodGroup: currentData.bloodGroup || '',
@@ -37,6 +39,10 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
 
     if (formData.patientTypes.length === 0) {
       newErrors.patientTypes = 'กรุณาเลือกประเภทผู้ป่วยอย่างน้อย 1 ประเภท';
+    }
+    // Validate 'other' field if 'ผู้ป่วยอื่นๆ' is selected
+    if (formData.patientTypes.includes('ผู้ป่วยอื่นๆ') && !formData.patientTypeOther.trim()) {
+      newErrors.patientTypeOther = 'กรุณาระบุประเภทผู้ป่วยอื่นๆ';
     }
     if (!formData.bloodGroup) newErrors.bloodGroup = 'กรุณาเลือกกรุ๊ปเลือด';
     if (!formData.rhFactor) newErrors.rhFactor = 'กรุณาเลือก Rh Factor';
@@ -61,7 +67,10 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
     'หญิงตั้งครรภ์',
     'ผู้พิการ',
     'ผู้ป่วยจิตเวช',
-    'ผู้ป่วยติดเตียง'
+    'ผู้ป่วยติดเตียง',
+    'ผู้ป่วยภาวะพึ่งพิง',
+    'ผู้ยากไร้',
+    'ผู้ป่วยอื่นๆ'
   ];
 
   const commonDiseases = [
@@ -118,6 +127,10 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
                       handleInputChange('patientTypes', [...formData.patientTypes, type]);
                     } else {
                       handleInputChange('patientTypes', formData.patientTypes.filter((t: string) => t !== type));
+                      // Clear 'other' field if unchecking 'ผู้ป่วยอื่นๆ'
+                      if (type === 'ผู้ป่วยอื่นๆ') {
+                        handleInputChange('patientTypeOther', '');
+                      }
                     }
                   }}
                   className="mr-3"
@@ -127,6 +140,23 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
             ))}
           </div>
           {errors.patientTypes && <p className="text-red-500 text-sm mt-1">{errors.patientTypes}</p>}
+          
+          {/* Show text input if 'ผู้ป่วยอื่นๆ' is selected */}
+          {formData.patientTypes.includes('ผู้ป่วยอื่นๆ') && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ระบุประเภทผู้ป่วยอื่นๆ <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.patientTypeOther}
+                onChange={(e) => handleInputChange('patientTypeOther', e.target.value)}
+                placeholder="กรุณาระบุประเภทผู้ป่วย..."
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.patientTypeOther ? 'border-red-500' : 'border-gray-300'}`}
+              />
+              {errors.patientTypeOther && <p className="text-red-500 text-sm mt-1">{errors.patientTypeOther}</p>}
+            </div>
+          )}
         </div>
 
         {/* Chronic Diseases */}
@@ -172,9 +202,8 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
             <select
               value={formData.bloodGroup}
               onChange={(e) => handleInputChange('bloodGroup', e.target.value)}
-              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.bloodGroup ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.bloodGroup ? 'border-red-500' : 'border-gray-300'
+                }`}
             >
               <option value="">-- กรุ๊ปเลือด --</option>
               <option value="A">A</option>
@@ -193,9 +222,8 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
             <select
               value={formData.rhFactor}
               onChange={(e) => handleInputChange('rhFactor', e.target.value)}
-              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.rhFactor ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.rhFactor ? 'border-red-500' : 'border-gray-300'
+                }`}
             >
               <option value="">-- Rh --</option>
               <option value="Rh+">Rh+</option>
@@ -212,9 +240,8 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
             <select
               value={formData.insuranceType}
               onChange={(e) => handleInputChange('insuranceType', e.target.value)}
-              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.insuranceType ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.insuranceType ? 'border-red-500' : 'border-gray-300'
+                }`}
             >
               <option value="">-- สิทธิการรักษา --</option>
               <option value="สิทธิบัตรทอง">สิทธิบัตรทอง</option>
@@ -237,6 +264,21 @@ const Step2Medical: React.FC<Step2MedicalProps> = ({
             <p><strong>กรุ๊ปเลือด:</strong> {formData.bloodGroup && formData.rhFactor ? `${formData.bloodGroup}${formData.rhFactor}` : 'ยังไม่ได้ระบุ'}</p>
             <p><strong>สิทธิการรักษา:</strong> {formData.insuranceType || 'ยังไม่ได้เลือก'}</p>
           </div>
+        </div>
+        <div className="flex justify-between mt-6">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+          >
+            ← ย้อนกลับ
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            ถัดไป →
+          </button>
         </div>
       </form>
     </div>

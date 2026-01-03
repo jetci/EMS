@@ -9,6 +9,7 @@ import ChevronLeftIcon from '../components/icons/ChevronLeftIcon';
 import ChevronRightIcon from '../components/icons/ChevronRightIcon';
 import UsersIcon from '../components/icons/UsersIcon';
 import { formatDateToThai } from '../utils/dateUtils';
+// import { showSuccessAlert, showErrorAlert, showConfirmDialog } from '../utils/sweetalert';
 
 // FIX: Expanded mock patient data to fully conform to the Patient interface.
 const mockPatients: Patient[] = [
@@ -166,16 +167,15 @@ const mockPatients: Patient[] = [
     },
 ];
 
-const ITEMS_PER_PAGE = 5;
-
 interface ManagePatientsPageProps {
     setActiveView: (view: CommunityView, context?: any) => void;
 }
 
 const ManagePatientsPage: React.FC<ManagePatientsPageProps> = ({ setActiveView }) => {
-  const [patients] = useState<Patient[]>(mockPatients);
+  const [patients, setPatients] = useState<Patient[]>(mockPatients);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filteredPatients = useMemo(() => {
     return patients.filter(p => 
@@ -183,10 +183,10 @@ const ManagePatientsPage: React.FC<ManagePatientsPageProps> = ({ setActiveView }
     );
   }, [patients, searchTerm]);
 
-  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
   const paginatedPatients = filteredPatients.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const handleNextPage = () => {
@@ -201,20 +201,48 @@ const ManagePatientsPage: React.FC<ManagePatientsPageProps> = ({ setActiveView }
     }
   };
 
+  const handleDeletePatient = (patientId: string, patientName: string) => {
+    console.log('🗑️ Delete button clicked:', patientId, patientName);
+    console.log('📊 Current patients count:', patients.length);
+    
+    const confirmed = window.confirm(`คุณต้องการลบข้อมูลผู้ป่วย "${patientName}" หรือไม่?`);
+    console.log('✅ Confirmed:', confirmed);
+
+    if (confirmed) {
+      try {
+        // TODO: Call API to delete patient
+        // await api.deletePatient(patientId);
+        
+        console.log('🔄 Before delete:', patients.length);
+        // For now, remove from local state
+        setPatients(prev => {
+          const newPatients = prev.filter(p => p.id !== patientId);
+          console.log('🔄 After delete:', newPatients.length);
+          return newPatients;
+        });
+        alert('ลบข้อมูลผู้ป่วยสำเร็จแล้ว');
+        console.log('✅ Delete successful');
+      } catch (error) {
+        console.error('❌ Delete error:', error);
+        alert('ไม่สามารถลบข้อมูลผู้ป่วยได้');
+      }
+    }
+  };
+
   if (patients.length === 0) {
     return (
-        <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-            <UsersIcon className="w-24 h-24 text-gray-300" />
-            <h2 className="mt-6 text-2xl font-semibold text-gray-700">ยังไม่มีผู้ป่วยในความดูแลของคุณ</h2>
-            <p className="mt-2 text-gray-500">เริ่มต้นด้วยการเพิ่มข้อมูลผู้ป่วยคนแรกของคุณ</p>
-            <button
-                onClick={() => setActiveView('register_patient')}
-                className="mt-6 flex items-center justify-center px-5 py-3 font-medium text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
-            >
-                <UserPlusIcon className="w-5 h-5 mr-2" />
-                ลงทะเบียนผู้ป่วยคนแรก
-            </button>
-        </div>
+      <div className="flex flex-col items-center justify-center text-center h-[60vh]">
+        <UsersIcon className="w-24 h-24 text-gray-300" />
+        <h2 className="mt-6 text-2xl font-semibold text-gray-700">ยังไม่มีผู้ป่วยในความดูแลของคุณ</h2>
+        <p className="mt-2 text-gray-500">เริ่มต้นด้วยการเพิ่มข้อมูลผู้ป่วยคนแรกของคุณ</p>
+        <button
+          onClick={() => setActiveView('register_patient')}
+          className="mt-6 flex items-center justify-center px-5 py-3 font-medium text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
+        >
+          <UserPlusIcon className="w-5 h-5 mr-2" />
+          ลงทะเบียนผู้ป่วยคนแรก
+        </button>
+      </div>
     );
   }
 
@@ -223,12 +251,12 @@ const ManagePatientsPage: React.FC<ManagePatientsPageProps> = ({ setActiveView }
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold text-[var(--text-primary)]">จัดการผู้ป่วย</h1>
-            <p className="mt-1 text-[var(--text-secondary)]">ดู แก้ไข และจัดการข้อมูลผู้ป่วยในความดูแลของคุณ</p>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">จัดการผู้ป่วย</h1>
+          <p className="mt-1 text-[var(--text-secondary)]">ดู แก้ไข และจัดการข้อมูลผู้ป่วยในความดูแลของคุณ</p>
         </div>
         <button 
-            onClick={() => setActiveView('register_patient')}
-            className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
+          onClick={() => setActiveView('register_patient')}
+          className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
         >
           <UserPlusIcon className="w-5 h-5 mr-2" />
           <span>ลงทะเบียนผู้ป่วยใหม่</span>
@@ -254,34 +282,40 @@ const ManagePatientsPage: React.FC<ManagePatientsPageProps> = ({ setActiveView }
       {/* Data Table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-[var(--border-color)]">
         <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-[var(--text-secondary)]">
-                <thead className="text-xs text-[var(--text-primary)] uppercase bg-gray-50/75">
-                    <tr>
-                        <th scope="col" className="px-6 py-4 font-semibold">ชื่อ-นามสกุล</th>
-                        <th scope="col" className="px-6 py-4 font-semibold">อายุ</th>
-                        <th scope="col" className="px-6 py-4 font-semibold">ข้อมูลสำคัญ</th>
-                        <th scope="col" className="px-6 py-4 font-semibold">วันที่ลงทะเบียน</th>
-                        <th scope="col" className="px-6 py-4 font-semibold text-center">การดำเนินการ</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-color)]">
-                    {paginatedPatients.map(patient => (
-                        <tr key={patient.id} className="hover:bg-gray-50/50">
-                            <td className="px-6 py-4 font-medium text-[var(--text-primary)] whitespace-nowrap">{patient.fullName}</td>
-                            <td className="px-6 py-4">{patient.age}</td>
-                            <td className="px-6 py-4 max-w-xs truncate">{patient.keyInfo}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">{formatDateToThai(patient.registeredDate)}</td>
-                            <td className="px-6 py-4">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <button onClick={() => setActiveView('patient_detail', { patientId: patient.id })} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
-                                    <button className="p-2 rounded-full hover:bg-red-100 text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
-                                    <button onClick={() => setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full hover:bg-green-100 text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+          <table className="w-full text-sm text-left text-[var(--text-secondary)]">
+            <thead className="text-xs text-[var(--text-primary)] uppercase bg-gray-50/75">
+              <tr>
+                <th scope="col" className="px-6 py-4 font-semibold">ชื่อ-นามสกุล</th>
+                <th scope="col" className="px-6 py-4 font-semibold">อายุ</th>
+                <th scope="col" className="px-6 py-4 font-semibold">ชื่อ + หมู่บ้าน</th>
+                <th scope="col" className="px-6 py-4 font-semibold">วันที่ลงทะเบียน</th>
+                <th scope="col" className="px-6 py-4 font-semibold text-center">การดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border-color)]">
+              {paginatedPatients.map(patient => (
+                <tr key={patient.id} className="hover:bg-gray-50/50">
+                  <td className="px-6 py-4 font-medium text-[var(--text-primary)] whitespace-nowrap">{patient.fullName}</td>
+                  <td className="px-6 py-4">{patient.age}</td>
+                  <td className="px-6 py-4 max-w-xs truncate">{patient.fullName} - {patient.currentAddress?.village || patient.idCardAddress?.village || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{formatDateToThai(patient.registeredDate)}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center space-x-2">
+                      <button onClick={() => setActiveView('patient_detail', { patientId: patient.id })} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
+                      <button 
+                        onClick={() => handleDeletePatient(patient.id, patient.fullName)}
+                        className="p-2 rounded-full hover:bg-red-100 text-red-600" 
+                        title="ลบ"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                      <button onClick={() => setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full hover:bg-green-100 text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
       
