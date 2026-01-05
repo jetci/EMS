@@ -102,11 +102,38 @@ router.post('/rides/:id/assign', async (req, res) => {
             return res.status(404).json({ error: 'Driver not found' });
         }
 
+        // ✅ FIX BUG-006: Check driver availability to prevent race condition
+        if (driver.status !== 'AVAILABLE') {
+            return res.status(400).json({
+                error: 'Driver not available',
+                details: `Driver is currently ${driver.status}. Please select an available driver.`
+            });
+        }
+
+        // ✅ FIX BUG-006: Check if driver is already assigned to another active ride
+        const rides = jsonDB.read<Ride>('rides');
+        const driverActiveRide = rides.find(r =>
+            r.driver_id === driver_id &&
+            ['ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS'].includes(r.status)
+        );
+
+        if (driverActiveRide) {
+            return res.status(400).json({
+                error: 'Driver already assigned',
+                details: `Driver is already assigned to ride ${driverActiveRide.id}`
+            });
+        }
+
         // Update Ride
         const updatedRide = jsonDB.update<Ride>('rides', id, {
             driver_id,
             status: 'ASSIGNED',
             driver_name: driver.full_name || driver.fullName
+        });
+
+        // ✅ FIX BUG-006: Update driver status to prevent concurrent assignment
+        jsonDB.update<Driver>('drivers', driver_id, {
+            status: 'ON_DUTY'
         });
 
         // Audit Log

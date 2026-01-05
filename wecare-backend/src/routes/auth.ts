@@ -45,7 +45,14 @@ router.post('/auth/login', async (req, res) => {
     }
 
     // Verify password using bcrypt
+    console.log('🔐 Login attempt:', {
+      email,
+      providedPassword: password,
+      storedHash: user.password.substring(0, 20) + '...',
+      hashStartsWith: user.password.substring(0, 4)
+    });
     const isPasswordValid = await verifyPassword(password, user.password);
+    console.log('✅ Password valid:', isPasswordValid);
     if (!isPasswordValid) {
       // Audit failed login attempt
       auditService.log(email, user.role, 'LOGIN_FAILED', user.id, { reason: 'Invalid password' });

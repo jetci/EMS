@@ -1,15 +1,23 @@
-$body = @{
-    email = "admin@wecare.dev"
-    password = "admin123"
-} | ConvertTo-Json
+# Quick Test - Login with existing admin user
+Write-Host "=== Quick Login Test ===" -ForegroundColor Cyan
+Write-Host ""
 
+Write-Host "Testing login with admin@wecare.dev..." -ForegroundColor Yellow
 try {
-    $response = Invoke-RestMethod -Uri "http://localhost:3001/api/login" -Method POST -ContentType "application/json" -Body $body
-    Write-Host "SUCCESS: Login worked!" -ForegroundColor Green
-    Write-Host "User: $($response.user.full_name)"
-    Write-Host "Role: $($response.user.role)"
-    Write-Host "Token: $($response.token.Substring(0,20))..."
-} catch {
-    Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Status: $($_.Exception.Response.StatusCode.value__)"
+    $loginResponse = Invoke-RestMethod -Uri "http://localhost:3001/api/auth/login" `
+        -Method POST `
+        -Body (@{email = "admin@wecare.dev"; password = "password" } | ConvertTo-Json) `
+        -ContentType "application/json"
+    
+    Write-Host "[OK] Login successful!" -ForegroundColor Green
+    Write-Host "   User: $($loginResponse.user.email)" -ForegroundColor Gray
+    Write-Host "   Role: $($loginResponse.user.role)" -ForegroundColor Gray
+    Write-Host "   ID: $($loginResponse.user.id)" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "✅ Password hashing is working correctly!" -ForegroundColor Green
+}
+catch {
+    Write-Host "[FAIL] Login failed: $($_.Exception.Message)" -ForegroundColor Red
+    $statusCode = $_.Exception.Response.StatusCode.value__
+    Write-Host "   Status Code: $statusCode" -ForegroundColor Gray
 }

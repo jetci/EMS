@@ -3,12 +3,12 @@ $dataDir = "d:\EMS\wecare-backend\db\data"
 # 1. Define Initial Data
 $users = @(
     @{ id = "USR-000"; email = "jetci.jm@gmail.com"; password = "g0KEk,^],k;yo"; role = "DEVELOPER"; fullName = "System Developer"; status = "Active" },
-    @{ id = "USR-001"; email = "admin@wecare.dev"; password = "password"; role = "admin"; fullName = "Admin User"; status = "Active" },
-    @{ id = "USR-002"; email = "office1@wecare.dev"; password = "password"; role = "radio_center"; fullName = "Radio Center Staff"; status = "Active" },
-    @{ id = "USR-003"; email = "driver1@wecare.dev"; password = "password"; role = "driver"; fullName = "Driver One"; status = "Active" },
-    @{ id = "USR-004"; email = "community1@wecare.dev"; password = "password"; role = "community"; fullName = "Community Test"; status = "Active"; phone = "0888888888" },
-    @{ id = "USR-005"; email = "officer1@wecare.dev"; password = "password"; role = "OFFICER"; fullName = "Officer Staff"; status = "Active" },
-    @{ id = "USR-006"; email = "executive1@wecare.dev"; password = "password"; role = "EXECUTIVE"; fullName = "Executive Manager"; status = "Active" }
+    @{ id = "USR-001"; email = "admin@wecare.dev"; password = "password123"; role = "admin"; fullName = "Admin User"; status = "Active" },
+    @{ id = "USR-002"; email = "office1@wecare.dev"; password = "password123"; role = "radio_center"; fullName = "Radio Center Staff"; status = "Active" },
+    @{ id = "USR-003"; email = "driver1@wecare.dev"; password = "password123"; role = "driver"; fullName = "Driver One"; status = "Active" },
+    @{ id = "USR-004"; email = "community1@wecare.dev"; password = "password123"; role = "community"; fullName = "Community Test"; status = "Active"; phone = "0888888888" },
+    @{ id = "USR-005"; email = "officer1@wecare.dev"; password = "password123"; role = "OFFICER"; fullName = "Officer Staff"; status = "Active" },
+    @{ id = "USR-006"; email = "executive1@wecare.dev"; password = "password123"; role = "EXECUTIVE"; fullName = "Executive Manager"; status = "Active" }
 )
 
 $patients = @(

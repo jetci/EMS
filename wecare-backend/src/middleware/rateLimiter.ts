@@ -1,17 +1,23 @@
 import rateLimit from 'express-rate-limit';
 
 // Rate limiter for authentication endpoints (stricter)
+const isProduction = process.env.NODE_ENV === 'production';
+const AUTH_MAX = process.env.AUTH_RATE_LIMIT ? parseInt(process.env.AUTH_RATE_LIMIT, 10) : (isProduction ? 5 : 200);
+const AUTH_WINDOW_MS = process.env.AUTH_WINDOW_MS ? parseInt(process.env.AUTH_WINDOW_MS, 10) : 15 * 60 * 1000; // 15 minutes
+
 export const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 requests per window
+    windowMs: AUTH_WINDOW_MS,
+    // In development allow many attempts to avoid blocking tests; keep strict in production
+    max: AUTH_MAX,
     message: {
         error: 'Too many login attempts from this IP, please try again after 15 minutes',
         retryAfter: '15 minutes'
     },
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    skipSuccessfulRequests: false, // Count successful requests
-    skipFailedRequests: false, // Count failed requests
+    standardHeaders: true,
+    legacyHeaders: false,
+    // Keep counting both successful and failed requests by default; adjust via env if needed
+    skipSuccessfulRequests: false,
+    skipFailedRequests: false,
 });
 
 // Rate limiter for general API endpoints

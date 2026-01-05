@@ -8,6 +8,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import authRoutes from './routes/auth';
 import patientRoutes from './routes/patients';
 import driverRoutes from './routes/drivers';
@@ -102,8 +104,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// app.use(cors({ ... })); // Disabled in favor of manual middleware
-
 // Cookie Parser (required for CSRF protection)
 app.use(cookieParser());
 
@@ -185,12 +185,62 @@ app.use(notFoundHandler);
 // Global error handler - must be last
 app.use(globalErrorHandler);
 
-// Start server
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+// ✅ FIX BUG-009: WebSocket Implementation for Real-time Location Tracking
+const httpServer = http.createServer(app);
+
+// Initialize Socket.IO with CORS
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim())
+      : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+    credentials: true
+  }
 });
 
-server.on('error', (error: any) => {
+// Location tracking namespace
+const locationNamespace = io.of('/locations');
+
+locationNamespace.on('connection', (socket) => {
+  console.log('🔌 Client connected to location tracking:', socket.id);
+
+  // Handle location updates from drivers
+  socket.on('location:update', (data) => {
+    console.log('📍 Location update received:', {
+      socketId: socket.id,
+      lat: data.lat,
+      lng: data.lng,
+      driverId: data.driverId
+    });
+
+    // Broadcast to all connected clients (office, executives, etc.)
+    locationNamespace.emit('location:updated', {
+      driverId: data.driverId,
+      lat: data.lat,
+      lng: data.lng,
+      timestamp: new Date().toISOString(),
+      ...data
+    });
+  });
+
+  // Handle driver status updates
+  socket.on('driver:status', (data) => {
+    console.log('👤 Driver status update:', data);
+    locationNamespace.emit('driver:status:updated', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Client disconnected from location tracking:', socket.id);
+  });
+});
+
+// Start server
+httpServer.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`🔌 WebSocket server ready for real-time location tracking`);
+});
+
+httpServer.on('error', (error: any) => {
   if (error.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use`);
     process.exit(1);

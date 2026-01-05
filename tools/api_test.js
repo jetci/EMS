@@ -1,12 +1,12 @@
 import fs from 'fs';
 
-const base = process.env.TEST_API_BASE || 'http://localhost:3002';
+const base = process.env.TEST_API_BASE || 'http://localhost:3001';
 
 try {
-  const loginRes = await fetch(base + '/api/auth', {
+  const loginRes = await fetch(base + '/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'community1@wecare.dev', password: 'password' })
+    body: JSON.stringify({ email: 'community1@wecare.dev', password: 'password123' })
   });
   const login = await loginRes.json();
   fs.writeFileSync('wecare_login.json', JSON.stringify(login, null, 2), 'utf8');

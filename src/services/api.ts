@@ -63,11 +63,16 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     }
   }
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const fullUrl = `${API_BASE_URL}${endpoint}`;
+  console.log(`📤 API Request: ${method} ${fullUrl}`);
+
+  const res = await fetch(fullUrl, {
     ...options,
     headers,
     credentials: 'include', // Important for CSRF cookies
   });
+  
+  console.log(`📥 API Response: ${res.status} ${res.statusText}`);
 
   if (!res.ok) {
     // Handle 401 - token expired or invalid
@@ -123,11 +128,13 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
 
 // --- Auth API ---
 export const authAPI = {
-  login: (email: string, password: string) =>
-    apiRequest('/auth/login', {
+  login: (email: string, password: string) => {
+    console.log('🔑 authAPI.login called:', { email, endpoint: '/auth/login' });
+    return apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    }),
+    });
+  },
   register: (data: { name: string; email: string; password: string; phone?: string }) =>
     apiRequest('/auth/register', {
       method: 'POST',

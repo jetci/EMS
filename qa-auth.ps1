@@ -63,7 +63,7 @@ $roles += Test-Role -RoleName 'office'    -Email 'officer1@wecare.dev'   -Passwo
 # 3) Simple auto-reconnect probe: call same endpoint 5x for office
 $auto_ok=$false; $auto_err=$null
 try {
-  $login = Invoke-JsonPost -Url ($ApiUrl + '/api/auth/login') -Body @{ email='officer1@wecare.dev'; password='password' }
+  $login = Invoke-JsonPost -Url ($ApiUrl + '/api/auth/login') -Body @{ email='officer1@wecare.dev'; password='password123' }
   if ($login -and $login.token) {
     $headers = @{ Authorization = ('Bearer ' + $login.token) }
     $successCount = 0

@@ -8,7 +8,7 @@ import PublicFooter from './components/PublicFooter';
 import ContactUsScreen from './components/ContactUsScreen';
 import AuthenticatedLayout from './components/layout/AuthenticatedLayout';
 import ErrorBoundary from './components/ErrorBoundary';
-import { User } from './types';
+import { User, UserRole } from './types';
 import PublicNewsListingPage from './pages/PublicNewsListingPage';
 import PublicSingleNewsPage from './pages/PublicSingleNewsPage';
 import { authAPI } from './src/services/api';
@@ -78,22 +78,47 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogin = async (email: string, pass: string): Promise<boolean> => {
+    console.log('🔐 handleLogin called with:', { email, password: '***' });
     try {
+      console.log('📡 Calling authAPI.login...');
       const { user: loggedInUser, token } = await authAPI.login(email, pass);
+      console.log('✅ Login API success:', { user: loggedInUser?.email, role: loggedInUser?.role, fullResponse: loggedInUser });
+      
+      // Map role to UserRole enum
+      const roleMapping: Record<string, User['role']> = {
+        'admin': UserRole.ADMIN,
+        'DEVELOPER': UserRole.DEVELOPER,
+        'driver': UserRole.DRIVER,
+        'community': UserRole.COMMUNITY,
+        'radio': UserRole.RADIO,
+        'radio_center': UserRole.RADIO_CENTER,
+        'OFFICER': UserRole.OFFICER,
+        'EXECUTIVE': UserRole.EXECUTIVE,
+      };
+      
+      const userRole = roleMapping[loggedInUser?.role] || UserRole.COMMUNITY;
+      console.log('🔄 Role mapping:', { original: loggedInUser?.role, mapped: userRole });
+      
       const mappedUser: User = {
         id: loggedInUser?.id,
         name: loggedInUser?.full_name || loggedInUser?.name || email,
         email: loggedInUser?.email || email,
-        role: (loggedInUser?.role || 'user') as User['role'],
+        role: userRole,
       };
+      
       try {
         localStorage.setItem('wecare_token', token);
         localStorage.setItem('wecare_user', JSON.stringify(mappedUser));
-      } catch { }
+        console.log('💾 Token saved to localStorage');
+      } catch (storageError) {
+        console.error('⚠️ localStorage error:', storageError);
+      }
+      
       setUser(mappedUser);
+      console.log('✅ User state updated, login successful');
       return true;
     } catch (e) {
-      console.error('Login error', e);
+      console.error('❌ Login error:', e);
       return false;
     }
   };
