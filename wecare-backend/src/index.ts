@@ -1,0 +1,652 @@
+import dotenv from 'dotenv';
+
+// CRITICAL: Load environment variables BEFORE any other imports
+// This ensures JWT_SECRET is available when routes are imported
+dotenv.config();
+console.log('🚀 Starting WeCare Backend initialization...');
+
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import http from 'http';
+import path from 'path';
+import { Server as SocketIOServer } from 'socket.io';
+import authRoutes from './routes/auth';
+import patientRoutes from './routes/patients';
+import driverRoutes from './routes/drivers';
+import rideRoutes from './routes/rides';
+import userRoutes from './routes/users';
+import teamRoutes from './routes/teams';
+import vehicleRoutes from './routes/vehicles';
+import vehicleTypeRoutes from './routes/vehicle-types';
+import newsRoutes from './routes/news';
+import apiProxyRoutes from './routes/api-proxy';
+import auditLogRoutes from './routes/audit-logs';
+import dashboardRoutes from './routes/dashboard';
+import settingsRoutes from './routes/settings';
+import reportsRoutes from './routes/reports';
+import officeRoutes from './routes/office';
+import mapDataRoutes from './routes/map-data';
+import driverLocationRoutes from './routes/driver-locations';
+import rideEventRoutes from './routes/ride-events';
+import systemRoutes from './routes/system';
+import healthRoutes from './routes/health';
+import backupRoutes from './routes/backup';
+import lockoutRoutes from './routes/lockout';
+import { authenticateToken } from './middleware/auth';
+import { preventSQLInjection } from './middleware/sqlInjectionPrevention';
+import { csrfTokenMiddleware, getCsrfToken } from './middleware/csrfProtection';
+import { authLimiter, apiLimiter, createLimiter, userBasedAuthLimiter } from './middleware/rateLimiter';
+import { handleMulterError } from './middleware/multerErrorHandler';
+import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
+import { requireRole, UserRole } from './middleware/roleProtection';
+import backupService from './services/backupService';
+
+// Validate required environment variables
+const requiredEnvVars = ['JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('   Please set them in your .env file');
+  process.exit(1);
+}
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Security Middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for development, enable in production
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ✅ FIX SEC-004: HTTPS Enforcement in Production
+// Redirect all HTTP requests to HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    // Check if request is not secure
+    // Support both direct HTTPS and proxied HTTPS (x-forwarded-proto header)
+    const isSecure = req.secure || req.get('x-forwarded-proto') === 'https';
+
+    if (!isSecure) {
+      console.log(`🔒 Redirecting HTTP to HTTPS: ${req.url}`);
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+
+    next();
+  });
+
+  console.log('🔒 HTTPS enforcement enabled (production mode)');
+}
+
+// Debug Middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+  next();
+});
+
+// CORS Configuration - Environment-aware and secure
+// Validates origins and provides helpful error messages
+
+/**
+ * Validate origin URL format
+ */
+function isValidOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    // Must be http or https
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return false;
+    }
+    // Must have a hostname
+    if (!url.hostname) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get and validate allowed origins from environment
+ */
+function getAllowedOrigins(): string[] {
+  const env = process.env.NODE_ENV || 'development';
+
+  if (env === 'production') {
+    // Production: Require ALLOWED_ORIGINS
+    if (!process.env.ALLOWED_ORIGINS) {
+      console.error('');
+      console.error('❌ FATAL ERROR: ALLOWED_ORIGINS environment variable is required in production');
+      console.error('');
+      console.error('📋 How to fix:');
+      console.error('   1. Set ALLOWED_ORIGINS in your .env file or hosting platform');
+      console.error('   2. Format: Comma-separated list of allowed origins');
+      console.error('');
+      console.error('📝 Example:');
+      console.error('   ALLOWED_ORIGINS=https://wecare.example.com,https://app.wecare.com');
+      console.error('');
+      console.error('⚠️  Security Warning:');
+      console.error('   - Do NOT use wildcards (*)');
+      console.error('   - Do NOT use http:// in production (use https://)');
+      console.error('   - Only include trusted domains');
+      console.error('');
+      process.exit(1);
+    }
+
+    const origins = process.env.ALLOWED_ORIGINS
+      .split(',')
+      .map(o => o.trim())
+      .filter(o => o.length > 0);
+
+    if (origins.length === 0) {
+      console.error('❌ FATAL ERROR: ALLOWED_ORIGINS is empty');
+      console.error('   Please provide at least one origin');
+      process.exit(1);
+    }
+
+    // Validate each origin
+    const invalidOrigins: string[] = [];
+    origins.forEach(origin => {
+      if (!isValidOrigin(origin)) {
+        invalidOrigins.push(origin);
+      }
+    });
+
+    if (invalidOrigins.length > 0) {
+      console.error('');
+      console.error('❌ FATAL ERROR: Invalid origins detected in ALLOWED_ORIGINS');
+      console.error('');
+      console.error('Invalid origins:');
+      invalidOrigins.forEach(o => console.error(`   - "${o}"`));
+      console.error('');
+      console.error('📝 Valid format examples:');
+      console.error('   ✅ https://wecare.example.com');
+      console.error('   ✅ https://app.wecare.com:8080');
+      console.error('   ❌ wecare.example.com (missing protocol)');
+      console.error('   ❌ ftp://wecare.example.com (invalid protocol)');
+      console.error('');
+      process.exit(1);
+    }
+
+    // Warn about http in production
+    const httpOrigins = origins.filter(o => o.startsWith('http://'));
+    if (httpOrigins.length > 0) {
+      console.warn('');
+      console.warn('⚠️  WARNING: HTTP origins detected in production (should use HTTPS):');
+      httpOrigins.forEach(o => console.warn(`   - ${o}`));
+      console.warn('');
+    }
+
+    console.log('✅ CORS Configuration (Production):');
+    console.log(`   Allowed origins: ${origins.length}`);
+    origins.forEach(o => console.log(`   - ${o}`));
+    console.log('');
+
+    return origins;
+  }
+  else if (env === 'staging' || env === 'test') {
+    // Staging/Test: Use ALLOWED_ORIGINS if provided, otherwise use safe defaults
+    if (process.env.ALLOWED_ORIGINS) {
+      const origins = process.env.ALLOWED_ORIGINS
+        .split(',')
+        .map(o => o.trim())
+        .filter(o => o.length > 0);
+
+      console.log(`✅ CORS Configuration (${env}): Using ALLOWED_ORIGINS`);
+      origins.forEach(o => console.log(`   - ${o}`));
+      return origins;
+    } else {
+      // Safe defaults for staging/test
+      const defaultOrigins = [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://localhost:5174',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173'
+      ];
+      console.log(`ℹ️  CORS Configuration (${env}): Using default localhost origins`);
+      return defaultOrigins;
+    }
+  }
+  else {
+    // Development: Allow localhost on common ports
+    const devOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173'
+    ];
+    console.log('ℹ️  CORS Configuration (Development): Allowing localhost origins');
+    return devOrigins;
+  }
+}
+
+// Get allowed origins with validation
+const allowedOrigins = getAllowedOrigins();
+
+// CORS Middleware
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Check if origin is allowed
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-XSRF-TOKEN, Access-Control-Allow-Credentials');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours cache for preflight
+  } else if (origin) {
+    // Log unauthorized origin attempts
+    console.warn(`⚠️  Blocked CORS request from unauthorized origin: ${origin}`);
+
+    // In development, provide helpful message
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`   💡 Tip: Add "${origin}" to ALLOWED_ORIGINS if this is expected`);
+    }
+  }
+
+  // Handle Preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+// Cookie Parser (required for CSRF protection)
+app.use(cookieParser());
+
+// ✅ FIX: Serve uploaded files statically
+// Allow cross-origin access to images (needed for frontend on different port)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Body Parser with size limits
+app.use(express.json({
+  limit: '10mb', // Limit JSON payload size
+  strict: true,
+}));
+app.use(express.urlencoded({
+  extended: true,
+  limit: '10mb',
+}));
+
+// SQL Injection Prevention (apply to all routes)
+app.use(preventSQLInjection);
+
+// CSRF Token Middleware (attach token to responses)
+app.use(csrfTokenMiddleware);
+
+// Request timeout
+app.use((req, res, next) => {
+  req.setTimeout(30000); // 30 seconds
+  next();
+});
+
+// CSRF Token Endpoint
+app.get('/api/csrf-token', getCsrfToken);
+
+// Health check endpoint (no rate limit)
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Routes
+app.get('/', (req, res) => res.send('EMS WeCare Backend is running!'));
+
+// Apply rate limiters to auth routes (dual-layer: IP + user-based)
+app.use('/api/auth/login', authLimiter, userBasedAuthLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
+
+// Apply general API rate limiter
+app.use('/api', (req, res, next) => {
+  console.log(`⏱️ [Rate Limiter] ${req.method} ${req.path}`);
+  next();
+}, apiLimiter);
+
+// Health check routes (public - no auth required)
+app.use('/api', healthRoutes);
+
+// Auth routes (public)
+app.use('/api', (req, res, next) => {
+  console.log(`🔓 [Auth Routes] ${req.method} ${req.path}`);
+  next();
+}, authRoutes);
+
+// ============================================
+// PROTECTED ROUTES WITH ROLE-BASED ACCESS CONTROL
+// ============================================
+
+// Patient routes - accessible by multiple roles
+app.use('/api/patients',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.COMMUNITY, UserRole.EXECUTIVE]),
+  patientRoutes
+);
+app.use('/api/office/patients',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  patientRoutes
+);
+app.use('/api/community/patients',
+  authenticateToken,
+  requireRole([UserRole.COMMUNITY]),
+  patientRoutes
+);
+
+// Driver routes - accessible by admin, officer, and drivers themselves
+app.use('/api/drivers',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER]),
+  driverRoutes
+);
+
+// Ride routes - accessible by multiple roles
+app.use('/api/rides',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER, UserRole.COMMUNITY, UserRole.EXECUTIVE]),
+  rideRoutes
+);
+app.use('/api/community/rides',
+  authenticateToken,
+  requireRole([UserRole.COMMUNITY]),
+  rideRoutes
+);
+
+// User management - admin and developer only
+app.use('/api/users',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
+  userRoutes
+);
+
+// Team management - admin, developer, officer
+app.use('/api/teams',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  teamRoutes
+);
+
+// Vehicle management - admin, developer, officer
+app.use('/api/vehicles',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  vehicleRoutes
+);
+
+// Vehicle types - admin, developer, officer
+app.use('/api/vehicle-types',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  vehicleTypeRoutes
+);
+
+// News - public read, admin write (handled in route)
+app.use('/api/news', newsRoutes);
+
+// API Proxy routes for PHP-style endpoints (for frontend fallback compatibility)
+app.use('/api-proxy', apiProxyRoutes);
+
+// Audit logs - admin, developer, executive only
+app.use('/api/audit-logs',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.EXECUTIVE]),
+  auditLogRoutes
+);
+
+// Dashboard routes
+app.use('/api/dashboard',
+  authenticateToken,
+  dashboardRoutes
+);
+app.use('/api/admin/dashboard',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
+  dashboardRoutes
+);
+
+// Settings - admin and developer only
+app.use('/api/admin/settings',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
+  settingsRoutes
+);
+
+// Reports - officer and executive
+app.use('/api/office/reports',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  reportsRoutes
+);
+app.use('/api/executive/reports',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.EXECUTIVE]),
+  reportsRoutes
+);
+
+// Office routes - officer and radio center
+app.use('/api/office',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  officeRoutes
+);
+
+// Map data - admin, developer, officer, radio center
+app.use('/api/map-data',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  mapDataRoutes
+);
+
+// Driver locations - accessible by multiple roles for tracking
+app.use('/api/driver-locations',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER, UserRole.EXECUTIVE]),
+  driverLocationRoutes
+);
+
+// Ride events - accessible by multiple roles
+app.use('/api/ride-events',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER]),
+  rideEventRoutes
+);
+
+// System routes - admin and developer only
+app.use('/api/admin/system',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
+  systemRoutes
+);
+
+// Backup routes - admin and developer only
+app.use('/api/backup',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
+  backupRoutes
+);
+
+// Lockout routes - admin and developer only
+app.use('/api/lockout',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
+  lockoutRoutes
+);
+
+// Error handling middleware (must be after routes)
+app.use(handleMulterError);
+
+// 404 handler - must be after all routes
+app.use(notFoundHandler);
+
+// Global error handler - must be last
+app.use(globalErrorHandler);
+
+// ✅ FIX BUG-009: WebSocket Implementation for Real-time Location Tracking
+const httpServer = http.createServer(app);
+
+// Initialize Socket.IO with CORS
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim())
+      : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+    credentials: true
+  }
+});
+
+// Store io instance for use in routes
+app.set('io', io);
+
+// Location tracking namespace
+const locationNamespace = io.of('/locations');
+
+// Location tracking namespace with authentication
+locationNamespace.use((socket, next) => {
+  // Get token from handshake auth or query
+  const token = socket.handshake.auth.token || socket.handshake.query.token;
+
+  if (!token) {
+    console.warn('⚠️ WebSocket connection rejected: No token provided');
+    return next(new Error('Authentication required'));
+  }
+
+  try {
+    // Verify JWT token
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+
+    // Attach user info to socket
+    (socket as any).user = {
+      id: decoded.userId,
+      email: decoded.email,
+      role: decoded.role
+    };
+
+    // Join user-specific room for targeted notifications
+    socket.join(`user:${decoded.userId}`);
+    socket.join(`role:${decoded.role}`);
+
+    console.log(`✅ WebSocket authenticated: ${decoded.email} (${decoded.role})`);
+    next();
+  } catch (error) {
+    console.warn('⚠️ WebSocket connection rejected: Invalid token');
+    return next(new Error('Invalid token'));
+  }
+});
+
+locationNamespace.on('connection', (socket) => {
+  const user = (socket as any).user;
+  console.log(`🔌 Client connected to location tracking: ${user.email} (${user.role})`);
+
+  // Handle location updates from drivers
+  socket.on('location:update', (data) => {
+    // Only allow drivers to send location updates
+    if (user.role !== 'driver' && user.role !== 'DRIVER') {
+      console.warn(`⚠️ Unauthorized location update attempt from ${user.email} (${user.role})`);
+      socket.emit('error', { message: 'Only drivers can send location updates' });
+      return;
+    }
+
+    // Validate location data
+    const lat = Number(data.lat);
+    const lng = Number(data.lng);
+
+    if (
+      Number.isNaN(lat) ||
+      Number.isNaN(lng) ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 || lat > 90 ||
+      lng < -180 || lng > 180
+    ) {
+      console.warn(`⚠️ Invalid coordinates from ${user.email}: lat=${data.lat}, lng=${data.lng}`);
+      socket.emit('error', { message: 'Invalid coordinates' });
+      return;
+    }
+
+    // Broadcast to all connected clients (office, executives, etc.)
+    locationNamespace.emit('location:updated', {
+      driverId: data.driverId || user.id,
+      driverEmail: user.email,
+      lat,
+      lng,
+      timestamp: new Date().toISOString(),
+      status: data.status || 'AVAILABLE'
+    });
+  });
+
+  // Handle driver status updates
+  socket.on('driver:status', (data) => {
+    // Only allow drivers to update their own status
+    if (user.role !== 'driver' && user.role !== 'DRIVER') {
+      console.warn(`⚠️ Unauthorized status update attempt from ${user.email}`);
+      socket.emit('error', { message: 'Only drivers can update status' });
+      return;
+    }
+
+    locationNamespace.emit('driver:status:updated', {
+      driverId: data.driverId || user.id,
+      driverEmail: user.email,
+      status: data.status,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`🔌 Client disconnected: ${user.email}`);
+  });
+});
+
+// Start server
+// Start server
+const startServer = async () => {
+  try {
+    // Initialize Database first
+    const { initializeDatabase } = require('./db/sqliteDB');
+    await initializeDatabase();
+
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Server is running on http://localhost:${PORT}`);
+      console.log(`🔌 WebSocket server ready for real-time location tracking`);
+      console.log('');
+
+      // Start automatic backup scheduler
+      console.log('🔄 Initializing automatic backup system...');
+      backupService.startAutomaticBackups();
+      console.log('');
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
+
+httpServer.on('error', (error: any) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server error:', error);
+    process.exit(1);
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+// Force restart

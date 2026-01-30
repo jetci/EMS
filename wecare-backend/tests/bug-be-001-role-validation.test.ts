@@ -1,0 +1,325 @@
+/**
+ * BUG-BE-001: Role Validation at Router Level - Test Suite
+ * 
+ * Tests to verify that role-based access control is properly enforced
+ * at the router level for all sensitive endpoints
+ */
+
+import request from 'supertest';
+import jwt from 'jsonwebtoken';
+import app from '../src/index'; // Assuming app is exported from index.ts
+
+const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+
+// Helper function to generate JWT token for different roles
+function generateToken(userId: string, email: string, role: string): string {
+    return jwt.sign(
+        { id: userId, email, role },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+}
+
+describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
+
+    // Test tokens for different roles
+    const tokens = {
+        developer: generateToken('dev-001', 'developer@wecare.dev', 'DEVELOPER'),
+        admin: generateToken('admin-001', 'admin@wecare.dev', 'admin'),
+        officer: generateToken('officer-001', 'officer@wecare.dev', 'OFFICER'),
+        radioCenter: generateToken('radio-001', 'radio@wecare.dev', 'radio_center'),
+        driver: generateToken('driver-001', 'driver@wecare.dev', 'driver'),
+        community: generateToken('community-001', 'community@wecare.dev', 'community'),
+        executive: generateToken('exec-001', 'executive@wecare.dev', 'EXECUTIVE'),
+        noRole: generateToken('user-001', 'user@wecare.dev', ''), // User with no role
+    };
+
+    describe('Patient Routes (/api/patients)', () => {
+
+        it('should allow ADMIN to access patients', async () => {
+            const response = await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+
+            expect(response.body).toBeDefined();
+        });
+
+        it('should allow COMMUNITY to access patients', async () => {
+            const response = await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(200);
+
+            expect(response.body).toBeDefined();
+        });
+
+        it('should allow OFFICER to access patients', async () => {
+            const response = await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(200);
+        });
+
+        it('should DENY DRIVER access to patients', async () => {
+            const response = await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${tokens.driver}`)
+                .expect(403);
+
+            expect(response.body.error).toBe('Insufficient permissions');
+        });
+
+        it('should DENY unauthenticated access', async () => {
+            await request(app)
+                .get('/api/patients')
+                .expect(401);
+        });
+
+        it('should DENY user with no role', async () => {
+            const response = await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${tokens.noRole}`)
+                .expect(403);
+
+            expect(response.body.error).toBe('No role assigned');
+        });
+    });
+
+    describe('User Management Routes (/api/users)', () => {
+
+        it('should allow ADMIN to access user management', async () => {
+            await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow DEVELOPER to access user management', async () => {
+            await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${tokens.developer}`)
+                .expect(200);
+        });
+
+        it('should DENY OFFICER access to user management', async () => {
+            const response = await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(403);
+
+            expect(response.body.error).toBe('Insufficient permissions');
+        });
+
+        it('should DENY COMMUNITY access to user management', async () => {
+            await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(403);
+        });
+
+        it('should DENY DRIVER access to user management', async () => {
+            await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${tokens.driver}`)
+                .expect(403);
+        });
+    });
+
+    describe('Audit Logs Routes (/api/audit-logs)', () => {
+
+        it('should allow ADMIN to access audit logs', async () => {
+            await request(app)
+                .get('/api/audit-logs')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow EXECUTIVE to access audit logs', async () => {
+            await request(app)
+                .get('/api/audit-logs')
+                .set('Authorization', `Bearer ${tokens.executive}`)
+                .expect(200);
+        });
+
+        it('should DENY OFFICER access to audit logs', async () => {
+            await request(app)
+                .get('/api/audit-logs')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(403);
+        });
+
+        it('should DENY COMMUNITY access to audit logs', async () => {
+            await request(app)
+                .get('/api/audit-logs')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(403);
+        });
+    });
+
+    describe('Driver Routes (/api/drivers)', () => {
+
+        it('should allow ADMIN to access drivers', async () => {
+            await request(app)
+                .get('/api/drivers')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow DRIVER to access drivers (for own profile)', async () => {
+            await request(app)
+                .get('/api/drivers')
+                .set('Authorization', `Bearer ${tokens.driver}`)
+                .expect(200);
+        });
+
+        it('should DENY COMMUNITY access to drivers', async () => {
+            await request(app)
+                .get('/api/drivers')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(403);
+        });
+    });
+
+    describe('Ride Routes (/api/rides)', () => {
+
+        it('should allow ADMIN to access rides', async () => {
+            await request(app)
+                .get('/api/rides')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow DRIVER to access rides', async () => {
+            await request(app)
+                .get('/api/rides')
+                .set('Authorization', `Bearer ${tokens.driver}`)
+                .expect(200);
+        });
+
+        it('should allow COMMUNITY to access rides', async () => {
+            await request(app)
+                .get('/api/rides')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(200);
+        });
+
+        it('should allow OFFICER to access rides', async () => {
+            await request(app)
+                .get('/api/rides')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(200);
+        });
+    });
+
+    describe('System Routes (/api/admin/system)', () => {
+
+        it('should allow ADMIN to access system routes', async () => {
+            await request(app)
+                .get('/api/admin/system/health')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow DEVELOPER to access system routes', async () => {
+            await request(app)
+                .get('/api/admin/system/health')
+                .set('Authorization', `Bearer ${tokens.developer}`)
+                .expect(200);
+        });
+
+        it('should DENY OFFICER access to system routes', async () => {
+            await request(app)
+                .get('/api/admin/system/health')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(403);
+        });
+
+        it('should DENY COMMUNITY access to system routes', async () => {
+            await request(app)
+                .get('/api/admin/system/health')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(403);
+        });
+
+        it('should DENY EXECUTIVE access to system routes', async () => {
+            await request(app)
+                .get('/api/admin/system/health')
+                .set('Authorization', `Bearer ${tokens.executive}`)
+                .expect(403);
+        });
+    });
+
+    describe('Role Normalization', () => {
+
+        it('should handle case-insensitive role matching', async () => {
+            // Create token with lowercase 'admin' (as stored in DB)
+            const lowerCaseAdminToken = generateToken('admin-002', 'admin2@wecare.dev', 'admin');
+
+            await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${lowerCaseAdminToken}`)
+                .expect(200);
+        });
+
+        it('should handle uppercase OFFICER role', async () => {
+            const upperCaseOfficerToken = generateToken('officer-002', 'officer2@wecare.dev', 'OFFICER');
+
+            await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${upperCaseOfficerToken}`)
+                .expect(200);
+        });
+    });
+
+    describe('Error Messages', () => {
+
+        it('should return clear error message for insufficient permissions', async () => {
+            const response = await request(app)
+                .get('/api/users')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(403);
+
+            expect(response.body).toHaveProperty('error');
+            expect(response.body).toHaveProperty('message');
+            expect(response.body).toHaveProperty('userRole');
+            expect(response.body).toHaveProperty('requiredRoles');
+            expect(response.body.error).toBe('Insufficient permissions');
+        });
+
+        it('should return clear error message for missing authentication', async () => {
+            const response = await request(app)
+                .get('/api/patients')
+                .expect(401);
+
+            expect(response.body.error).toBe('Authentication required');
+        });
+    });
+
+    describe('Multiple Role Access', () => {
+
+        it('should allow any of the specified roles to access endpoint', async () => {
+            // /api/patients allows: ADMIN, DEVELOPER, OFFICER, RADIO_CENTER, COMMUNITY, EXECUTIVE
+
+            const roles = [
+                { token: tokens.admin, name: 'ADMIN' },
+                { token: tokens.developer, name: 'DEVELOPER' },
+                { token: tokens.officer, name: 'OFFICER' },
+                { token: tokens.radioCenter, name: 'RADIO_CENTER' },
+                { token: tokens.community, name: 'COMMUNITY' },
+                { token: tokens.executive, name: 'EXECUTIVE' },
+            ];
+
+            for (const role of roles) {
+                const response = await request(app)
+                    .get('/api/patients')
+                    .set('Authorization', `Bearer ${role.token}`);
+
+                expect(response.status).toBe(200);
+            }
+        });
+    });
+});
+
+// Export for use in other test files
+export { generateToken };

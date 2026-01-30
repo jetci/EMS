@@ -1,0 +1,29 @@
+[
+  {
+    "id": "PAT-001",
+    "full_name": "Patient One",
+    "phone": "0891111111",
+    "address": "หมู่ 1",
+    "patient_types": "ฟอกไต",
+    "key_info": "ต้องการรถเข็น",
+    "registered_date": "2024-01-01"
+  },
+  {
+    "id": "PAT-002",
+    "full_name": "Patient Two",
+    "phone": "0892222222",
+    "address": "หมู่ 2",
+    "patient_types": "กายภาพบำบัด",
+    "key_info": "",
+    "registered_date": "2024-01-02"
+  },
+  {
+    "id": "PAT-003",
+    "full_name": "Patient Three",
+    "phone": "0893333333",
+    "address": "หมู่ 3",
+    "patient_types": "รับยา",
+    "key_info": "",
+    "registered_date": "2024-01-03"
+  }
+]

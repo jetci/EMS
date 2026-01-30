@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Test - UnifiedRadioDashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .test-section h2 {
+            color: #667eea;
+            font-size: 24px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .test-case {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .test-case h3 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .test-step {
+            padding: 10px;
+            margin: 10px 0;
+            background: white;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .test-step input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .test-step label {
+            flex: 1;
+            cursor: pointer;
+            color: #555;
+        }
+        
+        .test-step.completed {
+            background: #d4edda;
+            border-left: 3px solid #28a745;
+        }
+        
+        .test-step.completed label {
+            text-decoration: line-through;
+            color: #28a745;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .status {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        
+        .status.pending {
+            background: #ffc107;
+            color: #856404;
+        }
+        
+        .status.testing {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .status.passed {
+            background: #28a745;
+            color: white;
+        }
+        
+        .status.failed {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e9ecef;
+        }
+        
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            color: #856404;
+        }
+        
+        .success-note {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        
+        .error-note {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Manual Test - UnifiedRadioDashboard</h1>
+            <p>ทดสอบหน้าใหม่ให้ทำงานเหมือนหน้าเดิม 100%</p>
+            <div class="status" id="overall-status">⏳ รอการทดสอบ</div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Progress</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%">0%</div>
+            </div>
+            <p id="progress-text">0 / 20 tests completed</p>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Setup</h2>
+            <div class="test-case">
+                <h3>เตรียมการทดสอบ</h3>
+                <div class="test-step">
+                    <input type="checkbox" id="setup-1" onchange="updateProgress()">
+                    <label for="setup-1">Backend running (http://localhost:3001)</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="setup-2" onchange="updateProgress()">
+                    <label for="setup-2">Frontend running (http://localhost:5173)</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="setup-3" onchange="updateProgress()">
+                    <label for="setup-3">UnifiedRadioDashboard.tsx สร้างเรียบร้อย</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="setup-4" onchange="updateProgress()">
+                    <label for="setup-4">หน้าเดิมยังอยู่ (RadioDashboard.tsx, RadioCenterDashboard.tsx)</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎭 Test Case 1: Radio Role</h2>
+            <div class="note">
+                <strong>Account:</strong> radio@wecare.ems / password<br>
+                <strong>Expected:</strong> แสดง "ศูนย์วิทยุ (Radio)"
+            </div>
+            <div class="test-case">
+                <h3>ขั้นตอนการทดสอบ</h3>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-1" onchange="updateProgress()">
+                    <label for="radio-1">Login ด้วย radio account</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-2" onchange="updateProgress()">
+                    <label for="radio-2">Navigate to Radio Dashboard</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-3" onchange="updateProgress()">
+                    <label for="radio-3">ตรวจสอบ title แสดง "ศูนย์วิทยุ (Radio)"</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-4" onchange="updateProgress()">
+                    <label for="radio-4">ตรวจสอบ Stats Cards แสดงครบ 4 cards</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-5" onchange="updateProgress()">
+                    <label for="radio-5">ตรวจสอบ "คำขอใหม่" table แสดงถูกต้อง</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-6" onchange="updateProgress()">
+                    <label for="radio-6">ทดสอบปุ่ม "จ่ายงาน" ทำงาน</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-7" onchange="updateProgress()">
+                    <label for="radio-7">ทดสอบปุ่ม "ดูรายละเอียด" ทำงาน</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="radio-8" onchange="updateProgress()">
+                    <label for="radio-8">ตรวจสอบ Schedule Timeline แสดงถูกต้อง</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎭 Test Case 2: Radio Center Role</h2>
+            <div class="note">
+                <strong>Account:</strong> radio_center@wecare.ems / password<br>
+                <strong>Expected:</strong> แสดง "ศูนย์วิทยุกลาง (Radio Center)"
+            </div>
+            <div class="test-case">
+                <h3>ขั้นตอนการทดสอบ</h3>
+                <div class="test-step">
+                    <input type="checkbox" id="center-1" onchange="updateProgress()">
+                    <label for="center-1">Login ด้วย radio_center account</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-2" onchange="updateProgress()">
+                    <label for="center-2">Navigate to Radio Center Dashboard</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-3" onchange="updateProgress()">
+                    <label for="center-3">ตรวจสอบ title แสดง "ศูนย์วิทยุกลาง (Radio Center)"</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-4" onchange="updateProgress()">
+                    <label for="center-4">ตรวจสอบ Stats Cards แสดงครบ 4 cards</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-5" onchange="updateProgress()">
+                    <label for="center-5">ตรวจสอบ "คำขอใหม่" table แสดงถูกต้อง</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-6" onchange="updateProgress()">
+                    <label for="center-6">ทดสอบปุ่ม "จ่ายงาน" ทำงาน</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-7" onchange="updateProgress()">
+                    <label for="center-7">ทดสอบปุ่ม "ดูรายละเอียด" ทำงาน</label>
+                </div>
+                <div class="test-step">
+                    <input type="checkbox" id="center-8" onchange="updateProgress()">
+                    <label for="center-8">ตรวจสอบ Schedule Timeline แสดงถูกต้อง</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Test Results</h2>
+            <div class="test-case">
+                <h3>ผลการทดสอบ</h3>
+                <div id="test-results">
+                    <p>กรุณาทำ test ให้เสร็จก่อน</p>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-success" onclick="markAllPassed()" id="pass-btn" disabled>✅ ทุก Test ผ่าน</button>
+                <button class="btn btn-danger" onclick="markFailed()">❌ มี Test ไม่ผ่าน</button>
+                <button class="btn" onclick="resetTests()">🔄 Reset</button>
+            </div>
+        </div>
+
+        <div class="test-section" id="next-steps" style="display: none;">
+            <h2>🚀 Next Steps</h2>
+            <div class="success-note">
+                <h3>✅ Test ผ่านทั้งหมด!</h3>
+                <p><strong>ขั้นตอนถัดไป:</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Phase 1.3: เปลี่ยน routing ไปใช้ UnifiedRadioDashboard</li>
+                    <li>Deploy to staging</li>
+                    <li>Monitor 1 วัน</li>
+                    <li>ถ้าไม่มีปัญหา → ลบหน้าเดิม</li>
+                </ul>
+            </div>
+            <div class="actions">
+                <a href="#" class="btn btn-success" onclick="proceedToPhase13()">➡️ ไปยัง Phase 1.3</a>
+            </div>
+        </div>
+
+        <div class="test-section" id="fix-section" style="display: none;">
+            <h2>🔧 Fix Required</h2>
+            <div class="error-note">
+                <h3>❌ Test ไม่ผ่าน</h3>
+                <p><strong>ต้องทำ:</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>ระบุปัญหาที่พบ</li>
+                    <li>แก้ไข UnifiedRadioDashboard.tsx</li>
+                    <li>Test ใหม่อีกครั้ง</li>
+                    <li>ทำซ้ำจนกว่าจะผ่าน</li>
+                </ul>
+            </div>
+            <div class="actions">
+                <button class="btn" onclick="resetTests()">🔄 ทดสอบใหม่</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateProgress() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            const checked = document.querySelectorAll('input[type="checkbox"]:checked');
+            const total = checkboxes.length;
+            const completed = checked.length;
+            const percentage = Math.round((completed / total) * 100);
+            
+            document.getElementById('progress-fill').style.width = percentage + '%';
+            document.getElementById('progress-fill').textContent = percentage + '%';
+            document.getElementById('progress-text').textContent = `${completed} / ${total} tests completed`;
+            
+            // Update checkbox parent styling
+            checkboxes.forEach(cb => {
+                const parent = cb.closest('.test-step');
+                if (cb.checked) {
+                    parent.classList.add('completed');
+                } else {
+                    parent.classList.remove('completed');
+                }
+            });
+            
+            // Enable pass button if all checked
+            if (completed === total) {
+                document.getElementById('pass-btn').disabled = false;
+            } else {
+                document.getElementById('pass-btn').disabled = true;
+            }
+        }
+        
+        function markAllPassed() {
+            document.getElementById('overall-status').textContent = '✅ ผ่านทั้งหมด';
+            document.getElementById('overall-status').className = 'status passed';
+            document.getElementById('test-results').innerHTML = `
+                <div class="success-note">
+                    <h3>✅ ทุก Test ผ่าน!</h3>
+                    <p>UnifiedRadioDashboard ทำงานเหมือนหน้าเดิม 100%</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>✅ Radio role ทำงานถูกต้อง</li>
+                        <li>✅ Radio Center role ทำงานถูกต้อง</li>
+                        <li>✅ UI เหมือนหน้าเดิม</li>
+                        <li>✅ Functionality ครบถ้วน</li>
+                    </ul>
+                </div>
+            `;
+            document.getElementById('next-steps').style.display = 'block';
+            document.getElementById('fix-section').style.display = 'none';
+        }
+        
+        function markFailed() {
+            const issues = prompt('ระบุปัญหาที่พบ:');
+            if (issues) {
+                document.getElementById('overall-status').textContent = '❌ ไม่ผ่าน';
+                document.getElementById('overall-status').className = 'status failed';
+                document.getElementById('test-results').innerHTML = `
+                    <div class="error-note">
+                        <h3>❌ Test ไม่ผ่าน</h3>
+                        <p><strong>ปัญหาที่พบ:</strong></p>
+                        <p>${issues}</p>
+                    </div>
+                `;
+                document.getElementById('next-steps').style.display = 'none';
+                document.getElementById('fix-section').style.display = 'block';
+            }
+        }
+        
+        function resetTests() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            updateProgress();
+            document.getElementById('overall-status').textContent = '⏳ รอการทดสอบ';
+            document.getElementById('overall-status').className = 'status pending';
+            document.getElementById('test-results').innerHTML = '<p>กรุณาทำ test ให้เสร็จก่อน</p>';
+            document.getElementById('next-steps').style.display = 'none';
+            document.getElementById('fix-section').style.display = 'none';
+        }
+        
+        function proceedToPhase13() {
+            if (confirm('ยืนยันว่า test ผ่านทั้งหมด และพร้อมไปยัง Phase 1.3?')) {
+                alert('✅ เริ่ม Phase 1.3: Update Routing\n\nจะทำการ:\n1. แก้ไข AuthenticatedLayout.tsx\n2. Import UnifiedRadioDashboard\n3. Deploy to staging');
+                // This will be handled by the programmer
+            }
+        }
+    </script>
+</body>
+</html>

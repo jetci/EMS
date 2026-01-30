@@ -1,0 +1,44 @@
+[
+  {
+    "id": "RIDE-001",
+    "patient_id": "PAT-001",
+    "patient_name": "Patient One",
+    "driver_id": "DRV-001",
+    "driver_name": "Driver One",
+    "status": "COMPLETED",
+    "appointmentTime": "2024-09-16T09:00:00Z",
+    "appointment_time": "2024-09-16T09:00:00Z",
+    "pickupLocation": "บ้านผู้ป่วย",
+    "pickup_location": "บ้านผู้ป่วย",
+    "dropoffLocation": "โรงพยาบาล",
+    "destination": "โรงพยาบาล"
+  },
+  {
+    "id": "RIDE-002",
+    "patient_id": "PAT-002",
+    "patient_name": "Patient Two",
+    "driver_id": "DRV-002",
+    "driver_name": "Driver Two",
+    "status": "IN_PROGRESS",
+    "appointmentTime": "2024-09-16T10:00:00Z",
+    "appointment_time": "2024-09-16T10:00:00Z",
+    "pickupLocation": "บ้านผู้ป่วย",
+    "pickup_location": "บ้านผู้ป่วย",
+    "dropoffLocation": "คลินิก",
+    "destination": "คลินิก"
+  },
+  {
+    "id": "RIDE-003",
+    "patient_id": "PAT-003",
+    "patient_name": "Patient Three",
+    "driver_id": null,
+    "driver_name": null,
+    "status": "PENDING",
+    "appointmentTime": "2024-09-16T11:00:00Z",
+    "appointment_time": "2024-09-16T11:00:00Z",
+    "pickupLocation": "บ้านผู้ป่วย",
+    "pickup_location": "บ้านผู้ป่วย",
+    "dropoffLocation": "โรงพยาบาล",
+    "destination": "โรงพยาบาล"
+  }
+]

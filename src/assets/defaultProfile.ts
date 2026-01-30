@@ -1,0 +1,1 @@
+export const defaultProfileImage = 'https://ui-avatars.com/api/?name=User&size=150&background=0D8ABC&color=fff';

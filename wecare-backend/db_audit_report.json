@@ -1,0 +1,403 @@
+{
+  "generatedAt": "2026-01-04T03:52:22.482Z",
+  "issues": [
+    {
+      "severity": "High",
+      "file": "auth.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "dashboard.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "drivers.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "map-data.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "news.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "office.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "patients.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "reports.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "rides.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "system.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "teams.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "users.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "vehicle-types.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "High",
+      "file": "vehicles.ts",
+      "issue": "Template string with ${} detected in file that may be used to build SQL. Review parameterization."
+    },
+    {
+      "severity": "Medium",
+      "file": "auth.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "auth.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "auth.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "drivers.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "news.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "news.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "news.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "patients.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "patients.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "patients.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "patients.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "patients.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "rides.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "rides.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "rides.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "rides.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "rides.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "rides.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "teams.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "teams.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "teams.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "users.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "users.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "users.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "users.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "users.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "vehicle-types.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "vehicle-types.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "vehicle-types.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "vehicles.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "vehicles.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "Medium",
+      "file": "vehicles.ts",
+      "issue": "Column 'id' used in WHERE but no schema index found. Consider adding an index for performance."
+    },
+    {
+      "severity": "High",
+      "file": "system.ts",
+      "issue": "DROP TABLE uses dynamic table name interpolation. Validate or quote table names; limit to whitelist."
+    }
+  ],
+  "routesSummary": [
+    {
+      "file": "audit-logs.ts",
+      "sqlCount": 0,
+      "templateCount": 0,
+      "findAllUses": 0,
+      "dangerousTemplate": 0
+    },
+    {
+      "file": "auth.ts",
+      "sqlCount": 7,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "dashboard.ts",
+      "sqlCount": 0,
+      "templateCount": 3,
+      "findAllUses": 0,
+      "dangerousTemplate": 3
+    },
+    {
+      "file": "driver-locations.ts",
+      "sqlCount": 0,
+      "templateCount": 0,
+      "findAllUses": 0,
+      "dangerousTemplate": 0
+    },
+    {
+      "file": "drivers.ts",
+      "sqlCount": 15,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "map-data.ts",
+      "sqlCount": 2,
+      "templateCount": 2,
+      "findAllUses": 0,
+      "dangerousTemplate": 2
+    },
+    {
+      "file": "news.ts",
+      "sqlCount": 5,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "office.ts",
+      "sqlCount": 0,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "patients.ts",
+      "sqlCount": 11,
+      "templateCount": 9,
+      "findAllUses": 0,
+      "dangerousTemplate": 6
+    },
+    {
+      "file": "reports.ts",
+      "sqlCount": 0,
+      "templateCount": 6,
+      "findAllUses": 0,
+      "dangerousTemplate": 5
+    },
+    {
+      "file": "ride-events.ts",
+      "sqlCount": 0,
+      "templateCount": 0,
+      "findAllUses": 0,
+      "dangerousTemplate": 0
+    },
+    {
+      "file": "rides.ts",
+      "sqlCount": 9,
+      "templateCount": 6,
+      "findAllUses": 0,
+      "dangerousTemplate": 6
+    },
+    {
+      "file": "settings.ts",
+      "sqlCount": 0,
+      "templateCount": 0,
+      "findAllUses": 0,
+      "dangerousTemplate": 0
+    },
+    {
+      "file": "system.ts",
+      "sqlCount": 2,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "teams.ts",
+      "sqlCount": 5,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "users.ts",
+      "sqlCount": 9,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "vehicle-types.ts",
+      "sqlCount": 5,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    },
+    {
+      "file": "vehicles.ts",
+      "sqlCount": 5,
+      "templateCount": 1,
+      "findAllUses": 0,
+      "dangerousTemplate": 1
+    }
+  ]
+}

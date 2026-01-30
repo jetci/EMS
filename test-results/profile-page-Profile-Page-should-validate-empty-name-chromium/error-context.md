@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - button "WeCare" [ref=e8] [cursor=pointer]
+      - generic [ref=e10]:
+        - button "เกี่ยวกับเรา" [ref=e11] [cursor=pointer]
+        - button "ติดต่อเรา" [ref=e12] [cursor=pointer]
+        - button "ข่าวสาร" [ref=e13] [cursor=pointer]
+      - generic [ref=e14]:
+        - button "เข้าสู่ระบบ" [ref=e15] [cursor=pointer]
+        - button "สมัครสมาชิก" [ref=e16] [cursor=pointer]
+  - main [ref=e17]:
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - heading "เข้าสู่ระบบ" [level=1] [ref=e21]
+        - paragraph [ref=e22]: เข้าสู่ระบบเพื่อจัดการการเดินทางของคุณ
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: อีเมล
+          - textbox "อีเมล" [ref=e26]:
+            - /placeholder: user@wecare.dev
+        - generic [ref=e27]:
+          - generic [ref=e28]: รหัสผ่าน
+          - textbox "รหัสผ่าน" [ref=e29]:
+            - /placeholder: password
+        - button "เข้าสู่ระบบ" [ref=e31] [cursor=pointer]
+      - generic [ref=e36]: หรือ
+      - button "เข้าสู่ระบบด้วย Google" [ref=e38] [cursor=pointer]:
+        - img [ref=e39]
+        - text: เข้าสู่ระบบด้วย Google
+      - generic [ref=e44]:
+        - heading "เข้าสู่ระบบด่วน (สำหรับทดสอบ)" [level=3] [ref=e45]
+        - generic [ref=e46]:
+          - button "Login as ADMIN" [ref=e47] [cursor=pointer]
+          - button "Login as DEVELOPER" [ref=e48] [cursor=pointer]
+          - button "Login as RADIO" [ref=e49] [cursor=pointer]
+          - button "Login as OFFICER" [ref=e50] [cursor=pointer]
+          - button "Login as DRIVER" [ref=e51] [cursor=pointer]
+          - button "Login as COMMUNITY" [ref=e52] [cursor=pointer]
+          - button "Login as EXECUTIVE" [ref=e53] [cursor=pointer]
+      - generic [ref=e54]:
+        - link "ลืมรหัสผ่าน?" [ref=e55] [cursor=pointer]:
+          - /url: "#"
+        - paragraph [ref=e56]:
+          - text: ยังไม่มีบัญชี?
+          - button "สมัครสมาชิกที่นี่" [ref=e57] [cursor=pointer]
+```

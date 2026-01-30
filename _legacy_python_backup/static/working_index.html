@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeCare Platform - EMS System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: #4f46e5;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .btn:hover {
+            background: #4338ca;
+        }
+        
+        .test-accounts {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        
+        .test-accounts h3 {
+            color: #1f2937;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .account {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        
+        .account strong {
+            color: #1f2937;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        
+        .status.checking {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .success-message {
+            display: none;
+            background: #d1fae5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .success-message h2 {
+            color: #065f46;
+            margin-bottom: 15px;
+        }
+        
+        .user-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: left;
+            margin: 15px 0;
+        }
+        
+        .user-info p {
+            margin: 5px 0;
+            color: #374151;
+        }
+        
+        .features {
+            margin: 15px 0;
+        }
+        
+        .features p {
+            color: #065f46;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏥</div>
+        <h1>WeCare Platform</h1>
+        <p class="subtitle">ระบบจัดการรถพยาบาลฉุกเฉิน</p>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">อีเมล</label>
+                <input type="email" id="email" name="email" required placeholder="กรุณาใส่อีเมล">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">รหัสผ่าน</label>
+                <input type="password" id="password" name="password" required placeholder="กรุณาใส่รหัสผ่าน">
+            </div>
+            
+            <button type="submit" class="btn">เข้าสู่ระบบ</button>
+        </form>
+        
+        <div class="test-accounts">
+            <h3>🔑 บัญชีทดสอบ</h3>
+            <div class="account"><strong>Community:</strong> community1@wecare.dev</div>
+            <div class="account"><strong>Driver:</strong> driver1@wecare.dev</div>
+            <div class="account"><strong>Office:</strong> office1@wecare.dev</div>
+            <div class="account"><strong>Admin:</strong> admin@wecare.dev</div>
+            <div class="account"><strong>รหัสผ่าน:</strong> password</div>
+        </div>
+        
+        <div id="apiStatus" class="status checking">
+            🔄 กำลังตรวจสอบการเชื่อมต่อ API...
+        </div>
+        
+        <div id="successMessage" class="success-message">
+            <h2>✅ เข้าสู่ระบบสำเร็จ!</h2>
+            <div id="userInfo" class="user-info"></div>
+            <div class="features">
+                <p>✅ Backend API ทำงานปกติ</p>
+                <p>✅ Authentication สำเร็จ</p>
+                <p>✅ Database เชื่อมต่อสำเร็จ</p>
+                <p>✅ ระบบพร้อมใช้งาน</p>
+            </div>
+            <button onclick="location.reload()" class="btn">กลับไปหน้าเข้าสู่ระบบ</button>
+        </div>
+    </div>
+
+    <script>
+        // ตรวจสอบ API เมื่อโหลดหน้า
+        async function checkAPI() {
+            const statusEl = document.getElementById('apiStatus');
+            
+            try {
+                const response = await fetch('/api/news/');
+                if (response.ok) {
+                    statusEl.textContent = '✅ API เชื่อมต่อสำเร็จ - ระบบพร้อมใช้งาน';
+                    statusEl.className = 'status success';
+                } else {
+                    throw new Error('API Error');
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ API เชื่อมต่อไม่สำเร็จ - กรุณาตรวจสอบเซิร์ฟเวอร์';
+                statusEl.className = 'status error';
+            }
+        }
+
+        // จัดการการเข้าสู่ระบบ
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            
+            // แสดงสถานะกำลังโหลด
+            submitBtn.textContent = '🔄 กำลังเข้าสู่ระบบ...';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // เก็บข้อมูลใน localStorage
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // แสดงข้อมูลผู้ใช้
+                    document.getElementById('userInfo').innerHTML = `
+                        <p><strong>ชื่อ:</strong> ${data.user.name}</p>
+                        <p><strong>อีเมล:</strong> ${data.user.email}</p>
+                        <p><strong>บทบาท:</strong> ${data.user.role}</p>
+                        <p><strong>สถานะ:</strong> ${data.user.status}</p>
+                    `;
+                    
+                    // ซ่อนฟอร์มและแสดงข้อความสำเร็จ
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.querySelector('.test-accounts').style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                    
+                } else {
+                    alert('❌ เข้าสู่ระบบไม่สำเร็จ: ' + (data.message || 'กรุณาตรวจสอบอีเมลและรหัสผ่าน'));
+                }
+            } catch (error) {
+                alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                // รีเซ็ตปุ่ม
+                submitBtn.textContent = 'เข้าสู่ระบบ';
+                submitBtn.disabled = false;
+            }
+        });
+
+        // เรียกใช้ฟังก์ชันตรวจสอบ API เมื่อโหลดหน้า
+        checkAPI();
+        
+        // เพิ่ม event listener สำหรับ quick login
+        document.querySelectorAll('.account').forEach(account => {
+            account.addEventListener('click', function() {
+                const text = this.textContent;
+                if (text.includes('@')) {
+                    const email = text.split(' ')[1];
+                    document.getElementById('email').value = email;
+                    document.getElementById('password').value = 'password';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

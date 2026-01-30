@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WeCare Platform - EMS System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" 
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" 
+          crossorigin=""/>
+    <style>
+      :root {
+        --wecare-blue: #2563EB;
+        --wecare-green: #10B981;
+        --wecare-blue-light: #EFF6FF;
+        --text-primary: #1F2937;
+        --text-secondary: #4B5563;
+        --bg-main: #F9FAFB;
+        --bg-card: #FFFFFF;
+        --border-color: #E5E7EB;
+      }
+      
+      body {
+        font-family: 'Inter', 'Sarabun', sans-serif;
+        background-color: var(--bg-main);
+        color: var(--text-primary);
+      }
+      
+      /* Global form styles */
+      input, select, textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      
+      input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: var(--wecare-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+      
+      button {
+        font-weight: 500;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+      
+      .btn-primary {
+        background: var(--wecare-blue);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border: none;
+      }
+      
+      .btn-primary:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+      }
+      
+      .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        padding: 0.75rem 1.5rem;
+        border: 1px solid #d1d5db;
+      }
+      
+      .btn-secondary:hover {
+        background: #e5e7eb;
+      }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

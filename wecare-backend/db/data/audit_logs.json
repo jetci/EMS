@@ -1,0 +1,11 @@
+[
+  {
+    "id": "LOG-001",
+    "timestamp": "2026-01-29T09:22:59.973Z",
+    "userEmail": "system@wecare.dev",
+    "userRole": "system",
+    "action": "SYSTEM_INIT",
+    "targetId": "SYSTEM",
+    "ipAddress": "127.0.0.1"
+  }
+]
