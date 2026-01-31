@@ -1,38 +1,101 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# ============================================
+# EMS WeCare - Multi-stage Docker Build
+# Frontend: React + Vite
+# Backend: Node.js + Express + SQLite
+# ============================================
 
-# Set working directory
+# ----------------------------------------
+# Stage 1: Build Frontend
+# ----------------------------------------
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Copy package files for better caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --legacy-peer-deps
+
+# Copy frontend source
+COPY src/ ./src/
+COPY public/ ./public/
+COPY index.html ./
+COPY vite.config.ts ./
+COPY tsconfig*.json ./
+COPY postcss.config.js ./
+COPY tailwind.config.js ./
+
+# Build frontend for production
+RUN npm run build
+
+# ----------------------------------------
+# Stage 2: Build Backend
+# ----------------------------------------
+FROM node:20-alpine AS backend-builder
+
+WORKDIR /app/backend
+
+# Copy package files
+COPY wecare-backend/package*.json ./
+
+# Install dependencies (including dev for building)
+RUN npm ci
+
+# Copy backend source
+COPY wecare-backend/src/ ./src/
+COPY wecare-backend/tsconfig.json ./
+
+# Build TypeScript to JavaScript
+RUN npm run build 2>/dev/null || echo "No build step needed"
+
+# ----------------------------------------
+# Stage 3: Production Image
+# ----------------------------------------
+FROM node:20-alpine AS production
+
+# Install security updates
+RUN apk update && apk upgrade && apk add --no-cache \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S wecare -u 1001 -G nodejs
+
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Copy backend dependencies and source
+COPY --from=backend-builder /app/backend/node_modules ./node_modules
+COPY --from=backend-builder /app/backend/src ./src
+COPY wecare-backend/package*.json ./
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy built frontend to serve as static files
+COPY --from=frontend-builder /app/frontend/dist ./public
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Create directories for data persistence
+RUN mkdir -p /app/db /app/uploads /app/backups /app/logs && \
+    chown -R wecare:nodejs /app
 
-# Copy application code
-COPY src/ ./src/
+# Copy database schema
+COPY wecare-backend/db/schema.sql ./db/
 
-# Create database directory
-RUN mkdir -p src/database
+# Switch to non-root user
+USER wecare
+
+# Environment variables
+ENV NODE_ENV=production \
+    PORT=3001 \
+    HOST=0.0.0.0 \
+    JWT_SECRET=change-this-in-production \
+    DB_PATH=/app/db/wecare.db
 
 # Expose port
-EXPOSE 5000
+EXPOSE 3001
 
-# Set environment variables
-ENV FLASK_APP=src/main.py
-ENV FLASK_ENV=production
-ENV PYTHONPATH=/app
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3001/api/csrf-token || exit 1
 
-# Create a non-root user
-RUN useradd --create-home --shell /bin/bash app
-RUN chown -R app:app /app
-USER app
-
-# Run the application
-CMD ["python", "src/main.py"]
+# Start the application
+CMD ["node", "src/index.ts"]

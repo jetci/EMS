@@ -37,15 +37,15 @@ const generateUserId = (): string => {
   const numbers = users
     .map(u => parseInt(u.id.split('-')[1]))
     .filter(n => !isNaN(n));
-  
+
   const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
   const nextNum = maxNum + 1;
-  
+
   return `USR-${String(nextNum).padStart(3, '0')}`;
 };
 
 // GET /api/users
-router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.get('/', authenticateToken, requireRole(['ADMIN', 'DEVELOPER']), async (req, res) => {
   try {
     const currentUser = (req as any).user;
     let users = sqliteDB.all<User>('SELECT * FROM users ORDER BY date_created DESC');
@@ -85,6 +85,13 @@ router.get('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), async
 // POST /api/users
 router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitizeInput, validateUserInput, checkDuplicateEmail, async (req, res) => {
   try {
+    const currentUser = (req as any).user;
+
+    // Protection: Only Developer can create Developer accounts
+    if (req.body.role === 'DEVELOPER' && currentUser.role !== 'DEVELOPER') {
+      return res.status(403).json({ error: 'Access denied: Only developers can create developer accounts' });
+    }
+
     console.log('📝 Creating new user:', { email: req.body.email, role: req.body.role });
     const newId = generateUserId();
     console.log('🆔 Generated ID:', newId);
@@ -121,7 +128,6 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitiz
     console.log('✅ User inserted successfully');
 
     // Audit Log
-    const currentUser = (req as any).user;
     auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
@@ -143,6 +149,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitiz
 // PUT /api/users/:id - Update user profile
 router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitizeInput, validateUserInput, checkDuplicateEmail, async (req, res) => {
   try {
+    const currentUser = (req as any).user;
     const { password, ...updates } = req.body;
 
     // Password cannot be changed through this endpoint - use reset-password instead
@@ -152,6 +159,22 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
       });
     }
 
+    // Check if user exists
+    const existingUser = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Protection: Only Developer can modify Developer accounts
+    if (existingUser.role === 'DEVELOPER' && currentUser.role !== 'DEVELOPER') {
+      return res.status(403).json({ error: 'Access denied: Cannot modify developer accounts' });
+    }
+
+    // Protection: Only Developer can promote users to Developer
+    if (updates.role === 'DEVELOPER' && currentUser.role !== 'DEVELOPER') {
+      return res.status(403).json({ error: 'Access denied: Only developers can assign developer role' });
+    }
+
     // Build update data
     const updateData: any = {};
     if (updates.email) updateData.email = updates.email;
@@ -159,16 +182,9 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
     if (updates.fullName || updates.full_name) updateData.full_name = updates.fullName || updates.full_name;
     if (updates.status) updateData.status = updates.status;
 
-    // Check if user exists
-    const existingUser = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
-    if (!existingUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
     sqliteDB.update('users', req.params.id, updateData);
 
     // Audit Log
-    const currentUser = (req as any).user;
     auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
@@ -188,6 +204,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
 // POST /api/users/:id/reset-password
 router.post('/:id/reset-password', authenticateToken, requireRole(['admin', 'DEVELOPER']), validatePasswordReset, async (req, res) => {
   try {
+    const currentUser = (req as any).user;
     const { newPassword } = req.body;
 
     // Validate password strength
@@ -205,13 +222,17 @@ router.post('/:id/reset-password', authenticateToken, requireRole(['admin', 'DEV
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Protection: Only Developer can reset password for Developer accounts
+    if (user.role === 'DEVELOPER' && currentUser.role !== 'DEVELOPER') {
+      return res.status(403).json({ error: 'Access denied: Cannot reset password for developer accounts' });
+    }
+
     // Hash the new password
     const hashedPassword = await hashPassword(newPassword);
 
     sqliteDB.update('users', req.params.id, { password: hashedPassword });
 
     // Audit Log
-    const currentUser = (req as any).user;
     auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
@@ -230,13 +251,24 @@ router.post('/:id/reset-password', authenticateToken, requireRole(['admin', 'DEV
 // DELETE /api/users/:id
 router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
+    const currentUser = (req as any).user;
+
+    const existingUser = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Protection: Only Developer can delete Developer accounts
+    if (existingUser.role === 'DEVELOPER' && currentUser.role !== 'DEVELOPER') {
+      return res.status(403).json({ error: 'Access denied: Cannot delete developer accounts' });
+    }
+
     const result = sqliteDB.delete('users', req.params.id);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Audit Log
-    const currentUser = (req as any).user;
     auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',

@@ -1,34 +1,95 @@
+# ============================================
+# EMS WeCare - Docker Compose Configuration
+# ============================================
+# Production-ready setup with:
+# - Main application (Node.js backend + React frontend)
+# - Automatic restarts
+# - Health monitoring
+# - Volume persistence for database and uploads
+# ============================================
+
 version: '3.8'
 
 services:
-  web:
-    build: .
+  # ----------------------------------------
+  # Main Application
+  # ----------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wecare-app
     ports:
-      - "5000:5000"
+      - "3001:3001"
     volumes:
-      - ./src/database:/app/src/database
+      # Persist SQLite database
+      - wecare-db:/app/db
+      # Persist uploaded files
+      - wecare-uploads:/app/uploads
+      # Persist backups
+      - wecare-backups:/app/backups
+      # Logs (optional)
+      - wecare-logs:/app/logs
     environment:
-      - FLASK_ENV=production
-      - SECRET_KEY=your-production-secret-key-change-this
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - JWT_SECRET=${JWT_SECRET:-change-this-in-production-use-env-file}
+      - JWT_EXPIRES_IN=24h
+      - DB_PATH=/app/db/wecare.db
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3001}
+      # Rate limiting
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/auth/me"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3001/api/csrf-token" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-
-  # Optional: Add PostgreSQL for production
-  # db:
-  #   image: postgres:15
-  #   environment:
-  #     POSTGRES_DB: ems_db
-  #     POSTGRES_USER: ems_user
-  #     POSTGRES_PASSWORD: ems_password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
+      start_period: 60s
+    networks:
+      - wecare-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  # ----------------------------------------
+  # Nginx Reverse Proxy (Optional - for HTTPS)
+  # ----------------------------------------
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: wecare-nginx
   #   ports:
-  #     - "5432:5432"
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - app
+  #   networks:
+  #     - wecare-network
+  #   restart: unless-stopped
 
-# volumes:
-#   postgres_data:
+  # ----------------------------------------
+  # Named Volumes for Data Persistence
+  # ----------------------------------------
+volumes:
+  wecare-db:
+    name: wecare-db
+  wecare-uploads:
+    name: wecare-uploads
+  wecare-backups:
+    name: wecare-backups
+  wecare-logs:
+    name: wecare-logs
+
+# ----------------------------------------
+# Networks
+# ----------------------------------------
+networks:
+  wecare-network:
+    name: wecare-network
+    driver: bridge

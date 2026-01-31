@@ -52,6 +52,37 @@ function getToken(): string | null {
 }
 
 /**
+ * Get the Socket.IO server URL
+ * In development, connect directly to backend port 3001
+ * In production, use relative path (same origin)
+ */
+function getSocketUrl(): string {
+    // Check if we have an explicit socket URL in env
+    // Use try-catch to avoid Jest parsing issues with import.meta
+    try {
+        // Try to get from process.env first (works in Jest)
+        if (typeof process !== 'undefined' && process.env?.VITE_SOCKET_URL) {
+            return process.env.VITE_SOCKET_URL;
+        }
+    } catch {
+        // process.env not available
+    }
+
+    // Check window for browser environment
+    if (typeof window !== 'undefined') {
+        // In development, connect directly to backend server
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'http://localhost:3001';
+        }
+        // In production, use same origin
+        return window.location.origin;
+    }
+
+    // Fallback for test environment
+    return 'http://localhost:3001';
+}
+
+/**
  * Initialize Socket.io connection
  */
 export function initializeSocket(): Socket {
@@ -64,7 +95,10 @@ export function initializeSocket(): Socket {
         throw new Error('No authentication token found');
     }
 
-    socket = io('/locations', {
+    const socketUrl = getSocketUrl();
+    console.log('🔌 Connecting Socket.IO to:', socketUrl);
+
+    socket = io(`${socketUrl}/locations`, {
         auth: {
             token: token
         },
@@ -337,9 +371,13 @@ export function onLocationUpdated(callback: (data: any) => void): () => void {
     const socket = getSocket();
     socket.on('location:updated', callback);
 
-    // Return cleanup function
+    // Return cleanup function with error handling
     return () => {
-        socket.off('location:updated', callback);
+        try {
+            socket.off('location:updated', callback);
+        } catch (error) {
+            console.warn('Error cleaning up location listener:', error);
+        }
     };
 }
 
@@ -351,9 +389,13 @@ export function onDriverStatusUpdated(callback: (data: any) => void): () => void
     const socket = getSocket();
     socket.on('driver:status:updated', callback);
 
-    // Return cleanup function
+    // Return cleanup function with error handling
     return () => {
-        socket.off('driver:status:updated', callback);
+        try {
+            socket.off('driver:status:updated', callback);
+        } catch (error) {
+            console.warn('Error cleaning up driver status listener:', error);
+        }
     };
 }
 
@@ -365,9 +407,13 @@ export function onNotification(callback: (data: any) => void): () => void {
     const socket = getSocket();
     socket.on('notification:new', callback);
 
-    // Return cleanup function
+    // Return cleanup function with error handling
     return () => {
-        socket.off('notification:new', callback);
+        try {
+            socket.off('notification:new', callback);
+        } catch (error) {
+            console.warn('Error cleaning up notification listener:', error);
+        }
     };
 }
 
@@ -375,11 +421,15 @@ export function onNotification(callback: (data: any) => void): () => void {
  * Remove event listener
  */
 export function off(event: string, callback?: (...args: any[]) => void): void {
-    const socket = getSocket();
-    if (callback) {
-        socket.off(event, callback);
-    } else {
-        socket.off(event);
+    try {
+        const socket = getSocket();
+        if (callback) {
+            socket.off(event, callback);
+        } else {
+            socket.off(event);
+        }
+    } catch (error) {
+        console.warn('Error removing event listener:', error);
     }
 }
 

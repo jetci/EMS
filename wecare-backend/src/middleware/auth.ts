@@ -102,7 +102,11 @@ export const requireRole = (roles: string[]) => {
       return res.status(403).json({ error: 'Unauthorized: No role assigned' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    // Case-insensitive role comparison
+    const userRole = req.user.role.toUpperCase();
+    const allowedRoles = roles.map(r => r.toUpperCase());
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }
 
