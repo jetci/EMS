@@ -184,13 +184,21 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
 
     sqliteDB.update('users', req.params.id, updateData);
 
-    // Audit Log
+    // Audit Log with previous state for complete audit trail
     auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
       'UPDATE_USER',
       req.params.id,
-      updateData
+      {
+        previousState: {
+          email: existingUser.email,
+          role: existingUser.role,
+          full_name: existingUser.full_name,
+          status: existingUser.status
+        },
+        newState: updateData
+      }
     );
 
     const updated = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
@@ -268,12 +276,19 @@ router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), as
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Audit Log
+    // Audit Log with deleted user info
     auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
       'DELETE_USER',
-      req.params.id
+      req.params.id,
+      {
+        deletedUser: {
+          email: existingUser.email,
+          role: existingUser.role,
+          full_name: existingUser.full_name
+        }
+      }
     );
 
     res.status(204).send();
