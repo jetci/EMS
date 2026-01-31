@@ -1,0 +1,7 @@
+flowchart TD
+  A[Admin UI: Create Update Delete user] -->|POST PUT DELETE /users| B[Server middleware authenticateToken]
+  B --> C[requireRole ADMIN or DEVELOPER]
+  C --> D{Authorized?}
+  D -- Yes --> E[Validate and sanitize input using Joi]
+  E --> F[DB operation and create audit_logs entry with hash chain]
+  D -- No --> G[403 Forbidden]
