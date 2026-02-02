@@ -1,0 +1,6 @@
+flowchart TD
+  A[initializeDatabase] --> B[run schema sql file]
+  B --> C[seedData creates default users and drivers]
+  C --> D[audit logs entries generated]
+  D --> E[Compute hash for each entry linking to previous hash to enable integrity check]
+  E --> F[DEVELOPER may call rebuild chain endpoint to re compute chain]

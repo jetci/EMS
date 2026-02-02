@@ -1,0 +1,9 @@
+flowchart TD
+  A[Community creates ride POST /rides] --> B[DB insert ride with status PENDING]
+  B --> C[Officer views PENDING rides via GET /rides]
+  C --> D[Officer assigns driver using transaction]
+  D -->|transaction| E[Update rides set driver_id and status ASSIGNED; update drivers status to IN_USE]
+  E --> F[Emit socket event driver assignment to driver client]
+  F --> G[Driver accepts via PUT /rides/:id setting IN_PROGRESS]
+  G --> H[Driver sends location updates via socket location update]
+  H --> I[On completion PUT /rides/:id set COMPLETED and create ride_events]

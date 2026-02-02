@@ -1,3 +1,60 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
+# Logs
+logs/
+*.log
+
+# Build outputs
+dist/
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*.local
+
+# Database files and backups
+wecare-backend/db/*.db
+wecare-backend/db/*.db-shm
+wecare-backend/db/*.db-wal
+wecare-backend/backups/
+backups/
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Uploads / user files
+wecare-backend/uploads/
+uploads/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.code-workspace
+
+# npm cache / npx
+.npm_cache/
+.npx/
+.cache/
+
+# Coverage
+coverage/
+
+# Misc
+*.zip
 # Logs
 logs
 *.log

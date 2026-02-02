@@ -1,0 +1,7 @@
+flowchart TD
+  A[Client connects to socket.io with token] --> B[Server validates token on handshake]
+  B --> C{Role allowed}
+  C -- Yes --> D[Join appropriate rooms such as team and driver id]
+  D --> E[Server emits events like location updated, notification new, ride assigned]
+  E --> F[Client handlers update UI and show notifications]
+  C -- No --> G[Disconnect or ignore privileged events]

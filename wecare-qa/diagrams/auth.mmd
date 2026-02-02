@@ -1,0 +1,10 @@
+flowchart TD
+  A[User enters credentials on /login] -->|POST /auth/login| B[Backend: validate credentials]
+  B --> C{Password valid?}
+  C -- Yes --> D[Generate JWT - id, role, driver_id]
+  D --> E[Return token and user]
+  C -- No --> F[401 Invalid credentials]
+  E --> G[Client stores token in localStorage and sets auth header]
+  G --> H[Authenticated requests use Authorization: Bearer token]
+  H --> I[Middleware authenticateToken verifies JWT and loads user]
+  I --> J[Optional check: tokenBlacklist]

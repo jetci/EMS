@@ -6,6 +6,17 @@ import { logRideEvent } from './ride-events';
 import { checkDuplicateRide } from '../middleware/idempotency';
 import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { transformResponse } from '../utils/caseConverter';
+import rateLimit from 'express-rate-limit';
+
+// Rate limiter for assign driver (prevent abuse)
+const assignDriverLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // 10 assigns per minute per IP
+  message: { error: 'Too many assign requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 
 const router = express.Router();
 
@@ -179,7 +190,8 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
   try {
     const {
       patient_id, patient_name, appointment_time, pickup_location,
-      destination, special_needs, caregiver_count, contact_phone, trip_type
+      destination, special_needs, caregiver_count, contact_phone, trip_type,
+      village, landmark, caregiver_phone
     } = req.body;
 
     const newId = generateRideId();
@@ -211,6 +223,10 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
 
       status: req.body.status || 'PENDING',
       cancellation_reason: null,
+
+      village: village || null,
+      landmark: landmark || null,
+      caregiver_phone: caregiver_phone || contact_phone || null,
 
       created_by: req.user?.id || null
     };
@@ -257,7 +273,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
 });
 
 // PUT /api/rides/:id - update ride status and optionally assign driver
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { status, driver_id, driver_name, ...otherUpdates } = req.body;
   try {
@@ -276,11 +292,31 @@ router.put('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied: This ride is not assigned to you' });
     }
 
+    // Only OFFICER, RADIO_CENTER, ADMIN can assign drivers
+    if (driver_id && driver_id !== existing.driver_id) {
+      const allowedRoles = ['OFFICER', 'radio_center', 'RADIO_CENTER', 'admin', 'DEVELOPER'];
+      if (!req.user?.role || !allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ error: 'Access denied: Only officers can assign drivers' });
+      }
+
+      // Check driver exists (outside transaction for early validation)
+      const driverRecord = sqliteDB.get<any>('SELECT * FROM drivers WHERE id = ?', [driver_id]);
+      if (!driverRecord) {
+        return res.status(404).json({ error: 'Driver not found' });
+      }
+    }
+
     // Check for driver conflict if assigning a new driver
     // Use transaction to prevent race conditions
     if (driver_id && driver_id !== existing.driver_id) {
       try {
         sqliteDB.transaction(() => {
+          // Check driver availability first
+          const driver = sqliteDB.db.prepare('SELECT status FROM drivers WHERE id = ?').get(driver_id) as any;
+          if (driver && driver.status !== 'AVAILABLE') {
+            throw new Error(`คนขับไม่ว่าง (สถานะ: ${driver.status})`);
+          }
+
           // Check for conflicts within transaction
           const conflict = sqliteDB.db.prepare(`
             SELECT * FROM rides 
@@ -293,6 +329,9 @@ router.put('/:id', async (req: AuthRequest, res) => {
           if (conflict) {
             throw new Error(`คนขับติดงานอื่นในช่วงเวลาใกล้เคียงกัน (Ride ID: ${(conflict as any).id})`);
           }
+
+          // Update driver status to ON_DUTY (prevents concurrent assignments)
+          sqliteDB.db.prepare('UPDATE drivers SET status = ? WHERE id = ?').run('ON_DUTY', driver_id);
 
           // Update ride with driver assignment
           const updateData: any = {
