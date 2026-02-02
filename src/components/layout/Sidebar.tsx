@@ -1,6 +1,6 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthenticatedView, User } from '../../types';
+import { getAppSettings } from '../../utils/settings';
 import XIcon from '../icons/XIcon';
 import DashboardIcon from '../icons/DashboardIcon';
 import UsersIcon from '../icons/UsersIcon';
@@ -18,6 +18,7 @@ import TruckIcon from '../icons/TruckIcon';
 import TagIcon from '../icons/TagIcon';
 import DocumentReportIcon from '../icons/DocumentReportIcon';
 import MapIcon from '../icons/MapIcon';
+import EfficiencyIcon from '../icons/EfficiencyIcon';
 
 interface SidebarProps {
   user: User;
@@ -72,6 +73,13 @@ const getNavItems = (role: User['role']) => {
     case 'EXECUTIVE':
       return [
         { id: 'executive_dashboard', label: 'ภาพรวมโครงการ', icon: DashboardIcon },
+        { id: 'village_distribution', label: 'การกระจายตัวหมู่บ้าน', icon: UsersIcon },
+        { id: 'spatial_analytics', label: 'แผนที่การกระจายตัว', icon: MapIcon },
+        { id: 'drill_down', label: 'รายละเอียดเชิงลึก', icon: FileTextIcon },
+        { id: 'density_map', label: 'แผนที่ความหนาแน่น', icon: EfficiencyIcon },
+        { id: 'operational_report', label: 'รายงานผลการดำเนินงาน', icon: DocumentReportIcon },
+        { id: 'financial_report', label: 'รายงานสถานะการเงิน', icon: TagIcon },
+        { id: 'patient_demographics_report', label: 'ข้อมูลประชากรผู้ป่วย', icon: TeamIcon },
       ];
     case 'DEVELOPER':
     case 'admin':
@@ -90,6 +98,16 @@ const getNavItems = (role: User['role']) => {
   }
 };
 const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLogout, isOpen, onClose }) => {
+  const [settings, setSettings] = useState(getAppSettings());
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setSettings(getAppSettings());
+    };
+    window.addEventListener('settingsChanged', handleSettingsChange);
+    return () => window.removeEventListener('settingsChanged', handleSettingsChange);
+  }, []);
+
   const navItems = getNavItems(user.role);
   const profileItem = { id: 'profile', label: 'โปรไฟล์', icon: UserIcon };
 
@@ -132,8 +150,17 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-16 flex-shrink-0 px-4">
-            <h1 className="text-2xl font-bold text-[var(--wecare-blue)]">WeCare</h1>
+          <div className="flex items-center justify-between h-20 flex-shrink-0 px-4 border-b border-[var(--border-color)]">
+            <div className="flex items-center gap-3">
+              {settings.logoUrl ? (
+                <img src={settings.logoUrl} alt={settings.appName} className="w-10 h-10 object-contain rounded" />
+              ) : (
+                <div className="w-10 h-10 bg-[var(--wecare-blue)] rounded flex items-center justify-center text-white font-bold">
+                  {settings.appName.charAt(0)}
+                </div>
+              )}
+              <h1 className="text-xl font-bold text-[var(--wecare-blue)] truncate max-w-[140px]">{settings.appName}</h1>
+            </div>
             {/* Close button for mobile */}
             <button
               onClick={onClose}

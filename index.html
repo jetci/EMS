@@ -1,125 +1,176 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WeCare Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      :root {
-        --wecare-blue: #2563EB; /* blue-600 */
-        --wecare-green: #10B981; /* emerald-500 */
-        --wecare-blue-light: #EFF6FF; /* blue-50 */
-        --text-primary: #1F2937; /* gray-800 */
-        --text-secondary: #4B5563; /* gray-600 */
-        --bg-main: #F9FAFB; /* gray-50 */
-        --bg-card: #FFFFFF;
-        --border-color: #E5E7EB; /* gray-200 */
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeCare Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --wecare-blue: #2563EB;
+      /* blue-600 */
+      --wecare-green: #10B981;
+      /* emerald-500 */
+      --wecare-blue-light: #EFF6FF;
+      /* blue-50 */
+      --text-primary: #1F2937;
+      /* gray-800 */
+      --text-secondary: #4B5563;
+      /* gray-600 */
+      --bg-main: #E2E8F0;
+      /* slate-200 for stronger contrast */
+      --bg-card: #FFFFFF;
+      --border-color: #CBD5E1;
+      /* slate-300 */
+    }
+
+    body {
+      font-family: 'Inter', 'Sarabun', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+    }
+
+    /* Global Form Field Design System */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    input[type="number"],
+    select,
+    textarea {
+      appearance: none;
+      background-color: #fff;
+      border: 1px solid #D1D5DB;
+      /* gray-300 */
+      border-radius: 0.5rem;
+      /* rounded-lg */
+      padding: 0.625rem 0.875rem;
+      width: 100%;
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-size: 0.875rem;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center;
+      background-repeat: no-repeat;
+      background-size: 1.5em 1.5em;
+      padding-right: 2.5rem;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid transparent;
+      outline-offset: 2px;
+      border-color: var(--wecare-blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: #9CA3AF;
+      /* gray-400 */
+    }
+
+    input:disabled,
+    select:disabled,
+    textarea:disabled {
+      background-color: #F3F4F6;
+      /* gray-100 */
+      color: #6B7280;
+      /* gray-500 */
+      cursor: not-allowed;
+      border-color: #D1D5DB;
+      /* gray-300 */
+    }
+
+    /* Custom Animations */
+    @keyframes fade-in-up {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
       }
-      body {
-        font-family: 'Inter', 'Sarabun', sans-serif;
-        background-color: var(--bg-main);
-        color: var(--text-primary);
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
       }
-      /* Global Form Field Design System */
-      input[type="text"],
-      input[type="email"],
-      input[type="password"],
-      input[type="tel"],
-      input[type="number"],
-      select,
-      textarea {
-        appearance: none;
-        background-color: #fff;
-        border: 1px solid #D1D5DB; /* gray-300 */
-        border-radius: 0.5rem; /* rounded-lg */
-        padding: 0.625rem 0.875rem;
-        width: 100%;
-        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-        transition: border-color 0.2s, box-shadow 0.2s;
-        font-size: 0.875rem;
+    }
+
+    .animate-fade-in-up {
+      animation: fade-in-up 0.3s ease-out forwards;
+    }
+
+    @keyframes scale-in {
+      0% {
+        transform: scale(0.95);
+        opacity: 0;
       }
-      select {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 0.5rem center;
-        background-repeat: no-repeat;
-        background-size: 1.5em 1.5em;
-        padding-right: 2.5rem;
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
       }
-      input:focus,
-      select:focus,
-      textarea:focus {
-        outline: 2px solid transparent;
-        outline-offset: 2px;
-        border-color: var(--wecare-blue);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+
+    .animate-scale-in {
+      animation: scale-in 0.2s ease-out forwards;
+    }
+
+    @keyframes slide-up {
+      0% {
+        transform: translateY(100%);
       }
-      input::placeholder,
-      textarea::placeholder {
-        color: #9CA3AF; /* gray-400 */
+
+      100% {
+        transform: translateY(0);
       }
-      input:disabled,
-      select:disabled,
-      textarea:disabled {
-        background-color: #F3F4F6; /* gray-100 */
-        color: #6B7280; /* gray-500 */
-        cursor: not-allowed;
-        border-color: #D1D5DB; /* gray-300 */
-      }
-      /* Custom Animations */
-      @keyframes fade-in-up {
-          0% {
-              opacity: 0;
-              transform: translateY(10px);
-          }
-          100% {
-              opacity: 1;
-              transform: translateY(0);
-          }
-      }
-      .animate-fade-in-up {
-          animation: fade-in-up 0.3s ease-out forwards;
-      }
-      @keyframes scale-in {
-          0% {
-              transform: scale(0.95);
-              opacity: 0;
-          }
-          100% {
-              transform: scale(1);
-              opacity: 1;
-          }
-      }
-      .animate-scale-in {
-          animation: scale-in 0.2s ease-out forwards;
-      }
-      @keyframes slide-up {
-          0% {
-              transform: translateY(100%);
-          }
-          100% {
-              transform: translateY(0);
-          }
-      }
-      .animate-slide-up {
-          animation: slide-up 0.3s ease-out forwards;
-      }
-      .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border-width: 0;
-      }
-    </style>
-<script type="importmap">
+    }
+
+    .animate-slide-up {
+      animation: slide-up 0.3s ease-out forwards;
+    }
+
+    /* Executive Map Popups Premium Styling */
+    .executive-popup .leaflet-popup-content-wrapper {
+      border-radius: 1.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border: 1px solid #E2E8F0;
+      padding: 0 !important;
+      overflow: hidden;
+    }
+
+    .executive-popup .leaflet-popup-content {
+      margin: 0 !important;
+      line-height: normal;
+    }
+
+    .executive-popup .leaflet-popup-tip {
+      background: white;
+      border: 1px solid #E2E8F0;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+  </style>
+  <script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.1.1",
@@ -135,7 +186,8 @@
 </head>
 
 <body class="bg-[var(--bg-main)]">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
 </body>
+
 </html>

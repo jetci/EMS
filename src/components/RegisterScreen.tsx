@@ -26,8 +26,18 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginClick }) => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+    if (password.length < 8) {
+      setError('รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร');
+      return;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      setError('รหัสผ่านต้องประกอบด้วยตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก ตัวเลข และอักขระพิเศษ');
       return;
     }
 
@@ -153,8 +163,11 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginClick }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="mt-1"
-              placeholder="อย่างน้อย 6 ตัวอักษร"
+              placeholder="อย่างน้อย 8 ตัวอักษร (ตัวใหญ่, เล็ก, เลข, สัญลักษณ์)"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              * ต้องมี A-Z, a-z, 0-9 และอักขระพิเศษอย่างน้อย 1 ตัว
+            </p>
           </div>
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">

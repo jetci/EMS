@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, AuthenticatedView, Notification } from '../../types';
+import { getAppSettings } from '../../utils/settings';
 import UserIcon from '../icons/UserIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import BellIcon from '../icons/BellIcon';
@@ -41,7 +42,14 @@ const viewToName: Record<string, string> = {
   test_map: 'Test Map Component',
 
   // Executive-specific
-  executive_dashboard: 'ภาพรวมโครงการ',
+  executive_dashboard: 'Executive Dashboard',
+  village_distribution: 'สรุปรายหมู่บ้าน',
+  spatial_analytics: 'แผนที่การกระจายตัว',
+  drill_down: 'รายละเอียดเชิงลึก',
+  density_map: 'วิเคราะห์ความหนาแน่น',
+  operational_report: 'รายงานผลดำเนินการ',
+  financial_report: 'รายงานสถานะการเงิน',
+  patient_demographics_report: 'ข้อมูลประชากรผู้ป่วย',
 
   // Shared
   profile: 'My Profile',
@@ -52,7 +60,17 @@ const viewToName: Record<string, string> = {
 
 
 const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, setNotifications, onMenuClick }) => {
+  console.log('DEBUG: TopHeader activeView =', activeView);
+  const [settings, setSettings] = useState(getAppSettings());
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setSettings(getAppSettings());
+    };
+    window.addEventListener('settingsChanged', handleSettingsChange);
+    return () => window.removeEventListener('settingsChanged', handleSettingsChange);
+  }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -76,9 +94,12 @@ const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, 
             <MenuIcon className="w-6 h-6" />
           </button>
           <div className="flex items-center text-sm text-gray-500">
+            {settings.logoUrl && (
+              <img src={settings.logoUrl} alt="Logo" className="w-6 h-6 object-contain mr-2 hidden sm:block" />
+            )}
             <span>Home</span>
             <ChevronRightIcon className="w-4 h-4 mx-1" />
-            <span className="font-medium text-gray-800">{viewToName[activeView] || 'Page'}</span>
+            <span className="font-medium text-gray-800">{viewToName[activeView] || (activeView ? `View: ${activeView}` : 'Dashboard')}</span>
           </div>
         </div>
 

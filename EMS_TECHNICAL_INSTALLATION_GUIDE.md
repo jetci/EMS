@@ -139,6 +139,12 @@ npm run preview
 | `system_settings` | การตั้งค่าระบบ | Global configs |
 | `map_data` | ข้อมูลแผนที่ | ROI, Zones (GeoJSON) |
 
+> [!IMPORTANT]
+> **พิกัดศูนย์กลางมาตรฐาน (Default System Map Center):** 
+> - **ละติจูด (Latitude):** 19.904394846183447
+> - **ลองจิจูด (Longitude):** 99.19735149982482 
+> **ให้ใช้พิกัดนี้ทุกครั้งในการตั้งค่าแผนที่เริ่มต้นในทุกหน้าของระบบ**
+
 ---
 
 ## 🔑 5. บัญชีผู้ใช้สำหรับการทดสอบ (Test Accounts)

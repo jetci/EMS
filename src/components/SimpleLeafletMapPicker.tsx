@@ -168,7 +168,7 @@ const SimpleLeafletMapPicker: React.FC<SimpleLeafletMapPickerProps> = ({
     return (
         <div className={`${isFullScreen ? 'fixed inset-0 z-[9999] bg-white p-4' : 'relative w-full'}`} style={{ height: isFullScreen ? '100vh' : height }}>
             <MapContainer
-                center={[position.lat || 19.9213, position.lng || 99.2131]}
+                center={[position.lat || 19.904394846183447, position.lng || 99.19735149982482]}
                 zoom={13}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={true}

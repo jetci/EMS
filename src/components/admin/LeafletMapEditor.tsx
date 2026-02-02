@@ -245,7 +245,7 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({ title = "Leaflet Ma
                 </div>
 
                 <div className={`w-full border rounded-lg overflow-hidden relative z-0 ${isFullScreen ? 'flex-grow' : 'h-[600px]'}`}>
-                    <MapContainer center={[19.9213, 99.2131]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                    <MapContainer center={[19.904394846183447, 99.19735149982482]} zoom={13} style={{ height: '100%', width: '100%' }}>
                         <MapController />
                         <LayersControl position="topright">
                             <LayersControl.BaseLayer checked name="Street Map (OSM)">

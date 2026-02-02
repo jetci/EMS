@@ -64,7 +64,11 @@ export function initializeSocket(): Socket {
         throw new Error('No authentication token found');
     }
 
-    socket = io('/locations', {
+    const backendUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:3001'
+        : window.location.origin;
+
+    socket = io(`${backendUrl}/locations`, {
         auth: {
             token: token
         },

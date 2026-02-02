@@ -2,14 +2,14 @@ import { SystemSettings } from '../../types';
 
 const DEFAULTS: SystemSettings = {
     appName: 'WeCare Platform',
-    organizationName: 'องค์การบริหารส่วนตำบลเวียง',
-    organizationAddress: 'เลขที่ 666 ถ.รอบเวียงสุทโธ ม.3 ต.เวียง อ.ฝาง จ.เชียงใหม่ 50110',
-    organizationPhone: '053-382670',
+    organizationName: 'EMS WeCare HQ',
+    organizationAddress: 'กรุงเทพมหานคร',
+    organizationPhone: '02-000-0000',
     contactEmail: 'contact@wecare.dev',
     logoUrl: undefined,
     googleMapsApiKey: '', // Default to empty string
-    mapCenterLat: 19.9213, // Default: Fang, Chiang Mai
-    mapCenterLng: 99.2131,
+    mapCenterLat: 19.904394846183447, // Default centered as per user request
+    mapCenterLng: 99.19735149982482,
     googleRecaptchaSiteKey: 'your-recaptcha-site-key-here',
     googleRecaptchaSecretKey: 'your-recaptcha-secret-key-here',
     maintenanceMode: false,

@@ -132,7 +132,7 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
                                     <td className="px-6 py-4">{article.publishedDate ? formatDateToThai(article.publishedDate) : 'ยังไม่เผยแพร่'}</td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => alert('Previewing...')} className="text-gray-500 hover:text-green-600" title="ดูตัวอย่าง"><PreviewIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => setActiveView('view_news', { articleId: article.id })} className="text-gray-500 hover:text-green-600" title="ดูตัวอย่าง"><PreviewIcon className="w-5 h-5" /></button>
                                             <button onClick={() => setActiveView('edit_news', { articleId: article.id })} className="text-gray-500 hover:text-blue-600" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
                                             <button onClick={() => handleOpenDeleteConfirm(article)} className="text-gray-500 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
                                         </div>

@@ -32,11 +32,20 @@ import ManageNewsPage from '../../pages/ManageNewsPage';
 import NewsEditorPage from '../../pages/NewsEditorPage';
 import OfficeReportsPage from '../../pages/OfficeReportsPage';
 import ExecutiveDashboardPage from '../../pages/ExecutiveDashboardPage';
+import VillageDistributionPage from '../../pages/VillageDistributionPage';
+import PatientSpatialMapPage from '../../pages/PatientSpatialMapPage';
+import PatientDrillDownPage from '../../pages/PatientDrillDownPage';
+import DensityHeatmapPage from '../../pages/DensityHeatmapPage';
+import OperationalReportPage from '../../pages/OperationalReportPage';
+import FinancialReportPage from '../../pages/FinancialReportPage';
+import DemographicsReportPage from '../../pages/DemographicsReportPage';
 import DeveloperDashboardPage from '../../pages/DeveloperDashboardPage';
 import SystemLogsPage from '../../pages/SystemLogsPage';
 import MapCommandPage from '../../pages/MapCommandPage';
 // ⚠️ TEMPORARY: Test page for UnifiedRadioDashboard (will be removed after testing)
 import TestUnifiedRadioPage from '../../pages/TestUnifiedRadioPage';
+import PublicSingleNewsPage from '../../pages/PublicSingleNewsPage';
+import ExecutiveProfilePage from '../../pages/ExecutiveProfilePage';
 
 import { initializeSocket, disconnectSocket, onNotification } from '../../services/socketService';
 
@@ -152,6 +161,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'manage_schedules': return <ManageSchedulePage />;
           case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
           case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
           case 'manage_vehicles': return <ManageVehiclesPage />;
           case 'reports': return <OfficeReportsPage />;
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
@@ -170,6 +180,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'manage_schedules': return <ManageSchedulePage />;
           case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
           case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
           case 'reports': return <OfficeReportsPage />;
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <RadioDashboard setActiveView={handleSetView} />;
@@ -187,6 +198,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'manage_schedules': return <ManageSchedulePage />;
           case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
           case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
           case 'reports': return <OfficeReportsPage />;
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <RadioCenterDashboard setActiveView={handleSetView} />;
@@ -194,6 +206,14 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
       case 'EXECUTIVE':
         switch (activeView as ExecutiveView) {
           case 'executive_dashboard': return <ExecutiveDashboardPage />;
+          case 'village_distribution': return <VillageDistributionPage />;
+          case 'spatial_analytics': return <PatientSpatialMapPage />;
+          case 'drill_down': return <PatientDrillDownPage />;
+          case 'density_map': return <DensityHeatmapPage />;
+          case 'operational_report': return <OperationalReportPage />;
+          case 'financial_report': return <FinancialReportPage />;
+          case 'patient_demographics_report': return <DemographicsReportPage />;
+          case 'profile': return <ExecutiveProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <ExecutiveDashboardPage />;
         }
       case 'DEVELOPER':
@@ -215,6 +235,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'manage_vehicle_types': return <ManageVehicleTypesPage />;
           case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
           case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
           case 'reports': return <OfficeReportsPage />;
           case 'logs': return <AdminAuditLogsPage />;
           case 'settings': return <AdminSystemSettingsPage currentUser={user} />;

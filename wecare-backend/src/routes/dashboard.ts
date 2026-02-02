@@ -66,16 +66,21 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
       };
     });
 
-    // Patient Distribution by Village
-    const patientDistributionData = sqliteDB.all<any>(`
+    // Patient Distribution by Village with Colors
+    const rawDistribution = sqliteDB.all<any>(`
       SELECT 
         COALESCE(current_village, 'ไม่ระบุ') as label,
         COUNT(*) as value
       FROM patients
       GROUP BY current_village
       ORDER BY value DESC
-      LIMIT 5
     `);
+
+    const colors = ['#3B82F6', '#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+    const patientDistributionData = rawDistribution.map((item, idx) => ({
+      ...item,
+      color: colors[idx % colors.length]
+    }));
 
     // Top Trip Types
     const topTripTypesData = sqliteDB.all<any>(`
@@ -110,15 +115,32 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
       SELECT 
         id,
         full_name as name,
+        COALESCE(current_village, 'ไม่ระบุ') as village,
         CAST(latitude AS REAL) as lat,
         CAST(longitude AS REAL) as lng,
         patient_types as type
       FROM patients
       WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-    `).map(p => ({
-      ...p,
-      type: p.type ? JSON.parse(p.type)[0] || 'ทั่วไป' : 'ทั่วไป'
-    }));
+    `).map(p => {
+      let typeLabel = 'ทั่วไป';
+      try {
+        if (p.type) {
+          const parsed = JSON.parse(p.type);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            typeLabel = parsed[0];
+          } else if (typeof parsed === 'string') {
+            typeLabel = parsed;
+          }
+        }
+      } catch (e) {
+        // Fallback for non-JSON strings
+        typeLabel = p.type || 'ทั่วไป';
+      }
+      return {
+        ...p,
+        type: typeLabel
+      };
+    });
 
     res.json({
       monthlyRideData,

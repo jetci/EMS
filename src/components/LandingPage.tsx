@@ -1,12 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import HeroIllustration from './illustrations/HeroIllustration';
 import Button from './ui/Button';
+import { getAppSettings } from '../utils/settings';
+import { SystemSettings } from '../types';
 
 interface LandingPageProps {
-  onRegisterClick: () => void;
+    onRegisterClick: () => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
+    const [settings, setSettings] = useState<SystemSettings | null>(null);
+
+    useEffect(() => {
+        setSettings(getAppSettings());
+    }, []);
+
+    const appName = settings?.appName || 'WeCare';
+    const logoUrl = settings?.logoUrl;
+
     return (
         <div className="bg-white text-gray-800">
             {/* Hero Section */}
@@ -16,7 +27,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
                         {/* Text Content */}
                         <div className="text-center lg:text-left">
                             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-green-600 tracking-tight">
-                                WeCare
+                                {appName}
                             </h1>
                             <p className="mt-4 text-xl sm:text-2xl text-gray-700">
                                 เชื่อมต่อทุกการเดินทาง เพื่อการดูแลที่ไม่สะดุด
@@ -31,15 +42,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
                                 <Button
                                     variant="outline"
                                     size="lg"
-                                    onClick={() => { try { document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); } catch {} }}
+                                    onClick={() => { try { document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); } catch { } }}
                                 >
                                     เรียนรู้เพิ่มเติม
                                 </Button>
                             </div>
                         </div>
-                        {/* Illustration */}
+                        {/* Illustration or Logo */}
                         <div className="hidden lg:block">
-                            <HeroIllustration className="w-full h-auto max-w-lg mx-auto" />
+                            {logoUrl ? (
+                                <div className="animate-scale-in flex items-center justify-center p-8 bg-white rounded-3xl shadow-xl border border-gray-100 max-w-lg mx-auto overflow-hidden min-h-[400px]">
+                                    <img src={logoUrl} alt={appName} className="max-w-full max-h-full object-contain" />
+                                </div>
+                            ) : (
+                                <HeroIllustration className="w-full h-auto max-w-lg mx-auto" />
+                            )}
                         </div>
                     </div>
                 </div>
