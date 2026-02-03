@@ -30,7 +30,7 @@ const basePath = getBasePath();
 
 // ตั้งค่า global สำหรับใช้ใน components อื่น
 (window as any).__BASE_PATH__ = basePath;
-(window as any).__API_BASE__ = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:3001/api';
+(window as any).__API_BASE__ = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
 
 // Debug log (เฉพาะ development)
 if ((import.meta as any)?.env?.DEV) {

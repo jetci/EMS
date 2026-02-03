@@ -8,7 +8,8 @@
  */
 const getApiBase = (): string => {
   const viteEnv = (import.meta as any).env?.VITE_API_BASE_URL;
-  return (window as any).__API_BASE__ || viteEnv || 'http://localhost:5000/api';
+  // Prefer runtime window value, then Vite env, then relative '/api' to use platform proxy.
+  return (window as any).__API_BASE__ || viteEnv || '/api';
 };
 
 /**
