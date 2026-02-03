@@ -230,10 +230,13 @@ const ModernDatePicker: React.FC<ModernDatePickerProps> = ({
         return days;
     };
 
-    // Generate year options (100 years range)
+    // Generate year options (Dynamic range based on current selection and constraints)
+    const now = new Date();
+    const currentYearNow = now.getFullYear();
     const currentYearBE = currentYear + 543;
-    const maxYearBE = max ? new Date(max).getFullYear() + 543 : new Date().getFullYear() + 543;
-    const minYearBE = min ? new Date(min).getFullYear() + 543 : new Date().getFullYear() + 543 - 100;
+
+    const maxYearBE = max ? new Date(max).getFullYear() + 543 : Math.max(currentYear, currentYearNow + 20) + 543;
+    const minYearBE = min ? new Date(min).getFullYear() + 543 : Math.min(currentYear, currentYearNow - 100) + 543;
 
     const yearOptions = [];
     for (let y = maxYearBE; y >= minYearBE; y--) {

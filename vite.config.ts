@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
     // e.g., VITE_BASE=/ems_staging/
     base: env.VITE_BASE || '/',
     build: {
-      outDir: 'build'
+      outDir: 'dist'
     },
     plugins: [react()],
     define: {
