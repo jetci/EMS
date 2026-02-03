@@ -27,9 +27,9 @@ export default defineConfig(({ mode }) => {
         }
       },
     },
-    // Use base path from env for staging/production hosting under a subfolder
-    // e.g., VITE_BASE=/ems_staging/
-    base: env.VITE_BASE || '/',
+    // Use root base by default to ensure asset paths resolve correctly in production
+    // If you intentionally deploy under a subpath, set VITE_BASE before building.
+    base: '/',
     build: {
       outDir: 'dist'
     },
