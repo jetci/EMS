@@ -68,6 +68,23 @@ interface Driver {
   user_id?: string;
 }
 
+// Utility function to get client IP address
+// Handles proxies (X-Forwarded-For, X-Real-IP, etc)
+const getClientIp = (req: any): string => {
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  if (xForwardedFor) {
+    // x-forwarded-for can contain multiple IPs, get the first one
+    return (xForwardedFor as string).split(',')[0].trim();
+  }
+  
+  const xRealIp = req.headers['x-real-ip'];
+  if (xRealIp) {
+    return xRealIp as string;
+  }
+
+  return req.ip || req.connection?.remoteAddress || 'unknown';
+};
+
 // POST /auth/login
 router.post('/auth/login', async (req, res) => {
   const { email, password } = req.body as { email: string; password: string };
@@ -77,6 +94,8 @@ router.post('/auth/login', async (req, res) => {
   }
 
   try {
+    const clientIp = getClientIp(req);
+
     // Check if account is locked
     const lockStatus = accountLockoutService.isAccountLocked(email);
     if (lockStatus.locked) {
@@ -85,7 +104,7 @@ router.post('/auth/login', async (req, res) => {
         reason: 'Account locked',
         attempts: lockStatus.attempts,
         remainingTime: lockStatus.remainingTime
-      });
+      }, clientIp);
       return res.status(423).json({
         error: 'Account temporarily locked',
         message: `Too many failed login attempts. Please try again in ${remainingMinutes} minute(s).`,
@@ -105,7 +124,7 @@ router.post('/auth/login', async (req, res) => {
       auditService.log(email, 'unknown', 'LOGIN_FAILED', undefined, {
         reason: 'User not found',
         remainingAttempts: remaining
-      });
+      }, clientIp);
 
       return res.status(401).json({
         error: 'Invalid credentials',
@@ -131,7 +150,7 @@ router.post('/auth/login', async (req, res) => {
       auditService.log(email, user.role, 'LOGIN_FAILED', user.id, {
         reason: 'Invalid password',
         remainingAttempts: remaining
-      });
+      }, clientIp);
 
       return res.status(401).json({
         error: 'Invalid credentials',
@@ -142,7 +161,7 @@ router.post('/auth/login', async (req, res) => {
 
     // Check if user is active
     if (user.status !== 'Active') {
-      auditService.log(email, user.role, 'LOGIN_FAILED', user.id, { reason: 'Account inactive' });
+      auditService.log(email, user.role, 'LOGIN_FAILED', user.id, { reason: 'Account inactive' }, clientIp);
       return res.status(403).json({ error: 'Account is inactive' });
     }
 
@@ -169,7 +188,7 @@ router.post('/auth/login', async (req, res) => {
     accountLockoutService.clearFailedAttempts(email);
 
     // Audit successful login
-    auditService.log(email, user.role, 'LOGIN', user.id);
+    auditService.log(email, user.role, 'LOGIN', user.id, undefined, clientIp);
 
     // Exclude password from response
     const { password: _omit, ...userWithoutPassword } = user;
@@ -189,6 +208,7 @@ router.post('/auth/login', async (req, res) => {
 // POST /auth/logout
 router.post('/auth/logout', async (req, res) => {
   const authHeader = req.headers.authorization;
+  const clientIp = getClientIp(req);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -208,7 +228,7 @@ router.post('/auth/logout', async (req, res) => {
     tokenBlacklist.addToBlacklist(token, decoded.id, expiresAt);
 
     // Audit log
-    auditService.log(decoded.email, decoded.role, 'LOGOUT', decoded.id);
+    auditService.log(decoded.email, decoded.role, 'LOGOUT', decoded.id, undefined, clientIp);
 
     res.json({ message: 'Logged out successfully' });
   } catch (err: any) {
@@ -221,6 +241,7 @@ router.post('/auth/logout', async (req, res) => {
 // POST /auth/register
 router.post('/auth/register', async (req, res) => {
   const { email, password, name, phone, role } = req.body;
+  const clientIp = getClientIp(req);
 
   try {
     // Validate required fields
@@ -284,6 +305,7 @@ router.post('/auth/register', async (req, res) => {
 // POST /auth/change-password
 router.post('/auth/change-password', async (req, res) => {
   const { userId, currentPassword, newPassword } = req.body;
+  const clientIp = getClientIp(req);
 
   if (!userId || !currentPassword || !newPassword) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -305,7 +327,7 @@ router.post('/auth/change-password', async (req, res) => {
     // Verify current password using bcrypt
     const isCurrentPasswordValid = await verifyPassword(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
-      auditService.log(user.email, user.role, 'CHANGE_PASSWORD_FAILED', userId, { reason: 'Invalid current password' });
+      auditService.log(user.email, user.role, 'CHANGE_PASSWORD_FAILED', userId, { reason: 'Invalid current password' }, clientIp);
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
@@ -315,7 +337,7 @@ router.post('/auth/change-password', async (req, res) => {
     sqliteDB.update('users', userId, { password: hashedNewPassword });
 
     // Audit log
-    auditService.log(user.email, user.role, 'CHANGE_PASSWORD', userId);
+    auditService.log(user.email, user.role, 'CHANGE_PASSWORD', userId, undefined, clientIp);
 
     res.json({ message: 'Password changed successfully' });
   } catch (err: any) {
