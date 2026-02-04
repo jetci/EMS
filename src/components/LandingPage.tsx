@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HeroIllustration from './illustrations/HeroIllustration';
 import Button from './ui/Button';
-import { getAppSettings } from '../utils/settings';
+import { getAppSettings, fetchLogoFromAPI } from '../utils/settings';
 import { SystemSettings } from '../types';
 
 interface LandingPageProps {
@@ -10,13 +10,17 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
     const [settings, setSettings] = useState<SystemSettings | null>(null);
+    const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         setSettings(getAppSettings());
+        // Fetch logo from API instead of localStorage
+        fetchLogoFromAPI().then(logo => {
+            setLogoUrl(logo);
+        });
     }, []);
 
     const appName = settings?.appName || 'WeCare';
-    const logoUrl = settings?.logoUrl;
 
     return (
         <div className="bg-white text-gray-800">

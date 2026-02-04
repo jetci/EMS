@@ -79,12 +79,6 @@ const AdminSystemSettingsPage: React.FC<AdminSystemSettingsPageProps> = ({ curre
             localStorage.setItem('wecare_developerName', settings.developerName || '');
             localStorage.setItem('wecare_developerTitle', settings.developerTitle || '');
 
-            if (settings.logoUrl) {
-                localStorage.setItem('wecare_logoUrl', settings.logoUrl);
-            } else {
-                localStorage.removeItem('wecare_logoUrl');
-            }
-
             window.dispatchEvent(new CustomEvent('settingsChanged'));
 
             alert("บันทึกการตั้งค่าสำเร็จ!");

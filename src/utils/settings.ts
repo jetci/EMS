@@ -1,4 +1,5 @@
 import { SystemSettings } from '../types';
+import { apiRequest } from '../services/api';
 
 const DEFAULTS: SystemSettings = {
     appName: 'WeCare Platform',
@@ -28,7 +29,7 @@ export const getAppSettings = (): SystemSettings => {
             organizationAddress: localStorage.getItem('wecare_organizationAddress') || DEFAULTS.organizationAddress,
             organizationPhone: localStorage.getItem('wecare_organizationPhone') || DEFAULTS.organizationPhone,
             contactEmail: localStorage.getItem('wecare_contactEmail') || DEFAULTS.contactEmail,
-            logoUrl: localStorage.getItem('wecare_logoUrl') || DEFAULTS.logoUrl,
+            logoUrl: DEFAULTS.logoUrl,
             googleMapsApiKey: localStorage.getItem('wecare_googleMapsApiKey') || DEFAULTS.googleMapsApiKey,
             mapCenterLat: parseFloat(localStorage.getItem('wecare_mapCenterLat') || String(DEFAULTS.mapCenterLat)),
             mapCenterLng: parseFloat(localStorage.getItem('wecare_mapCenterLng') || String(DEFAULTS.mapCenterLng)),
@@ -44,5 +45,22 @@ export const getAppSettings = (): SystemSettings => {
     } catch (error) {
         console.error("Could not load settings from localStorage", error);
         return DEFAULTS;
+    }
+};
+
+export const fetchLogoFromAPI = async (): Promise<string | undefined> => {
+    try {
+        // Try authenticated endpoint first (for logged-in users)
+        try {
+            const response = await apiRequest<any>('/admin/settings', { method: 'GET' });
+            return response?.logoUrl || undefined;
+        } catch (authError) {
+            // Fall back to public endpoint if not authenticated
+            const response = await apiRequest<any>('/settings/public', { method: 'GET' });
+            return response?.logoUrl || undefined;
+        }
+    } catch (error) {
+        console.error('Error fetching logo from API:', error);
+        return undefined;
     }
 };

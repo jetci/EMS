@@ -91,4 +91,32 @@ router.put('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (r
     }
 });
 
+// GET /api/public/settings - Public endpoint for landing page and non-authenticated users
+router.get('/public', async (_req, res) => {
+    try {
+        const rows = sqliteDB.all<any>('SELECT key, value FROM system_settings');
+
+        // Convert array of {key, value} to object
+        const dbSettings = rows.reduce((acc, row) => {
+            acc[row.key] = row.value;
+            return acc;
+        }, {} as Record<string, string>);
+
+        // Merge with defaults and restore types - only return non-sensitive fields
+        const finalSettings = {
+            appName: dbSettings['appName'] || DEFAULT_SETTINGS.appName,
+            organizationName: dbSettings['organizationName'] || DEFAULT_SETTINGS.organizationName,
+            organizationAddress: dbSettings['organizationAddress'] || DEFAULT_SETTINGS.organizationAddress,
+            organizationPhone: dbSettings['organizationPhone'] || DEFAULT_SETTINGS.organizationPhone,
+            contactEmail: dbSettings['contactEmail'] || DEFAULT_SETTINGS.contactEmail,
+            logoUrl: dbSettings['logoUrl'] || DEFAULT_SETTINGS.logoUrl, // Important for landing page
+        };
+
+        res.json(finalSettings);
+    } catch (err: any) {
+        console.error('Error fetching public settings:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 export default router;

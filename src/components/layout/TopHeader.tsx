@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, AuthenticatedView, Notification } from '../../types';
-import { getAppSettings } from '../../utils/settings';
+import { getAppSettings, fetchLogoFromAPI } from '../../utils/settings';
 import UserIcon from '../icons/UserIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import BellIcon from '../icons/BellIcon';
@@ -67,9 +67,18 @@ const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, 
   useEffect(() => {
     const handleSettingsChange = () => {
       setSettings(getAppSettings());
+      fetchLogoFromAPI().then(logoUrl => {
+        setSettings(prev => ({ ...prev, logoUrl: logoUrl || prev.logoUrl }));
+      });
     };
     window.addEventListener('settingsChanged', handleSettingsChange);
     return () => window.removeEventListener('settingsChanged', handleSettingsChange);
+  }, []);
+
+  useEffect(() => {
+    fetchLogoFromAPI().then(logoUrl => {
+      if (logoUrl) setSettings(prev => ({ ...prev, logoUrl }));
+    });
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;

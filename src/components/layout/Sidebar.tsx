@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthenticatedView, User } from '../../types';
-import { getAppSettings } from '../../utils/settings';
+import { getAppSettings, fetchLogoFromAPI } from '../../utils/settings';
 import XIcon from '../icons/XIcon';
 import DashboardIcon from '../icons/DashboardIcon';
 import UsersIcon from '../icons/UsersIcon';
@@ -103,9 +103,18 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
   useEffect(() => {
     const handleSettingsChange = () => {
       setSettings(getAppSettings());
+      fetchLogoFromAPI().then(logoUrl => {
+        setSettings(prev => ({ ...prev, logoUrl: logoUrl || prev.logoUrl }));
+      });
     };
     window.addEventListener('settingsChanged', handleSettingsChange);
     return () => window.removeEventListener('settingsChanged', handleSettingsChange);
+  }, []);
+
+  useEffect(() => {
+    fetchLogoFromAPI().then(logoUrl => {
+      if (logoUrl) setSettings(prev => ({ ...prev, logoUrl }));
+    });
   }, []);
 
   const navItems = getNavItems(user.role);
