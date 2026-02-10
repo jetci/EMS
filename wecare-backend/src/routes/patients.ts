@@ -269,6 +269,27 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/patients/:id - fetch single patient (with attachments)
+router.get('/:id', async (req: AuthRequest, res) => {
+  const { id } = req.params;
+  try {
+    const patient = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    if (req.user?.role === 'community' && patient.created_by && patient.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const attachments = sqliteDB.all<any>('SELECT * FROM patient_attachments WHERE patient_id = ?', [id]);
+    const mappedPatient = mapPatientToResponse(patient, attachments);
+    res.json(mappedPatient);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/patients - create new patient
 router.post(
   '/',
