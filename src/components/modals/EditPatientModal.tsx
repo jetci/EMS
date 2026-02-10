@@ -50,7 +50,85 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
 
     useEffect(() => {
         if (patient && isOpen) {
-            const isSameAddress = JSON.stringify(patient.idCardAddress) === JSON.stringify(patient.currentAddress);
+            const parseArray = (v: any): string[] => {
+                if (Array.isArray(v)) return v;
+                if (typeof v === 'string') {
+                    try {
+                        const parsed = JSON.parse(v);
+                        if (Array.isArray(parsed)) return parsed;
+                    } catch { }
+                    return v ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                }
+                return [];
+            };
+
+            const sanitizeText = (v: any): string => {
+                if (v === null || v === undefined) return '';
+                const s = String(v).trim();
+                if (!s) return '';
+                if (s.toLowerCase() === 'null') return '';
+                return s;
+            };
+
+            const normalizeAddress = (a: any) => {
+                if (a && typeof a === 'object') {
+                    return {
+                        houseNumber: sanitizeText(a.houseNumber || a.house_number || ''),
+                        village: sanitizeText(a.village || ''),
+                        tambon: sanitizeText(a.tambon || ''),
+                        amphoe: sanitizeText(a.amphoe || ''),
+                        changwat: sanitizeText(a.changwat || ''),
+                    };
+                }
+                return { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' };
+            };
+
+            const normalizedPatient: Patient = {
+                ...(patient as any),
+                title: sanitizeText((patient as any).title),
+                fullName: sanitizeText((patient as any).fullName || (patient as any).full_name),
+                gender: sanitizeText((patient as any).gender),
+                nationalId: sanitizeText((patient as any).nationalId || (patient as any).national_id),
+                dob: sanitizeText((patient as any).dob),
+                contactPhone: sanitizeText((patient as any).contactPhone || (patient as any).contact_phone),
+                bloodType: sanitizeText((patient as any).bloodType || (patient as any).blood_type),
+                rhFactor: sanitizeText((patient as any).rhFactor || (patient as any).rh_factor),
+                healthCoverage: sanitizeText((patient as any).healthCoverage || (patient as any).health_coverage),
+                keyInfo: sanitizeText((patient as any).keyInfo || (patient as any).key_info),
+                caregiverName: sanitizeText((patient as any).caregiverName || (patient as any).caregiver_name),
+                caregiverPhone: sanitizeText((patient as any).caregiverPhone || (patient as any).caregiver_phone),
+                idCardAddress: normalizeAddress(
+                    (patient as any).idCardAddress ||
+                    (patient as any).id_card_address ||
+                    (patient as any).registeredAddress ||
+                    (patient as any).registered_address
+                ),
+                currentAddress: normalizeAddress((patient as any).currentAddress || (patient as any).current_address || (patient as any).address),
+                emergencyContactName: sanitizeText(
+                    (patient as any).emergencyContactName ||
+                    (patient as any).emergency_contact_name ||
+                    (patient as any).emergencyContact?.name
+                ),
+                emergencyContactPhone: sanitizeText(
+                    (patient as any).emergencyContactPhone ||
+                    (patient as any).emergency_contact_phone ||
+                    (patient as any).emergencyContact?.phone
+                ),
+                emergencyContactRelation: sanitizeText(
+                    (patient as any).emergencyContactRelation ||
+                    (patient as any).emergency_contact_relation ||
+                    (patient as any).emergencyContact?.relation
+                ),
+                patientTypes: parseArray((patient as any).patientTypes || (patient as any).patient_types),
+                chronicDiseases: parseArray((patient as any).chronicDiseases || (patient as any).chronic_diseases),
+                allergies: parseArray((patient as any).allergies),
+                landmark: sanitizeText((patient as any).landmark),
+                latitude: sanitizeText((patient as any).latitude),
+                longitude: sanitizeText((patient as any).longitude),
+                attachments: (patient as any).attachments || [],
+            };
+
+            const isSameAddress = JSON.stringify(normalizedPatient.idCardAddress) === JSON.stringify(normalizedPatient.currentAddress);
             setAddressOption(isSameAddress ? 'same' : 'new');
 
             const normalizeRh = (v: any): string => {
@@ -60,13 +138,13 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
                 return s;
             };
 
-            setFormData({ ...patient, rhFactor: normalizeRh((patient as any).rhFactor) });
-            setPatientTypes(patient.patientTypes || []);
-            setChronicDiseases(patient.chronicDiseases || []);
-            setAllergies(patient.allergies || []);
-            setProfileImage({ file: null, previewUrl: patient.profileImageUrl || defaultProfileImage });
+            setFormData({ ...normalizedPatient, rhFactor: normalizeRh((normalizedPatient as any).rhFactor) });
+            setPatientTypes(normalizedPatient.patientTypes || []);
+            setChronicDiseases(normalizedPatient.chronicDiseases || []);
+            setAllergies(normalizedPatient.allergies || []);
+            setProfileImage({ file: null, previewUrl: normalizedPatient.profileImageUrl || defaultProfileImage });
             setNewAttachments([]); // Reset new attachments on open
-            setExistingAttachments(patient.attachments || []);
+            setExistingAttachments(normalizedPatient.attachments || []);
         }
     }, [patient, isOpen]);
 
