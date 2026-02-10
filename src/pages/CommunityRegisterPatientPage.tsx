@@ -157,6 +157,13 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                 return;
             }
 
+            const appendIfPresent = (fd: FormData, key: string, value: any) => {
+                if (value === undefined || value === null) return;
+                if (typeof value === 'string' && value.trim() === '') return;
+                if (typeof value === 'number' && !Number.isFinite(value)) return;
+                fd.append(key, typeof value === 'string' ? value : String(value));
+            };
+
             // Transform data to match backend expectation if necessary
             // The backend expects specific fields like 'fullName', 'nationalId', etc.
             // We might need to map 'firstName' + 'lastName' to 'fullName'
@@ -164,10 +171,10 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
             const requestData = new FormData();
 
             // Basic Fields
-            requestData.append('title', finalData.title);
             requestData.append('fullName', `${finalData.firstName} ${finalData.lastName}`);
-            requestData.append('gender', finalData.gender);
-            requestData.append('nationalId', finalData.idCard || '');
+            appendIfPresent(requestData, 'title', finalData.title);
+            appendIfPresent(requestData, 'gender', finalData.gender);
+            appendIfPresent(requestData, 'nationalId', finalData.idCard);
 
             // Construct DOB from day/month/year
             // FIX: Step1Identity uses 'birthDate' (YYYY-MM-DD), but legacy code expected separate fields.
@@ -175,22 +182,22 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
             if (!dob && finalData.birthYear) {
                 dob = `${finalData.birthYear}-${finalData.birthMonth}-${finalData.birthDay}`;
             }
-            requestData.append('dob', dob || '');
-            requestData.append('age', String(finalData.age));
+            appendIfPresent(requestData, 'dob', dob);
+            appendIfPresent(requestData, 'age', finalData.age);
 
-            requestData.append('bloodType', finalData.bloodGroup || '');
-            requestData.append('rhFactor', finalData.rhFactor || '');
-            requestData.append('healthCoverage', finalData.insuranceType || '');
-            requestData.append('keyInfo', finalData.keyInfo || '');
-            requestData.append('contactPhone', finalData.contactPhone);
-            requestData.append('landmark', finalData.landmark || '');
-            requestData.append('latitude', finalData.latitude);
-            requestData.append('longitude', finalData.longitude);
+            appendIfPresent(requestData, 'bloodType', finalData.bloodGroup);
+            appendIfPresent(requestData, 'rhFactor', finalData.rhFactor);
+            appendIfPresent(requestData, 'healthCoverage', finalData.insuranceType);
+            appendIfPresent(requestData, 'keyInfo', finalData.keyInfo);
+            appendIfPresent(requestData, 'contactPhone', finalData.contactPhone);
+            appendIfPresent(requestData, 'landmark', finalData.landmark);
+            appendIfPresent(requestData, 'latitude', finalData.latitude);
+            appendIfPresent(requestData, 'longitude', finalData.longitude);
 
             // Emergency Contact
-            requestData.append('emergencyContactName', finalData.emergencyContactName || '');
-            requestData.append('emergencyContactPhone', finalData.emergencyContactPhone || '');
-            requestData.append('emergencyContactRelation', finalData.emergencyContactRelation || '');
+            appendIfPresent(requestData, 'emergencyContactName', finalData.emergencyContactName);
+            appendIfPresent(requestData, 'emergencyContactPhone', finalData.emergencyContactPhone);
+            appendIfPresent(requestData, 'emergencyContactRelation', finalData.emergencyContactRelation);
 
             // Address Objects (Send as JSON string)
             requestData.append('idCardAddress', JSON.stringify(finalData.idCardAddress));

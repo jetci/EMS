@@ -180,6 +180,13 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
 
       let detail: any = null;
       try { detail = await res.json(); } catch { }
+      if (detail?.error && Array.isArray(detail?.details) && detail.details.length > 0) {
+        const msg = detail.details
+          .map((d: any) => d?.message || d?.error || d?.detail || d)
+          .filter((m: any) => typeof m === 'string' && m.trim().length > 0)
+          .join('\n');
+        if (msg) throw new Error(msg);
+      }
       throw new Error(detail?.error || detail?.message || `HTTP ${res.status}: ${res.statusText}`);
     }
 
