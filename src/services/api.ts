@@ -286,10 +286,92 @@ export const patientsAPI = {
       throw e;
     }
   },
-  createPatient: (data: any) =>
-    apiRequest('/patients', { method: 'POST', body: JSON.stringify(data) }),
-  updatePatient: (id: string, data: any) =>
-    apiRequest(`/patients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  createPatient: (data: any) => {
+    if (data instanceof FormData) {
+      return apiRequest('/patients', { method: 'POST', body: data });
+    }
+    return apiRequest('/patients', { method: 'POST', body: JSON.stringify(data) });
+  },
+  updatePatient: (id: string, data: any) => {
+    if (data instanceof FormData) {
+      return apiRequest(`/patients/${id}`, { method: 'PUT', body: data });
+    }
+
+    const fd = new FormData();
+    const appendIfPresent = (key: string, value: any) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === 'string' && value.trim() === '') return;
+      if (typeof value === 'number' && !Number.isFinite(value)) return;
+      fd.append(key, typeof value === 'string' ? value : String(value));
+    };
+
+    const appendJsonIfPresent = (key: string, value: any) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === 'string') {
+        if (value.trim() === '') return;
+        fd.append(key, value);
+        return;
+      }
+      try {
+        fd.append(key, JSON.stringify(value));
+      } catch {
+        return;
+      }
+    };
+
+    const fullName = data?.fullName ?? data?.full_name;
+    const nationalId = data?.nationalId ?? data?.national_id;
+    const dob = data?.dob ?? data?.birthDate ?? data?.date_of_birth ?? data?.dateOfBirth;
+    const age = data?.age;
+    const gender = data?.gender ?? data?.sex;
+    const bloodType = data?.bloodType ?? data?.blood_type;
+    const rhFactor = data?.rhFactor ?? data?.rh_factor;
+    const healthCoverage = data?.healthCoverage ?? data?.health_coverage;
+    const contactPhone = data?.contactPhone ?? data?.contact_phone ?? data?.phone;
+    const landmark = data?.landmark;
+    const latitude = data?.latitude ?? data?.lat;
+    const longitude = data?.longitude ?? data?.lng;
+    const profileImageUrl = data?.profileImageUrl ?? data?.profile_image_url;
+
+    const emergencyContactName =
+      data?.emergencyContactName ?? data?.emergency_contact_name ?? data?.emergencyContact?.name;
+    const emergencyContactPhone =
+      data?.emergencyContactPhone ?? data?.emergency_contact_phone ?? data?.emergencyContact?.phone;
+    const emergencyContactRelation =
+      data?.emergencyContactRelation ?? data?.emergency_contact_relation ?? data?.emergencyContact?.relation;
+
+    appendIfPresent('title', data?.title ?? data?.prefix);
+    appendIfPresent('fullName', fullName);
+    appendIfPresent('nationalId', nationalId);
+    appendIfPresent('dob', dob);
+    appendIfPresent('age', age);
+    appendIfPresent('gender', gender);
+    appendIfPresent('bloodType', bloodType);
+    appendIfPresent('rhFactor', rhFactor);
+    appendIfPresent('healthCoverage', healthCoverage);
+    appendIfPresent('contactPhone', contactPhone);
+    appendIfPresent('landmark', landmark);
+    appendIfPresent('latitude', latitude);
+    appendIfPresent('longitude', longitude);
+    appendIfPresent('profileImageUrl', profileImageUrl);
+
+    appendIfPresent('emergencyContactName', emergencyContactName);
+    appendIfPresent('emergencyContactPhone', emergencyContactPhone);
+    appendIfPresent('emergencyContactRelation', emergencyContactRelation);
+
+    appendJsonIfPresent('currentAddress', data?.currentAddress ?? data?.current_address ?? data?.address);
+    appendJsonIfPresent('idCardAddress', data?.idCardAddress ?? data?.id_card_address ?? data?.registeredAddress ?? data?.registered_address);
+
+    const patientTypes = data?.patientTypes ?? data?.patient_types;
+    const chronicDiseases = data?.chronicDiseases ?? data?.chronic_diseases;
+    const allergies = data?.allergies;
+
+    appendJsonIfPresent('patientTypes', patientTypes);
+    appendJsonIfPresent('chronicDiseases', chronicDiseases);
+    appendJsonIfPresent('allergies', allergies);
+
+    return apiRequest(`/patients/${id}`, { method: 'PUT', body: fd });
+  },
   deletePatient: (id: string) =>
     apiRequest(`/patients/${id}`, { method: 'DELETE' }),
 };
