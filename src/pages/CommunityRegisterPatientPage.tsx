@@ -9,6 +9,7 @@ import Step2Medical from '../static/components/PatientRegistrationWizard/Step2Me
 import Step3Contact from '../static/components/PatientRegistrationWizard/Step3Contact';
 import Step4Attachments from '../static/components/PatientRegistrationWizard/Step4Attachments';
 import Step5Review from '../static/components/PatientRegistrationWizard/Step5Review';
+import { apiRequest } from '../services/api';
 
 interface CommunityRegisterPatientPageProps {
     setActiveView: (view: CommunityView, context?: any) => void;
@@ -150,7 +151,7 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         console.log("Final data for submission:", finalData);
 
         try {
-            const token = localStorage.getItem('wecare_token'); // Changed from 'token' to 'wecare_token' to match App.tsx
+            const token = localStorage.getItem('wecare_token');
             if (!token) {
                 alert('ไม่พบ Token กรุณาเข้าสู่ระบบใหม่');
                 return;
@@ -223,27 +224,14 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
 
             // Using fetch directly or apiRequest from services
             // Let's use the existing apiRequest if possible, but here we use fetch for FormData
-
-            const API_BASE = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
-            const response = await fetch(`${API_BASE}/patients`, {
+            await apiRequest('/patients', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                    // Content-Type header should NOT be set when sending FormData, browser sets it with boundary
-                },
                 body: requestData
             });
 
-            const result = await response.json();
-
-            if (response.ok) {
-                // Clear draft on successful submission
-                localStorage.removeItem(DRAFT_KEY);
-                alert(`ลงทะเบียนผู้ป่วยสำเร็จ!`);
-                setActiveView('patients');
-            } else {
-                throw new Error(result.message || 'เกิดข้อผิดพลาดในการลงทะเบียน');
-            }
+            localStorage.removeItem(DRAFT_KEY);
+            alert('ลงทะเบียนผู้ป่วยสำเร็จ!');
+            setActiveView('patients');
 
         } catch (error: any) {
             console.error('Error registering patient:', error);
