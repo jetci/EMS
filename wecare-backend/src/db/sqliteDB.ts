@@ -160,6 +160,17 @@ export const seedData = async () => {
                 status: 'Active'
             };
 
+            // Create Radio Center Chief User
+            const radioCenterUser = {
+                id: 'USR-RADIO-CENTER',
+                email: 'radio_center@wecare.dev',
+                password: hashedPassword,
+                role: 'radio_center',
+                full_name: 'Radio Center Chief',
+                date_created: new Date().toISOString(),
+                status: 'Active'
+            };
+
             // Create Officer User
             const officerUser = {
                 id: 'USR-OFFICER',
@@ -212,6 +223,7 @@ export const seedData = async () => {
             insertUser.run(adminUser);
             insertUser.run(devUser);
             insertUser.run(radioUser);
+            insertUser.run(radioCenterUser);
             insertUser.run(officerUser);
             insertUser.run(driverUser);
             insertUser.run(communityUser);
@@ -226,6 +238,7 @@ export const seedData = async () => {
             'admin@wecare.dev',
             'dev@wecare.ems',
             'office1@wecare.dev',
+            'radio_center@wecare.dev',
             'officer1@wecare.dev',
             'driver1@wecare.dev',
             'community1@wecare.dev',
@@ -240,6 +253,22 @@ export const seedData = async () => {
             }
         }
         console.log('🔧 Normalized test account passwords to password123 (where applicable)');
+
+        // Ensure essential test accounts exist even if DB was seeded earlier
+        const ensureUser = db.prepare(`
+            INSERT OR IGNORE INTO users (id, email, password, role, full_name, date_created, status)
+            VALUES (@id, @email, @password, @role, @full_name, @date_created, @status)
+        `);
+
+        ensureUser.run({
+            id: 'USR-RADIO-CENTER',
+            email: 'radio_center@wecare.dev',
+            password: hashedPassword,
+            role: 'radio_center',
+            full_name: 'Radio Center Chief',
+            date_created: new Date().toISOString(),
+            status: 'Active'
+        });
 
         // Seed Driver Profile if not exists
         const driverCount = db.prepare('SELECT COUNT(*) as count FROM drivers').get() as { count: number };
@@ -619,7 +648,8 @@ function applyMigrationsIfNeeded(): void {
             { version: 3, file: 'add_title_column.sql' },
             { version: 4, file: 'add_emergency_contact.sql' },
             { version: 5, file: 'add_user_profile_fields.sql' },
-            { version: 6, file: 'add_caregiver_and_key_info.sql' }
+            { version: 6, file: 'add_caregiver_and_key_info.sql' },
+            { version: 7, file: 'add_rides_location_columns.sql' }
         ];
 
         // Determine latest schema version from migration list
@@ -658,6 +688,11 @@ function applyMigrationsIfNeeded(): void {
                     } else if (m.version === 6) {
                         // Add caregiver and key_info to patients
                         if (hasColumn('patients', 'caregiver_name') && hasColumn('patients', 'caregiver_phone') && hasColumn('patients', 'key_info')) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 7) {
+                        // Add village/landmark/caregiver_phone to rides
+                        if (hasColumn('rides', 'village') && hasColumn('rides', 'landmark') && hasColumn('rides', 'caregiver_phone')) {
                             shouldApply = false;
                         }
                     }

@@ -81,7 +81,7 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                 status: (r.status as RideStatus) || RideStatus.PENDING,
                 driverName: r.driver_name || r.driverName || undefined,
                 pickupLocation: r.pickup_location || r.pickupLocation || '',
-                contactPhone: r.contact_phone || r.contactPhone || '',
+                contactPhone: r.patient_phone || r.patientPhone || r.contact_phone || r.contactPhone || '',
                 specialNeeds: r.special_needs || r.specialNeeds || [],
             }));
             setRides(mapped);

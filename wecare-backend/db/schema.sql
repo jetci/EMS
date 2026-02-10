@@ -155,6 +155,8 @@ CREATE TABLE IF NOT EXISTS rides (
     pickup_location TEXT NOT NULL,
     pickup_lat TEXT,
     pickup_lng TEXT,
+    village TEXT,
+    landmark TEXT,
     destination TEXT NOT NULL,
     destination_lat TEXT,
     destination_lng TEXT,
@@ -176,6 +178,7 @@ CREATE TABLE IF NOT EXISTS rides (
     
     -- Metadata
     created_by TEXT,
+    caregiver_phone TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     

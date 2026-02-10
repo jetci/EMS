@@ -8,6 +8,7 @@ const testUsers = {
   ADMIN: { email: 'admin@wecare.ems', pass: 'password123' },
   DEVELOPER: { email: 'dev@wecare.ems', pass: 'password123' },
   RADIO: { email: 'office1@wecare.dev', pass: 'password123' },
+  RADIO_CENTER: { email: 'radio_center@wecare.dev', pass: 'password123' },
   OFFICER: { email: 'officer1@wecare.dev', pass: 'password123' },
   DRIVER: { email: 'driver1@wecare.dev', pass: 'password123' },
   COMMUNITY: { email: 'community1@wecare.dev', pass: 'password123' },
