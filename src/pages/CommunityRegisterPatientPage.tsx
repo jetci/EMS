@@ -24,10 +24,8 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         title: '',
         firstName: '',
         lastName: '',
-        idCard: '',
-        birthDay: '',
-        birthMonth: '',
-        birthYear: '',
+        nationalId: '',
+        dob: '',
         gender: '',
         age: '',
 
@@ -35,8 +33,9 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         patientTypes: [],
         chronicDiseases: [],
         allergies: [],
-        bloodGroup: '',
-        insuranceType: '',
+        bloodType: '',
+        rhFactor: '',
+        healthCoverage: '',
         keyInfo: '',
 
         // Step 3 Data (Address & Contact)
@@ -96,8 +95,8 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
     // Auto-save draft whenever formData changes
     useEffect(() => {
         // Don't save if form is empty (initial state)
-        const hasData = formData.firstName || formData.lastName || formData.idCard ||
-            formData.contactPhone || formData.bloodGroup;
+        const hasData = formData.firstName || formData.lastName || formData.nationalId ||
+            formData.contactPhone || formData.bloodType;
 
         if (hasData) {
             const draftData = {
@@ -125,8 +124,16 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                 const parsedDraft = JSON.parse(savedDraft);
                 console.log('📦 Parsed draft data:', parsedDraft);
                 delete parsedDraft.timestamp; // Remove timestamp before setting
-                console.log('✅ Setting formData to:', parsedDraft);
-                setFormData(parsedDraft);
+                const normalizedDraft = {
+                    ...parsedDraft,
+                    nationalId: parsedDraft.nationalId || parsedDraft.idCard || '',
+                    dob: parsedDraft.dob || parsedDraft.birthDate || '',
+                    bloodType: parsedDraft.bloodType || parsedDraft.bloodGroup || '',
+                    rhFactor: parsedDraft.rhFactor || '',
+                    healthCoverage: parsedDraft.healthCoverage || parsedDraft.insuranceType || '',
+                };
+                console.log('✅ Setting formData to:', normalizedDraft);
+                setFormData(normalizedDraft);
                 setShowDraftNotification(false);
                 alert('✅ โหลดข้อมูลฉบับร่างสำเร็จ');
             } catch (error) {
@@ -174,20 +181,14 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
             requestData.append('fullName', `${finalData.firstName} ${finalData.lastName}`);
             appendIfPresent(requestData, 'title', finalData.title);
             appendIfPresent(requestData, 'gender', finalData.gender);
-            appendIfPresent(requestData, 'nationalId', finalData.idCard);
+            appendIfPresent(requestData, 'nationalId', finalData.nationalId || finalData.idCard);
 
-            // Construct DOB from day/month/year
-            // FIX: Step1Identity uses 'birthDate' (YYYY-MM-DD), but legacy code expected separate fields.
-            let dob = finalData.birthDate;
-            if (!dob && finalData.birthYear) {
-                dob = `${finalData.birthYear}-${finalData.birthMonth}-${finalData.birthDay}`;
-            }
-            appendIfPresent(requestData, 'dob', dob);
+            appendIfPresent(requestData, 'dob', finalData.dob || finalData.birthDate);
             appendIfPresent(requestData, 'age', finalData.age);
 
-            appendIfPresent(requestData, 'bloodType', finalData.bloodGroup);
+            appendIfPresent(requestData, 'bloodType', finalData.bloodType || finalData.bloodGroup);
             appendIfPresent(requestData, 'rhFactor', finalData.rhFactor);
-            appendIfPresent(requestData, 'healthCoverage', finalData.insuranceType);
+            appendIfPresent(requestData, 'healthCoverage', finalData.healthCoverage || finalData.insuranceType);
             appendIfPresent(requestData, 'keyInfo', finalData.keyInfo);
             appendIfPresent(requestData, 'contactPhone', finalData.contactPhone);
             appendIfPresent(requestData, 'landmark', finalData.landmark);

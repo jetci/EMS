@@ -117,20 +117,44 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
             // Contact & Address
             contactPhone: sanitizeText(data?.contactPhone || data?.phone || data?.contact_phone || ''),
-            idCardAddress: {
-                houseNumber: sanitizeText(data?.id_card_house_number || data?.registered_house_number || ''),
-                village: sanitizeText(data?.id_card_village || data?.registered_village || ''),
-                tambon: sanitizeText(data?.id_card_tambon || data?.registered_tambon || ''),
-                amphoe: sanitizeText(data?.id_card_amphoe || data?.registered_amphoe || ''),
-                changwat: sanitizeText(data?.id_card_changwat || data?.registered_changwat || ''),
-            },
-            currentAddress: {
-                houseNumber: sanitizeText(data?.current_house_number || ''),
-                village: sanitizeText(data?.current_village || ''),
-                tambon: sanitizeText(data?.current_tambon || ''),
-                amphoe: sanitizeText(data?.current_amphoe || ''),
-                changwat: sanitizeText(data?.current_changwat || ''),
-            },
+            idCardAddress: (() => {
+                const a = data?.registeredAddress || data?.registered_address || data?.idCardAddress || data?.id_card_address;
+                if (a && typeof a === 'object') {
+                    return {
+                        houseNumber: sanitizeText(a.houseNumber || a.house_number || ''),
+                        village: sanitizeText(a.village || ''),
+                        tambon: sanitizeText(a.tambon || ''),
+                        amphoe: sanitizeText(a.amphoe || ''),
+                        changwat: sanitizeText(a.changwat || ''),
+                    };
+                }
+                return {
+                    houseNumber: sanitizeText(data?.id_card_house_number || data?.registered_house_number || ''),
+                    village: sanitizeText(data?.id_card_village || data?.registered_village || ''),
+                    tambon: sanitizeText(data?.id_card_tambon || data?.registered_tambon || ''),
+                    amphoe: sanitizeText(data?.id_card_amphoe || data?.registered_amphoe || ''),
+                    changwat: sanitizeText(data?.id_card_changwat || data?.registered_changwat || ''),
+                };
+            })(),
+            currentAddress: (() => {
+                const a = data?.currentAddress || data?.current_address || data?.address;
+                if (a && typeof a === 'object') {
+                    return {
+                        houseNumber: sanitizeText(a.houseNumber || a.house_number || ''),
+                        village: sanitizeText(a.village || ''),
+                        tambon: sanitizeText(a.tambon || ''),
+                        amphoe: sanitizeText(a.amphoe || ''),
+                        changwat: sanitizeText(a.changwat || ''),
+                    };
+                }
+                return {
+                    houseNumber: sanitizeText(data?.current_house_number || ''),
+                    village: sanitizeText(data?.current_village || ''),
+                    tambon: sanitizeText(data?.current_tambon || ''),
+                    amphoe: sanitizeText(data?.current_amphoe || ''),
+                    changwat: sanitizeText(data?.current_changwat || ''),
+                };
+            })(),
             landmark: sanitizeText(data?.landmark || ''),
             latitude: (data?.latitude ?? data?.lat ?? '')?.toString?.() || '',
             longitude: (data?.longitude ?? data?.lng ?? '')?.toString?.() || '',
