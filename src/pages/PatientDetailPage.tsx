@@ -11,7 +11,6 @@ import EditIcon from '../components/icons/EditIcon';
 import PlusCircleIcon from '../components/icons/PlusCircleIcon';
 import ExternalLinkIcon from '../components/icons/ExternalLinkIcon';
 import DownloadIcon from '../components/icons/DownloadIcon';
-import EditPatientModal from '../components/modals/EditPatientModal';
 import { patientsAPI, ridesAPI } from '../services/api';
 
 interface PatientDetailPageProps {
@@ -24,11 +23,136 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
     const [rideHistory, setRideHistory] = useState<Ride[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         loadData();
     }, [patientId]);
+
+    // ✅ Normalize backend data (snake_case) into Patient shape (camelCase)
+    const normalizePatient = (data: any): Patient => {
+        const parseArray = (v: any): string[] => {
+            if (Array.isArray(v)) return v;
+            if (typeof v === 'string') {
+                try {
+                    const parsed = JSON.parse(v);
+                    if (Array.isArray(parsed)) return parsed;
+                } catch {}
+                return v ? v.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+            }
+            return [];
+        };
+
+        // Sanitize text values to avoid garbage like "???????????" or "undefined-undefined-undefined"
+        const sanitizeText = (v: any): string => {
+            if (v === null || v === undefined) return '';
+            const s = String(v).trim();
+            if (!s) return '';
+            if (/^\?+$/.test(s)) return '';
+            if (s.toLowerCase() === 'invalid date') return '';
+            if (s.toLowerCase() === 'null') return '';
+            return s;
+        };
+
+        const dobRaw: any = data?.dob || data?.birthDate || data?.date_of_birth || data?.dateOfBirth || '';
+        const dobStr: string = sanitizeText(dobRaw) === 'undefined-undefined-undefined' ? '' : sanitizeText(dobRaw);
+        const calcAge = (d: string): number => {
+            if (!d) return data?.age || 0;
+            let date: Date;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                date = new Date(`${d}T00:00:00`);
+            } else if (/^\d{2}\/(\d{2})\/\d{4}$/.test(d)) {
+                const [dd, mm, yyyy] = d.split('/');
+                date = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+            } else {
+                date = new Date(d);
+            }
+            if (isNaN(date.getTime())) return data?.age || 0;
+            const now = new Date();
+            let age = now.getFullYear() - date.getFullYear();
+            const m = now.getMonth() - date.getMonth();
+            if (m < 0 || (m === 0 && now.getDate() < date.getDate())) age--;
+            return age;
+        };
+
+        const attachmentsRaw = data?.attachments || data?.files || data?.documents || [];
+        const attachments: Attachment[] = (attachmentsRaw || []).map((f: any) => {
+            const sizeVal = f?.size_bytes ?? f?.sizeBytes ?? f?.size_kb ?? f?.sizeKB ?? f?.size;
+            let sizeStr = '';
+            if (typeof sizeVal === 'number') {
+                if (sizeVal > 1024 * 1024) sizeStr = `${(sizeVal / 1024 / 1024).toFixed(2)} MB`;
+                else if (sizeVal > 1024) sizeStr = `${(sizeVal / 1024).toFixed(1)} KB`;
+                else sizeStr = `${sizeVal} B`;
+            } else {
+                sizeStr = sizeVal || '';
+            }
+            return {
+                name: sanitizeText(
+                    f?.name_th || f?.nameTh || f?.thai_name || f?.name_thai || f?.name_th_full || f?.file_name_th ||
+                    f?.display_name || f?.original_name || f?.originalName || f?.title || f?.name || f?.filename || 'ไฟล์แนบ'
+                ),
+                url: f?.url || f?.file_url || f?.path || f?.download_url || '',
+                size: sizeStr,
+            };
+        });
+
+        return {
+            id: data?.id?.toString?.() || data?.patient_id?.toString?.() || '',
+            fullName: sanitizeText(data?.fullName || data?.full_name || `${data?.first_name || data?.firstName || ''} ${data?.last_name || data?.lastName || ''}`.trim()),
+            profileImageUrl: data?.profileImageUrl || data?.profile_image_url || undefined,
+
+            // Personal Info
+            title: sanitizeText(data?.title || data?.prefix || ''),
+            gender: sanitizeText(data?.gender || data?.sex || ''),
+            nationalId: sanitizeText(data?.nationalId || data?.national_id || data?.idCard || data?.citizen_id || ''),
+            dob: dobStr,
+            age: calcAge(dobStr),
+            patientTypes: parseArray(data?.patientTypes || data?.patient_types),
+
+            // Medical Info
+            bloodType: sanitizeText(data?.bloodType || data?.blood_type || ''),
+            rhFactor: sanitizeText(data?.rhFactor || data?.rh_factor || ''),
+            healthCoverage: sanitizeText(data?.healthCoverage || data?.health_coverage || data?.medicalCoverage || data?.insuranceType || ''),
+            chronicDiseases: parseArray(data?.chronicDiseases || data?.chronic_diseases),
+            allergies: parseArray(data?.allergies || data?.allergy_list || data?.allergies),
+
+            // Contact & Address
+            contactPhone: sanitizeText(data?.contactPhone || data?.phone || data?.contact_phone || ''),
+            idCardAddress: {
+                houseNumber: sanitizeText(data?.id_card_house_number || data?.registered_house_number || ''),
+                village: sanitizeText(data?.id_card_village || data?.registered_village || ''),
+                tambon: sanitizeText(data?.id_card_tambon || data?.registered_tambon || ''),
+                amphoe: sanitizeText(data?.id_card_amphoe || data?.registered_amphoe || ''),
+                changwat: sanitizeText(data?.id_card_changwat || data?.registered_changwat || ''),
+            },
+            currentAddress: {
+                houseNumber: sanitizeText(data?.current_house_number || ''),
+                village: sanitizeText(data?.current_village || ''),
+                tambon: sanitizeText(data?.current_tambon || ''),
+                amphoe: sanitizeText(data?.current_amphoe || ''),
+                changwat: sanitizeText(data?.current_changwat || ''),
+            },
+            landmark: sanitizeText(data?.landmark || ''),
+            latitude: (data?.latitude ?? data?.lat ?? '')?.toString?.() || '',
+            longitude: (data?.longitude ?? data?.lng ?? '')?.toString?.() || '',
+
+            // Emergency Contact (flat fields)
+            emergencyContactName: sanitizeText(data?.emergency_contact_name || data?.emergencyContact?.name || ''),
+            emergencyContactPhone: sanitizeText(data?.emergency_contact_phone || data?.emergencyContact?.phone || ''),
+            emergencyContactRelation: sanitizeText(data?.emergency_contact_relation || data?.emergencyContact?.relation || ''),
+
+            // Attachments
+            attachments,
+
+            // Metadata
+            registeredDate: sanitizeText(data?.registeredDate || data?.registered_date || data?.created_at || ''),
+            registeredBy: sanitizeText(data?.registeredBy || data?.created_by || ''),
+            keyInfo: sanitizeText(data?.key_info || data?.keyInfo || ''),
+            caregiverName: sanitizeText(data?.caregiver_name || data?.caregiverName || ''),
+            caregiverPhone: sanitizeText(data?.caregiver_phone || data?.caregiverPhone || ''),
+            createdAt: data?.created_at || data?.createdAt,
+            updatedAt: data?.updated_at || data?.updatedAt,
+        };
+    };
 
     const loadData = async () => {
         try {
@@ -43,12 +167,15 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
             console.log('🔍 Profile Image URL:', patientData.profileImageUrl || patientData.profile_image_url);
             console.log('🔍 Address Data:', patientData.currentAddress || patientData.address);
 
-            setPatient(patientData);
+            // ✅ Normalize and set patient for consistent rendering
+            setPatient(normalizePatient(patientData));
 
             // Load ride history (filtering all rides for this patient)
             const allRides = await ridesAPI.getRides();
-            const patientRides = (Array.isArray(allRides) ? allRides : (allRides.rides || []))
-                .filter((r: any) => r.patientId === patientId || r.patient_id === patientId)
+            const ridesArray = Array.isArray(allRides) ? allRides : (allRides.rides || []);
+            const patientIdStr = String(patientId);
+            const patientRides = ridesArray
+                .filter((r: any) => String(r.patientId ?? r.patient_id) === patientIdStr)
                 .sort((a: Ride, b: Ride) => new Date(b.appointmentTime).getTime() - new Date(a.appointmentTime).getTime());
 
             setRideHistory(patientRides);
@@ -63,13 +190,37 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
     const handleSavePatient = async (updatedPatient: Patient) => {
         try {
-            await patientsAPI.updatePatient(updatedPatient.id, updatedPatient);
-            setPatient(updatedPatient);
-            setIsModalOpen(false);
+            // Map frontend Patient to backend format
+            const backendData = {
+                full_name: updatedPatient.fullName,
+                title: updatedPatient.title,
+                gender: updatedPatient.gender,
+                national_id: updatedPatient.nationalId,
+                dob: updatedPatient.dob,
+                patient_types: updatedPatient.patientTypes,
+                blood_type: updatedPatient.bloodType,
+                rh_factor: updatedPatient.rhFactor,
+                health_coverage: updatedPatient.healthCoverage,
+                chronic_diseases: updatedPatient.chronicDiseases,
+                allergies: updatedPatient.allergies,
+                contact_phone: updatedPatient.contactPhone,
+                id_card_address: updatedPatient.idCardAddress,
+                current_address: updatedPatient.currentAddress,
+                landmark: updatedPatient.landmark,
+                latitude: updatedPatient.latitude,
+                longitude: updatedPatient.longitude,
+                attachments: updatedPatient.attachments,
+                key_info: updatedPatient.keyInfo,
+            };
+
+            await patientsAPI.updatePatient(updatedPatient.id, backendData);
+            // Remove setIsModalOpen(false) after update since modal is no longer used
             alert('บันทึกข้อมูลสำเร็จ');
+            // Reload latest data to reflect server state
+            await loadData();
         } catch (err: any) {
             console.error('Failed to update patient:', err);
-            alert('ไม่สามารถบันทึกข้อมูลได้');
+            alert(`ไม่สามารถบันทึกข้อมูลได้: ${err?.message || 'Unknown error'}`);
         }
     };
 
@@ -106,7 +257,7 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                             if (url.startsWith('http') || url.startsWith('data:')) return url;
 
                             // Construct absolute URL for relative paths
-                            const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:3001/api';
+                            const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
                             const rootUrl = apiBase.replace(/\/api\/?$/, ''); // Remove /api suffix
                             return `${rootUrl}${url.startsWith('/') ? '' : '/'}${url}`;
                         })()}
@@ -128,7 +279,7 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                         </div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3">
-                        <button onClick={() => setIsModalOpen(true)} className="flex items-center justify-center px-4 py-2 font-semibold text-[var(--wecare-blue)] bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors">
+                        <button onClick={() => setActiveView('edit_patient', { patientId: patient.id })} className="flex items-center justify-center px-4 py-2 font-semibold text-[var(--wecare-blue)] bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors">
                             <EditIcon className="w-5 h-5 mr-2" /> แก้ไขข้อมูล
                         </button>
                         <button onClick={() => setActiveView('request_ride', { patientId: patient.id })} className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[var(--wecare-green)] rounded-lg shadow-sm hover:bg-green-600 transition-colors">
@@ -186,7 +337,7 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                     {/* 5. เลขบัตรประชาชน */}
                     <div className="sm:col-span-2">
                         <dt className="font-semibold text-gray-600">เลขบัตรประชาชน:</dt>
-                        <dd className="text-gray-800 font-mono">{(patient as any).nationalId || (patient as any).national_id || (patient as any).idCard || '-'}</dd>
+                        <dd className="text-gray-800 font-mono">{(patient as any).nationalId || (patient as any).national_id || (patient as any).idCard || 'ไม่ระบุ'}</dd>
                     </div>
 
                     {/* 6. วันเกิด */}
@@ -199,12 +350,12 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                                 // console.log('🔍 Birth Date Debug:', JSON.stringify({ dob, type: typeof dob }));
 
                                 // Check for garbage values
-                                if (!dob || dob === 'undefined-undefined-undefined' || dob === 'Invalid Date') return '-';
+                                if (!dob || dob === 'undefined-undefined-undefined' || dob === 'Invalid Date') return 'ไม่ระบุ';
 
                                 try {
                                     // Robust Date Parsing
                                     const date = new Date(dob);
-                                    if (isNaN(date.getTime())) return '-';
+                                    if (isNaN(date.getTime())) return 'ไม่ระบุ';
 
                                     // Format to Thai Date
                                     return date.toLocaleDateString('th-TH', {
@@ -213,7 +364,7 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                                         day: 'numeric',
                                     });
                                 } catch (e) {
-                                    return '-';
+                                    return 'ไม่ระบุ';
                                 }
                             })()}
                         </dd>
@@ -262,9 +413,19 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                                         }
                                         // Try idCardAddress
                                         if ((patient as any).idCardAddress) {
-                                            return (patient as any).idCardAddress;
+                                            const addr = (patient as any).idCardAddress;
+                                            return `${addr.houseNumber || ''} ${addr.village || ''}, ต.${addr.tambon || ''}, อ.${addr.amphoe || ''}, จ.${addr.changwat || ''} ${addr.postalCode || ''}`;
                                         }
-                                        return 'ไม่มีข้อมูลที่อยู่ตามบัตรประชาชน';
+                                        // Try id_card* fields
+                                        const hn = (patient as any).id_card_house_number || '';
+                                        const v = (patient as any).id_card_village || '';
+                                        const t = (patient as any).id_card_tambon || '';
+                                        const a = (patient as any).id_card_amphoe || '';
+                                        const c = (patient as any).id_card_changwat || '';
+                                        const pc = (patient as any).id_card_postal_code || '';
+                                        const parts = [hn, v].filter(Boolean).join(' ');
+                                        const addrStr = `${parts}${parts ? ', ' : ''}ต.${t || ''}, อ.${a || ''}, จ.${c || ''} ${pc || ''}`.trim();
+                                        return addrStr || 'ไม่มีข้อมูลที่อยู่ตามบัตรประชาชน';
                                     })()}
                                 </dd>
                             </div>
@@ -283,7 +444,9 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                                         // Try currentAddress object first
                                         if (patient.currentAddress) {
                                             const addr = patient.currentAddress;
-                                            return `${addr.houseNumber || ''} ${addr.village || ''}, ต.${addr.tambon || ''}, อ.${addr.amphoe || ''}, จ.${addr.changwat || ''}`;
+                                            const base = `${addr.houseNumber || ''} ${addr.village || ''}`.trim();
+                                            const tail = `ต.${addr.tambon || ''}, อ.${addr.amphoe || ''}, จ.${addr.changwat || ''}`.replace(/\b[,\s]+$/,'');
+                                            return `${base}${base ? ', ' : ''}${tail}`.trim();
                                         }
                                         // Try address string
                                         if ((patient as any).address) {
@@ -293,13 +456,21 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                                         if ((patient as any).full_address) {
                                             return (patient as any).full_address;
                                         }
-                                        return 'ไม่มีข้อมูลที่อยู่';
+                                        // Try current_* fields
+                                        const hn = (patient as any).current_house_number || '';
+                                        const v = (patient as any).current_village || '';
+                                        const t = (patient as any).current_tambon || '';
+                                        const a = (patient as any).current_amphoe || '';
+                                        const c = (patient as any).current_changwat || '';
+                                        const parts = [hn, v].filter(Boolean).join(' ');
+                                        const addrStr = `${parts}${parts ? ', ' : ''}ต.${t || ''}, อ.${a || ''}, จ.${c || ''}`.trim();
+                                        return addrStr || 'ไม่มีข้อมูลที่อยู่';
                                     })()}
                                 </dd>
                             </div>
-                            <div><dt className="font-semibold text-gray-600">เบอร์โทรศัพท์:</dt><dd className="text-gray-800">{patient.contactPhone || (patient as any).phone || 'ไม่มีข้อมูล'}</dd></div>
-                            <div><dt className="font-semibold text-gray-600">จุดสังเกต:</dt><dd className="text-gray-800 whitespace-pre-wrap">{patient.landmark || 'ไม่มี'}</dd></div>
-                            <div><dt className="font-semibold text-gray-600">พิกัด:</dt><dd className="text-gray-800 font-mono text-xs break-all">{`Lat: ${patient.latitude || 'N/A'}, Long: ${patient.longitude || 'N/A'}`}</dd></div>
+                            <div><dt className="font-semibold text-gray-600">เบอร์โทรศัพท์:</dt><dd className="text-gray-800">{patient.contactPhone || (patient as any).phone || (patient as any).contact_phone || 'ไม่มีข้อมูล'}</dd></div>
+                            <div><dt className="font-semibold text-gray-600">จุดสังเกต:</dt><dd className="text-gray-800 whitespace-pre-wrap">{patient.landmark || (patient as any).landmark || 'ไม่มี'}</dd></div>
+                            <div><dt className="font-semibold text-gray-600">พิกัด:</dt><dd className="text-gray-800 font-mono text-xs break-all">{`Lat: ${patient.latitude || (patient as any).lat || 'N/A'}, Long: ${patient.longitude || (patient as any).lng || 'N/A'}`}</dd></div>
                         </dl>
                         <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-800">
                             ดูตำแหน่งบนแผนที่ <ExternalLinkIcon className="w-4 h-4 ml-2" />
@@ -309,17 +480,26 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                         <div className="mt-4 pt-4 border-t border-gray-100">
                             <h3 className="font-semibold text-gray-700 mb-2">ผู้ติดต่อฉุกเฉิน</h3>
                             <dl className="space-y-2">
-                                <div><dt className="font-semibold text-gray-600">ชื่อ:</dt><dd className="text-gray-800">{(patient as any).emergencyContact?.name || '-'}</dd></div>
-                                <div><dt className="font-semibold text-gray-600">ความสัมพันธ์:</dt><dd className="text-gray-800">{(patient as any).emergencyContact?.relation || '-'}</dd></div>
-                                <div><dt className="font-semibold text-gray-600">เบอร์โทรศัพท์:</dt><dd className="text-gray-800">{(patient as any).emergencyContact?.phone || '-'}</dd></div>
+                                <div><dt className="font-semibold text-gray-600">ชื่อ:</dt><dd className="text-gray-800">{patient.emergencyContactName || (patient as any).emergency_contact_name || (patient as any).emergencyContact?.name || '-'}</dd></div>
+                                <div><dt className="font-semibold text-gray-600">ความสัมพันธ์:</dt><dd className="text-gray-800">{patient.emergencyContactRelation || (patient as any).emergency_contact_relation || (patient as any).emergencyContact?.relation || '-'}</dd></div>
+                                <div><dt className="font-semibold text-gray-600">เบอร์โทรศัพท์:</dt><dd className="text-gray-800">{patient.emergencyContactPhone || (patient as any).emergency_contact_phone || (patient as any).emergencyContact?.phone || '-'}</dd></div>
                             </dl>
+
+                            {/* Caregiver Info */}
+                            <div className="mt-4">
+                                <h3 className="font-semibold text-gray-700 mb-2">ผู้ดูแล</h3>
+                                <dl className="space-y-2">
+                                    <div><dt className="font-semibold text-gray-600">ชื่อผู้ดูแล:</dt><dd className="text-gray-800">{patient.caregiverName || (patient as any).caregiver_name || '-'}</dd></div>
+                                    <div><dt className="font-semibold text-gray-600">เบอร์โทรผู้ดูแล:</dt><dd className="text-gray-800">{patient.caregiverPhone || (patient as any).caregiver_phone || '-'}</dd></div>
+                                </dl>
+                            </div>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                         <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลทางการแพทย์</h2>
                         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-4">
                             <div><dt className="font-semibold text-gray-600">กรุ๊ปเลือด:</dt><dd className="text-gray-800">{`${patient.bloodType || '-'} ${patient.rhFactor || ''}`}</dd></div>
-                            <div className="sm:col-span-2"><dt className="font-semibold text-gray-600">สิทธิการรักษา:</dt><dd className="text-gray-800">{patient.healthCoverage || '-'}</dd></div>
+                            <div className="sm:col-span-2"><dt className="font-semibold text-gray-600">สิทธิการรักษา:</dt><dd className="text-gray-800">{patient.healthCoverage || 'ไม่ระบุ'}</dd></div>
                         </dl>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><h3 className="text-sm font-semibold text-gray-600 mb-2">โรคประจำตัว</h3><ul className="list-disc list-inside text-sm text-gray-800 space-y-1">{(patient.chronicDiseases || []).map((d, i) => <li key={`${d}-${i}`}>{d}</li>)}</ul></div>
@@ -329,17 +509,45 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                 </div>
                 {/* Right Column */}
                 <div className="space-y-8">
+                    {/* Registration Meta */}
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">เอกสารแนบ</h2>
-                        <ul className="space-y-2">{(patient.attachments || []).map((file, i) => (
-                            <li key={`${file.name}-${i}`} className="flex items-center justify-between p-2 bg-gray-50 rounded-md border">
-                                <div><p className="text-sm font-medium text-gray-800">{file.name}</p><p className="text-xs text-gray-500">{file.size}</p></div>
-                                <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800"><DownloadIcon className="w-5 h-5" /></a>
-                            </li>))}
-                            {(patient.attachments || []).length === 0 && <p className="text-sm text-center text-gray-500 py-4">ไม่มีเอกสารแนบ</p>}
-                        </ul>
+                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลการลงทะเบียน</h2>
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <dt className="font-semibold text-gray-600">วันที่ลงทะเบียน:</dt>
+                                <dd className="text-gray-800">{(() => {
+                                    const d = patient.registeredDate || (patient as any).registered_date || (patient as any).created_at || '';
+                                    try { return d ? formatDateToThai(d) : '-'; } catch { return d || '-'; }
+                                })()}</dd>
+                            </div>
+                            <div>
+                                <dt className="font-semibold text-gray-600">ผู้สร้างข้อมูล:</dt>
+                                <dd className="text-gray-800">{patient.registeredBy || (patient as any).created_by || '-'}</dd>
+                            </div>
+                            <div>
+                                <dt className="font-semibold text-gray-600">สร้างเมื่อ:</dt>
+                                <dd className="text-gray-800">{(() => {
+                                    const d = patient.createdAt || (patient as any).created_at || '';
+                                    try { return d ? formatDateToThai(d) : '-'; } catch { return d || '-'; }
+                                })()}</dd>
+                            </div>
+                            <div>
+                                <dt className="font-semibold text-gray-600">แก้ไขล่าสุด:</dt>
+                                <dd className="text-gray-800">{(() => {
+                                    const d = patient.updatedAt || (patient as any).updated_at || '';
+                                    try { return d ? formatDateToThai(d) : '-'; } catch { return d || '-'; }
+                                })()}</dd>
+                            </div>
+                        </dl>
                     </div>
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+
+                    {/* Key Info */}
+                    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลสำคัญ</h2>
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{patient.keyInfo || (patient as any).key_info || 'ไม่มีข้อมูลสำคัญ'}</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                         <h2 className="text-xl font-bold text-[var(--wecare-blue)] p-6 pb-4">ประวัติการเดินทางล่าสุด</h2>
                         <div className="overflow-x-auto"><table className="w-full text-sm">
                             <thead className="text-xs text-gray-700 uppercase bg-gray-50/75"><tr className="text-left">
@@ -361,13 +569,6 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                     </div>
                 </div>
             </div>
-
-            <EditPatientModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                patient={patient}
-                onSave={handleSavePatient}
-            />
         </div>
     );
 };

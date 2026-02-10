@@ -70,16 +70,16 @@ function getSocketUrl(): string {
 
     // Check window for browser environment
     if (typeof window !== 'undefined') {
-        // In development, connect directly to backend server
+        // In development, prefer same-origin via Vite proxy
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return 'http://localhost:3001';
+            return window.location.origin;
         }
         // In production, use same origin
         return window.location.origin;
     }
 
     // Fallback for test environment
-    return 'http://localhost:3001';
+    return 'http://localhost:3000';
 }
 
 /**

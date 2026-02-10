@@ -186,6 +186,8 @@ router.post('/auth/login', async (req, res) => {
 
     // Clear failed login attempts on successful login
     accountLockoutService.clearFailedAttempts(email);
+    // Also clear user-based rate limiter attempts if available
+    (res as any)?.clearUserAttempts?.();
 
     // Audit successful login
     auditService.log(email, user.role, 'LOGIN', user.id, undefined, clientIp);

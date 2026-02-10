@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DeveloperDashboardPageProps {
     setActiveView?: (view: any) => void;
@@ -9,21 +10,36 @@ const DeveloperDashboardPage: React.FC<DeveloperDashboardPageProps> = ({ setActi
     const [status, setStatus] = useState<string>('');
     const [health, setHealth] = useState<any>(null);
 
+    const { user } = useAuth();
+    const isDeveloper = (user?.role === 'DEVELOPER' || user?.role === 'developer');
+    const isProd = import.meta.env.PROD;
+    const enableDevReset = (import.meta.env.VITE_ENABLE_DEV_DB_RESET ?? 'false') === 'true';
+    const canShowReset = !isProd && enableDevReset && isDeveloper;
+    const canSeed = !isProd && isDeveloper;
+
     useEffect(() => {
         checkHealth();
     }, []);
 
     const checkHealth = async () => {
         try {
-            // Assuming we have a health check endpoint, or just ping root
-            await apiRequest('/'); // Root usually returns "Backend is running"
-            setHealth({ status: 'Online', latency: 'OK' });
-        } catch (e) {
+            // Use CSRF health endpoint to avoid HTML/root redirects
+            const csrf = await apiRequest('/csrf-token');
+            if (csrf?.csrfToken) {
+                setHealth({ status: 'Online', latency: 'OK' });
+            } else {
+                setHealth({ status: 'Degraded', error: 'No CSRF token returned' });
+            }
+        } catch (e: any) {
             setHealth({ status: 'Offline', error: e.message });
         }
     };
 
     const handleResetDB = async () => {
+        if (!canShowReset) {
+            alert('Factory Reset ถูกปิดใช้งานในสภาพแวดล้อมนี้ หรือคุณไม่มีสิทธิ์เข้าถึง');
+            return;
+        }
         if (!confirm('⚠️ DANGER: This will DELETE ALL DATA and reset the database to its initial state. Are you sure?')) return;
         try {
             setStatus('Resetting database...');
@@ -38,6 +54,10 @@ const DeveloperDashboardPage: React.FC<DeveloperDashboardPageProps> = ({ setActi
 
     const handleSeedUsers = async () => {
         try {
+            if (!canSeed) {
+                alert('Seeding ผู้ใช้ถูกปิดใช้งานในสภาพแวดล้อมนี้ หรือคุณไม่มีสิทธิ์เข้าถึง');
+                return;
+            }
             setStatus('Seeding users...');
             await apiRequest('/admin/system/seed-users', { method: 'POST' });
             setStatus('✅ Users seeded successfully.');
@@ -66,12 +86,21 @@ const DeveloperDashboardPage: React.FC<DeveloperDashboardPageProps> = ({ setActi
                     </h2>
                     <p className="text-sm text-gray-500 mb-6">Manage database state, reset data, and seed initial test data.</p>
                     <div className="space-y-3">
-                        <button onClick={handleResetDB} className="w-full px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 flex items-center justify-center font-medium transition-colors">
-                            ⚠️ Factory Reset Database
-                        </button>
-                        <button onClick={handleSeedUsers} className="w-full px-4 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 flex items-center justify-center font-medium transition-colors">
-                            🌱 Re-seed Test Users
-                        </button>
+                        {canShowReset && (
+                            <button onClick={handleResetDB} className="w-full px-4 py-3 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 flex items-center justify-center font-medium transition-colors">
+                                ⚠️ Factory Reset Database
+                            </button>
+                        )}
+                        {!isProd && isDeveloper && !enableDevReset && (
+                            <div className="w-full px-4 py-3 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg flex items-center justify-center font-medium">
+                                Dev Reset ถูกปิดด้วยค่า ENV: VITE_ENABLE_DEV_DB_RESET=false
+                            </div>
+                        )}
+                        {canSeed && (
+                            <button onClick={handleSeedUsers} className="w-full px-4 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 flex items-center justify-center font-medium transition-colors">
+                                🌱 Re-seed Test Users
+                            </button>
+                        )}
                     </div>
                 </div>
 

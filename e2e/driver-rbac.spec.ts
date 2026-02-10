@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E Test: Driver Role RBAC
  * 
  * Tests role-based access control for driver-specific endpoints:
@@ -9,15 +9,15 @@
  */
 import { test, expect } from '@playwright/test';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:3000';
 
 // Test users
 const TEST_USERS = {
-    admin: { email: 'admin@wecare.ems', password: 'admin123' },
-    driver1: { email: 'driver1@wecare.dev', password: 'driver123' },
-    driver2: { email: 'driver2@wecare.dev', password: 'driver123' },
-    officer: { email: 'officer1@wecare.dev', password: 'officer123' },
-    community: { email: 'community1@wecare.dev', password: 'community123' }
+    admin: { email: 'admin@wecare.ems', password: 'password123' },
+    driver1: { email: 'driver1@wecare.dev', password: 'password123' },
+    driver2: { email: 'driver2@wecare.dev', password: 'password123' },
+    officer: { email: 'officer1@wecare.dev', password: 'password123' },
+    community: { email: 'community1@wecare.dev', password: 'password123' }
 };
 
 // Helper to get auth token

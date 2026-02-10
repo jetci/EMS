@@ -71,7 +71,9 @@ class TokenBlacklistService {
 // Singleton instance
 export const tokenBlacklist = new TokenBlacklistService();
 
-// Cleanup expired tokens every hour
-setInterval(() => {
-    tokenBlacklist.cleanup();
-}, 60 * 60 * 1000); // 1 hour
+// Cleanup expired tokens every hour (disabled in test to prevent open handles)
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(() => {
+        tokenBlacklist.cleanup();
+    }, 60 * 60 * 1000); // 1 hour
+}

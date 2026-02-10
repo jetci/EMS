@@ -20,7 +20,7 @@ export interface AuditLog {
 }
 
 // GET /api/audit-logs
-router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE']), async (req, res) => {
   try {
     const rawLogs = sqliteDB.all<any>('SELECT * FROM audit_logs ORDER BY timestamp DESC');
 
@@ -46,7 +46,7 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (r
 });
 
 // GET /api/audit-logs/integrity - Verify audit log integrity
-router.get('/integrity', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.get('/integrity', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE']), async (req, res) => {
   try {
     const status = auditService.getIntegrityStatus();
     res.json(status);
@@ -98,3 +98,4 @@ router.post('/rebuild-chain', authenticateToken, requireRole(['DEVELOPER']), asy
 });
 
 export default router;
+

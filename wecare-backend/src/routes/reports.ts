@@ -108,7 +108,7 @@ router.get('/maintenance', authenticateToken, async (req, res) => {
 router.get('/patients', authenticateToken, async (req, res) => {
     try {
         const { startDate, endDate, villages } = req.query;
-        let sql = 'SELECT * FROM patients WHERE 1=1';
+        let sql = 'SELECT * FROM patients WHERE deleted_at IS NULL';
         const params: any[] = [];
 
         if (startDate) {
@@ -156,12 +156,12 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
             data = sqliteDB.all(sql, params);
             filename = `rides_report_${new Date().toISOString().split('T')[0]}`;
         } else if (type === 'patient_by_village') {
-            data = sqliteDB.all('SELECT * FROM patients');
+            data = sqliteDB.all('SELECT * FROM patients WHERE deleted_at IS NULL');
             filename = `patients_report_${new Date().toISOString().split('T')[0]}`;
         } else {
             // Summary
             const ridesCount = sqliteDB.get<{ c: number }>('SELECT COUNT(*) as c FROM rides');
-            const patientsCount = sqliteDB.get<{ c: number }>('SELECT COUNT(*) as c FROM patients');
+            const patientsCount = sqliteDB.get<{ c: number }>('SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL');
             data = [
                 { Metric: 'Total Rides', Value: ridesCount?.c || 0 },
                 { Metric: 'Total Patients', Value: patientsCount?.c || 0 },

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E Test: Community Role RBAC
  * 
  * Tests role-based access control for community specific workflows:
@@ -9,14 +9,14 @@
  */
 import { test, expect } from '@playwright/test';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:3000';
 
 // Test users
 const TEST_USERS = {
-    admin: { email: 'admin@wecare.ems', password: 'admin123' },
-    officer: { email: 'officer1@wecare.dev', password: 'officer123' },
-    community1: { email: 'community1@wecare.dev', password: 'community123' },
-    community2: { email: 'community2@wecare.dev', password: 'community123' } // Second user to test isolation
+    admin: { email: 'admin@wecare.ems', password: 'password123' },
+    officer: { email: 'officer1@wecare.dev', password: 'password123' },
+    community1: { email: 'community1@wecare.dev', password: 'password123' },
+    community2: { email: 'community2@wecare.dev', password: 'password123' } // Second user to test isolation
 };
 
 // Helper to get auth token

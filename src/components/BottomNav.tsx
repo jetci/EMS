@@ -26,6 +26,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeView, setActiveView }) => {
           return (
             <button
               key={item.id}
+              data-testid={`bottom-nav-${item.id}`}
               onClick={() => setActiveView(item.id as ActiveView)}
               className={`flex flex-col items-center justify-center w-full py-2 px-1 text-sm transition-colors duration-200 ${
                 isActive ? 'text-[#005A9C]' : 'text-gray-500 hover:text-[#005A9C]'

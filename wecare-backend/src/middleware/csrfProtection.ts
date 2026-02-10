@@ -34,8 +34,10 @@ const cleanupExpiredTokens = () => {
     }
 };
 
-// Run cleanup every 15 minutes
-setInterval(cleanupExpiredTokens, 15 * 60 * 1000);
+// Run cleanup every 15 minutes (disabled in test environment to prevent open handles)
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(cleanupExpiredTokens, 15 * 60 * 1000);
+}
 
 /**
  * Generate and set CSRF token
@@ -151,3 +153,5 @@ export const clearCsrfToken = (req: Request, res: Response) => {
     tokenStore.delete(sessionId);
     res.clearCookie(CSRF_COOKIE_NAME);
 };
+
+export const manualCsrfCleanup = () => cleanupExpiredTokens();

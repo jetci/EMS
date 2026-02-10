@@ -279,6 +279,12 @@ export async function getBackupStats(): Promise<{
 let backupInterval: NodeJS.Timeout | null = null;
 
 export function startAutomaticBackups(): void {
+    // Disable scheduler in test environment to avoid open handles
+    if (process.env.NODE_ENV === 'test') {
+        console.log('ℹ️ Test environment: automatic backups disabled');
+        return;
+    }
+
     if (backupInterval) {
         console.log('ℹ️  Automatic backups already running');
         return;

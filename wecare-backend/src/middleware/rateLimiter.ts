@@ -79,19 +79,32 @@ export const userBasedAuthLimiter = (req: Request, res: Response, next: NextFunc
 };
 
 // Cleanup old entries periodically (every hour)
-setInterval(() => {
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(() => {
+        const now = Date.now();
+        const windowMs = 15 * 60 * 1000;
+
+        for (const [email, record] of userAttempts.entries()) {
+            // Remove if window expired and not locked
+            if ((now - record.firstAttempt) > windowMs && (!record.lockedUntil || now > record.lockedUntil)) {
+                userAttempts.delete(email);
+            }
+        }
+
+        console.log(`🧹 Cleaned up user rate limit records. Active: ${userAttempts.size}`);
+    }, 60 * 60 * 1000); // 1 hour
+}
+
+// Manual cleanup for tests
+export const manualRateLimiterCleanup = () => {
     const now = Date.now();
     const windowMs = 15 * 60 * 1000;
-
     for (const [email, record] of userAttempts.entries()) {
-        // Remove if window expired and not locked
         if ((now - record.firstAttempt) > windowMs && (!record.lockedUntil || now > record.lockedUntil)) {
             userAttempts.delete(email);
         }
     }
-
-    console.log(`🧹 Cleaned up user rate limit records. Active: ${userAttempts.size}`);
-}, 60 * 60 * 1000); // 1 hour
+};
 
 // Rate limiter for general API endpoints
 export const apiLimiter = rateLimit({

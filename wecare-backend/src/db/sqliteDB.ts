@@ -5,13 +5,38 @@ import fs from 'fs';
 // SQLite Database helper for EMS WeCare
 // Replaces JSON-based storage with proper relational database
 
-const DB_PATH = path.join(__dirname, '..', '..', 'db', 'wecare.db');
+const DB_FILENAME = process.env.NODE_ENV === 'test' ? 'wecare_test.db' : 'wecare.db'
+const DB_PATH = path.join(__dirname, '..', '..', 'db', DB_FILENAME);
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'db', 'schema.sql');
 
 // Ensure db directory exists
 const dbDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
+}
+
+// In test environment, reset database file to ensure clean state for each run
+if (process.env.NODE_ENV === 'test') {
+    try {
+        const disableDbReset = process.env.DISABLE_DB_RESET === 'true';
+        if (disableDbReset) {
+            console.warn('⚠️ DISABLE_DB_RESET=true: Skipping test DB reset for this run');
+        } else if (fs.existsSync(DB_PATH)) {
+            fs.unlinkSync(DB_PATH);
+            console.log('🧪 Reset test database file');
+        }
+    } catch (e) {
+        console.warn('⚠️ Failed to reset test database file:', e);
+    }
+} else {
+    // Hard guard: never delete DB file outside test environment
+    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+        // No operation: ensure no code path removes DB file in non-test env
+        // If any future code attempts to delete, log a critical warning
+        if (!fs.existsSync(DB_PATH)) {
+            console.warn('⚠️ WARNING: DB file missing in non-test environment. Ensure persistence and backup/restore process.');
+        }
+    }
 }
 
 // Initialize database connection with optimizations
@@ -72,6 +97,13 @@ export const initializeSchema = () => {
         const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
         db.exec(schema);
         console.log('✅ SQLite database schema initialized successfully');
+
+        // Set initial schema version if not set
+        const currentVersion = db.pragma('user_version', { simple: true }) as number;
+        if (!currentVersion || currentVersion === 0) {
+            db.pragma('user_version = 1');
+            console.log('🔖 Set initial schema version to 1');
+        }
     } catch (error) {
         console.error('❌ Error initializing database schema:', error);
         throw error;
@@ -81,12 +113,13 @@ export const initializeSchema = () => {
 // Seed initial data
 export const seedData = async () => {
     try {
+        // Always compute the standard test password hash for normalization
+        const hashedPassword = await hashPassword('password123');
+
         const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
 
         if (userCount.count === 0) {
             console.log('🌱 Seeding initial data...');
-
-            const hashedPassword = await hashPassword('password123');
 
             // Create Admin User
             const adminUser = {
@@ -181,6 +214,27 @@ export const seedData = async () => {
             console.log('✅ Initial users seeded for all roles (password123)');
         }
 
+        // Normalize existing test accounts to use the standard password (password123)
+        const testAccounts = [
+            'admin@wecare.ems',
+            'admin@wecare.dev',
+            'dev@wecare.ems',
+            'office1@wecare.dev',
+            'officer1@wecare.dev',
+            'driver1@wecare.dev',
+            'community1@wecare.dev',
+            'executive1@wecare.dev'
+        ];
+
+        const updateStmt = db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?');
+        for (const email of testAccounts) {
+            const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string } | undefined;
+            if (existing) {
+                updateStmt.run(hashedPassword, email);
+            }
+        }
+        console.log('🔧 Normalized test account passwords to password123 (where applicable)');
+
         // Seed Driver Profile if not exists
         const driverCount = db.prepare('SELECT COUNT(*) as count FROM drivers').get() as { count: number };
 
@@ -209,11 +263,14 @@ export const seedData = async () => {
                 `);
 
                 insertDriver.run(driverProfile);
-                console.log('✅ Initial driver profile seeded');
+                console.log('✅ Driver profile seeded');
             }
         }
+
+        // ... existing code ...
     } catch (error) {
         console.error('❌ Error seeding data:', error);
+        throw error;
     }
 };
 
@@ -223,6 +280,21 @@ export const initializeDatabase = async () => {
     try {
         console.log('🔄 Initializing Database...');
         initializeSchema();
+        // Run migrations if needed
+        applyMigrationsIfNeeded();
+
+        // Ensure soft delete support for patients table in all environments (including tests)
+        try {
+            const columns = db.prepare("PRAGMA table_info(patients)").all() as any[];
+            const hasDeletedAt = columns.some(c => c.name === 'deleted_at');
+            if (!hasDeletedAt) {
+                db.exec("ALTER TABLE patients ADD COLUMN deleted_at TEXT");
+                console.log('🗑️  Added deleted_at to patients (initializeDatabase)');
+            }
+        } catch (e) {
+            console.warn('⚠️  Could not ensure deleted_at column on patients:', e);
+        }
+
         await seedData();
         console.log('✅ Database initialization completed');
     } catch (error) {
@@ -284,6 +356,12 @@ export const sqliteDB = {
     get: <T>(sql: string, params: any[] = []): T | undefined => {
         const stmt = db.prepare(sql);
         return stmt.get(...params) as T | undefined;
+    },
+
+    // Run statement (for UPDATE/INSERT/DELETE with params)
+    run: (sql: string, params: any[] = []): any => {
+        const stmt = db.prepare(sql);
+        return stmt.run(...params);
     },
 
     // Insert record
@@ -485,3 +563,119 @@ const gracefulShutdown = (signal: string) => {
 
 // Export database instance for advanced usage
 export default sqliteDB;
+
+// Migration runner: apply migration SQL files based on PRAGMA user_version
+function backupBeforeMigrate(currentVersion: number, latestVersion: number): void {
+    try {
+        // Always create a safety backup when initializeDatabase runs migrations flow
+        const backupsDir = path.join(__dirname, '..', '..', 'backups');
+        if (!fs.existsSync(backupsDir)) {
+            fs.mkdirSync(backupsDir, { recursive: true });
+        }
+        // Checkpoint WAL to ensure backup consistency
+        try { sqliteDB.checkpoint('FULL'); } catch {}
+        const timestamp = new Date().toISOString()
+            .replace(/:/g, '-')
+            .replace(/\..+/, '')
+            .replace('T', '_');
+        const safetyFilename = `wecare_before_migrate_${timestamp}.db`;
+        const safetyPath = path.join(backupsDir, safetyFilename);
+        fs.copyFileSync(DB_PATH, safetyPath);
+        console.log(`📦 Safety backup created before migration: ${safetyFilename}`);
+    } catch (backupErr) {
+        console.warn('⚠️ Failed to create safety backup before migration:', backupErr);
+    }
+}
+
+// Helper to check if a column exists in a table (for idempotent migrations)
+function hasColumn(table: string, column: string): boolean {
+    try {
+        const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+        return rows.some(r => r.name === column);
+    } catch (e) {
+        return false;
+    }
+}
+
+function applyMigrationsIfNeeded(): void {
+    try {
+        const migrationsDir = path.join(__dirname, '..', '..', 'db', 'migrations');
+        const currentVersion = db.pragma('user_version', { simple: true }) as number;
+
+        if (!fs.existsSync(migrationsDir)) {
+            console.log('ℹ️ No migrations directory found');
+            return;
+        }
+
+        // Define ordered migrations with target versions
+        const migrationFiles: Array<{ version: number; file: string }> = [
+            { version: 2, file: 'add_missing_patient_fields.sql' },
+            { version: 3, file: 'add_title_column.sql' },
+            { version: 4, file: 'add_emergency_contact.sql' },
+            { version: 5, file: 'add_user_profile_fields.sql' }
+        ];
+
+        // Determine latest schema version from migration list
+        const latestVersion = Math.max(...migrationFiles.map(m => m.version));
+
+        // Create safety backup only if migrations are actually needed
+        if (currentVersion < latestVersion) {
+            backupBeforeMigrate(currentVersion, latestVersion);
+        }
+
+        let applied = 0;
+        for (const m of migrationFiles) {
+            if (currentVersion < m.version) {
+                const filePath = path.join(migrationsDir, m.file);
+                if (fs.existsSync(filePath)) {
+                    // Idempotency checks per migration
+                    let shouldApply = true;
+                    if (m.version === 2) {
+                        // No-op migration
+                        shouldApply = false;
+                    } else if (m.version === 3) {
+                        // Add title column to patients
+                        if (hasColumn('patients', 'title')) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 4) {
+                        // Add emergency contact columns to patients
+                        if (hasColumn('patients', 'emergency_contact_name')) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 5) {
+                        // Add phone and profile_image_url to users
+                        if (hasColumn('users', 'phone') && hasColumn('users', 'profile_image_url')) {
+                            shouldApply = false;
+                        }
+                    }
+
+                    if (shouldApply) {
+                        console.log(`🚚 Applying migration v${m.version}: ${m.file}`);
+                        const sql = fs.readFileSync(filePath, 'utf-8');
+                        db.exec(sql);
+                    } else {
+                        console.log(`ℹ️ Skipping migration v${m.version} (${m.file}) - already applied or no-op`);
+                    }
+
+                    // Advance schema version regardless to keep PRAGMA in sync
+                    db.pragma(`user_version = ${m.version}`);
+                    applied++;
+                } else {
+                    console.warn(`⚠️ Migration file missing: ${m.file}`);
+                }
+            }
+        }
+
+        if (applied > 0) {
+            const newVersion = db.pragma('user_version', { simple: true }) as number;
+            console.log(`✅ Migrations processed. Schema version is now ${newVersion}`);
+        } else {
+            console.log('ℹ️ No migrations needed');
+        }
+    } catch (error) {
+        console.error('❌ Error applying migrations:', error);
+        throw error;
+    }
+}
+

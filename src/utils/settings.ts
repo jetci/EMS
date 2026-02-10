@@ -64,3 +64,20 @@ export const fetchLogoFromAPI = async (): Promise<string | undefined> => {
         return undefined;
     }
 };
+
+// New helper to avoid unnecessary /admin/settings calls for non-admin users
+export const fetchSettingsOptimized = async (userRole?: string): Promise<SystemSettings | null> => {
+    try {
+        // If the role is not admin, use the public endpoint directly to avoid 401/403 spam
+        if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
+            const publicRes = await apiRequest<any>('/settings/public', { method: 'GET' });
+            return publicRes || null;
+        }
+        // Admin roles can access the admin endpoint
+        const adminRes = await apiRequest<any>('/admin/settings', { method: 'GET' });
+        return adminRes || null;
+    } catch (error) {
+        console.error('Error fetching settings:', error);
+        return null;
+    }
+};

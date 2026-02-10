@@ -15,6 +15,7 @@ interface EditPatientModalProps {
     onClose: () => void;
     onSave: (patient: Patient) => void;
     patient: Patient;
+    mode?: 'modal' | 'page';
 }
 
 const villages = [
@@ -34,7 +35,7 @@ const healthCoverages = ["สิทธิบัตรทอง (UC)", "ประ
 const patientTypeOptions = ['ผู้ป่วยติดเตียง', 'ผู้ป่วยภาวะพึงพิง', 'ผู้ป่วยยากไร้'];
 
 
-const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, onSave, patient }) => {
+const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, onSave, patient, mode = 'modal' }) => {
     const [formData, setFormData] = useState(patient);
     const [patientTypes, setPatientTypes] = useState<string[]>([]);
     const [chronicDiseases, setChronicDiseases] = useState<string[]>([]);
@@ -160,7 +161,7 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
         onSave(updatedPatient);
     };
 
-    if (!isOpen) return null;
+    if (mode !== 'page' && !isOpen) return null;
 
     const today = new Date().toISOString().split('T')[0];
     const currentPosition = {
@@ -169,8 +170,8 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4" role="dialog" aria-modal="true" aria-labelledby="edit-patient-modal-title">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className={`${mode === 'page' ? '' : 'fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4'}`} role="dialog" aria-modal={mode === 'page' ? undefined : true} aria-labelledby="edit-patient-modal-title">
+            <div className={`bg-white rounded-lg shadow-xl w-full ${mode === 'page' ? 'max-w-none' : 'max-w-4xl max-h-[90vh]'} flex flex-col`}>
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b flex-shrink-0">
                     <h2 id="edit-patient-modal-title" className="text-xl font-bold text-gray-800">
@@ -186,7 +187,7 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
                 </div>
 
                 {/* Form Content */}
-                <form onSubmit={handleSubmit} className="overflow-y-auto">
+                <form onSubmit={handleSubmit} className={`${mode === 'page' ? '' : 'overflow-y-auto'}`}>
                     <div className="p-6 space-y-8">
                         {/* Section 1: Personal Identification */}
                         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -292,11 +293,11 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
                                     <TagInput tags={chronicDiseases} setTags={setChronicDiseases} placeholder="พิมพ์แล้วกด Enter เพื่อเพิ่มโรค" />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700">ประวัติการแพ้ยา/อาหาร</label>
+                                    <label className="block text-sm font-medium text-gray-700">ประวัตการแพ้ยา/อาหาร</label>
                                     <TagInput tags={allergies} setTags={setAllergies} placeholder="พิมพ์แล้วกด Enter เพื่อเพิ่มการแพ้" />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700">ข้อมูลสำคัญ/สรุปอาการ</label>
+                                    <label className="block text_sm font-medium text-gray-700">ข้อมูลสำคัญ/สรุปอาการ</label>
                                     <textarea name="keyInfo" rows={3} value={formData.keyInfo} onChange={handleBasicChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="ระบุข้อมูลสำคัญที่ควรรู้เกี่ยวกับผู้ป่วยรายนี้..."></textarea>
                                 </div>
                             </div>
@@ -308,22 +309,22 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
                             <div className="border-b border-gray-200 pb-6 mb-6">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">ส่วนที่ 1: ที่อยู่ตามบัตรประชาชน</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label className="block text-sm font-medium">บ้านเลขที่</label><input type="text" name="houseNumber" value={formData.idCardAddress.houseNumber} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
-                                    <div><label className="block text-sm font-medium">หมู่บ้าน</label><select name="village" value={formData.idCardAddress.village} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md bg-white"><option value="">-- เลือก --</option>{villages.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
-                                    <div><label className="block text-sm font-medium">ตำบล</label><input type="text" name="tambon" value={formData.idCardAddress.tambon} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
-                                    <div><label className="block text-sm font-medium">อำเภอ</label><input type="text" name="amphoe" value={formData.idCardAddress.amphoe} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
-                                    <div><label className="block text-sm font-medium">จังหวัด</label><input type="text" name="changwat" value={formData.idCardAddress.changwat} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">บ้านเลขที่</label><input type="text" name="houseNumber" value={formData.idCardAddress?.houseNumber || ''} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">หมู่บ้าน</label><select name="village" value={formData.idCardAddress?.village || ''} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md bg_white"><option value="">-- เลือก --</option>{villages.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                                    <div><label className="block text-sm font-medium">ตำบล</label><input type="text" name="tambon" value={formData.idCardAddress?.tambon || ''} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">อำเภอ</label><input type="text" name="amphoe" value={formData.idCardAddress?.amphoe || ''} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">จังหวัด</label><input type="text" name="changwat" value={formData.idCardAddress?.changwat || ''} onChange={e => handleAddressChange(e, 'idCardAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
                                 </div>
                             </div>
                             <div className="border-b border-gray-200 pb-6 mb-6">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">ส่วนที่ 2: ที่อยู่ปัจจุบัน</h3>
                                 <div className="flex space-x-6"><label><input type="radio" name="addressOption" value="same" checked={addressOption === 'same'} onChange={e => setAddressOption(e.target.value)} /> ใช้ที่อยู่เดียวกับบัตรประชาชน</label><label><input type="radio" name="addressOption" value="new" checked={addressOption === 'new'} onChange={e => setAddressOption(e.target.value)} /> กรอกที่อยู่ใหม่</label></div>
                                 {addressOption === 'new' && <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div><label className="block text-sm font-medium">บ้านเลขที่</label><input type="text" name="houseNumber" value={formData.currentAddress.houseNumber} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
-                                    <div><label className="block text-sm font-medium">หมู่บ้าน</label><select name="village" value={formData.currentAddress.village} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md bg-white"><option value="">-- เลือก --</option>{villages.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
-                                    <div><label className="block text-sm font-medium">ตำบล</label><input type="text" name="tambon" value={formData.currentAddress.tambon} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
-                                    <div><label className="block text-sm font-medium">อำเภอ</label><input type="text" name="amphoe" value={formData.currentAddress.amphoe} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
-                                    <div><label className="block text-sm font-medium">จังหวัด</label><input type="text" name="changwat" value={formData.currentAddress.changwat} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">บ้านเลขที่</label><input type="text" name="houseNumber" value={formData.currentAddress?.houseNumber || ''} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">หมู่บ้าน</label><select name="village" value={formData.currentAddress?.village || ''} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md bg-white"><option value="">-- เลือก --</option>{villages.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
+                                    <div><label className="block text-sm font-medium">ตำบล</label><input type="text" name="tambon" value={formData.currentAddress?.tambon || ''} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">อำเภอ</label><input type="text" name="amphoe" value={formData.currentAddress?.amphoe || ''} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                    <div><label className="block text-sm font-medium">จังหวัด</label><input type="text" name="changwat" value={formData.currentAddress?.changwat || ''} onChange={e => handleAddressChange(e, 'currentAddress')} className="mt-1 w-full border-gray-300 rounded-md" /></div>
                                 </div>}
                             </div>
                             <div>

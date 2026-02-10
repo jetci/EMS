@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, AuthenticatedView, Notification } from '../../types';
-import { getAppSettings, fetchLogoFromAPI } from '../../utils/settings';
+import { getAppSettings, fetchSettingsOptimized } from '../../utils/settings';
 import UserIcon from '../icons/UserIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import BellIcon from '../icons/BellIcon';
@@ -67,8 +67,10 @@ const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, 
   useEffect(() => {
     const handleSettingsChange = () => {
       setSettings(getAppSettings());
-      fetchLogoFromAPI().then(logoUrl => {
-        setSettings(prev => ({ ...prev, logoUrl: logoUrl || prev.logoUrl }));
+      fetchSettingsOptimized(user.role).then(res => {
+        if (res?.logoUrl) {
+          setSettings(prev => ({ ...prev, logoUrl: res.logoUrl }));
+        }
       });
     };
     window.addEventListener('settingsChanged', handleSettingsChange);
@@ -76,8 +78,8 @@ const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, 
   }, []);
 
   useEffect(() => {
-    fetchLogoFromAPI().then(logoUrl => {
-      if (logoUrl) setSettings(prev => ({ ...prev, logoUrl }));
+    fetchSettingsOptimized(user.role).then(res => {
+      if (res?.logoUrl) setSettings(prev => ({ ...prev, logoUrl: res.logoUrl }));
     });
   }, []);
 
@@ -92,7 +94,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, 
   }
 
   return (
-    <header className="flex-shrink-0 bg-white border-b border-gray-200">
+    <header className="flex-shrink-0 bg-white border-b border-gray-200" data-testid="topheader-root">
       <div className="flex items-center justify-between p-4">
         {/* Breadcrumbs & Mobile Menu */}
         <div className="flex items-center">

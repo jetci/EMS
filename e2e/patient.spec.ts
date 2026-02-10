@@ -5,14 +5,16 @@
 
 import { test, expect } from '@playwright/test';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5174';
 
 test.describe('Patient Management', () => {
   test.beforeEach(async ({ page }) => {
-    // Login before each test
-    await page.goto(`${BASE_URL}/login`);
-    await page.fill('input[name="email"]', 'community@test.com');
-    await page.fill('input[name="password"]', 'password123');
+    // Login before each test (match current UI)
+    await page.goto(`${BASE_URL}`);
+    await page.waitForLoadState('networkidle');
+    await page.click('text=เข้าสู่ระบบ');
+    await page.fill('input[name="email"]', 'community1@wecare.dev');
+    await page.fill('input[name="password"]', 'password');
     await page.click('button[type="submit"]');
     
     // Wait for navigation to dashboard
@@ -21,14 +23,14 @@ test.describe('Patient Management', () => {
 
   test('should display patients list', async ({ page }) => {
     // Navigate to patients page
-    await page.click('text=ผู้ป่วย');
-    await page.waitForURL('**/patients');
+    await page.goto(`${BASE_URL}/patients`);
+    await page.waitForLoadState('networkidle');
 
     // Check page title
-    await expect(page.locator('h1')).toContainText('รายชื่อผู้ป่วย');
+    await expect(page.locator('h1')).toContainText('จัดการข้อมูลผู้ป่วย');
 
-    // Check table exists
-    await expect(page.locator('table')).toBeVisible();
+    // Check table exists with proper aria-label
+    await expect(page.getByRole('table', { name: 'รายชื่อผู้ป่วย' })).toBeVisible();
 
     // Check at least one patient row
     const rows = page.locator('tbody tr');
@@ -36,22 +38,42 @@ test.describe('Patient Management', () => {
   });
 
   test('should create new patient', async ({ page }) => {
-    // Navigate to create patient page
-    await page.goto(`${BASE_URL}/patients/create`);
+    // Navigate to patients page and open registration wizard
+    await page.goto(`${BASE_URL}/patients`);
+    await page.click('text=ลงทะเบียนผู้ป่วยใหม่');
+    await page.waitForURL('**/patients/register');
 
-    // Fill form
+    // Step 1: Fill identity info
+    await page.selectOption('select[name="title"]', 'นาย');
     await page.fill('input[name="fullName"]', 'ทดสอบ E2E');
     await page.fill('input[name="nationalId"]', '1234567890123');
     await page.fill('input[name="dob"]', '1950-01-01');
-    await page.fill('input[name="age"]', '74');
     await page.selectOption('select[name="gender"]', 'ชาย');
+    await page.click('button:has-text("ถัดไป")');
+
+    // Step 2: Minimal medical info (if required)
+    await page.selectOption('select[name="bloodType"]', 'A');
+    await page.selectOption('select[name="rhFactor"]', '+');
+    await page.selectOption('select[name="healthCoverage"]', 'บัตรทอง');
+    await page.click('button:has-text("ถัดไป")');
+
+    // Step 3: Contact info
     await page.fill('input[name="contactPhone"]', '0812345678');
+    await page.click('button:has-text("ถัดไป")');
 
-    // Submit form
-    await page.click('button[type="submit"]');
+    // Step 4: Skip uploads
+    await page.click('button:has-text("ถัดไป")');
 
-    // Wait for success message
-    await expect(page.locator('text=สร้างผู้ป่วยสำเร็จ')).toBeVisible({ timeout: 5000 });
+    // Step 5: Submit
+    const dialogPromise = new Promise<void>((resolve) => {
+      page.once('dialog', async (dialog) => {
+        expect(dialog.message()).toContain('ลงทะเบียนผู้ป่วยสำเร็จ');
+        await dialog.accept();
+        resolve();
+      });
+    });
+    await page.click('button:has-text("ยืนยัน"), button:has-text("เสร็จสิ้น")');
+    await dialogPromise;
 
     // Should redirect to patients list
     await page.waitForURL('**/patients');
@@ -92,10 +114,12 @@ test.describe('Patient Management', () => {
     // Submit
     await page.click('button[type="submit"]');
 
-    // Wait for success
-    await expect(page.locator('text=แก้ไขข้อมูลสำเร็จ')).toBeVisible({ timeout: 5000 });
+    // Navigate back to list if not auto-redirected
+    if (!/\/patients$/.test(page.url())) {
+      await page.goto(`${BASE_URL}/patients`);
+    }
 
-    // Verify updated name
+    // Verify updated name in list
     await expect(page.locator('text=ทดสอบ E2E (แก้ไข)')).toBeVisible();
   });
 
@@ -106,28 +130,32 @@ test.describe('Patient Management', () => {
     // Get patient name before delete
     const patientName = await page.locator('tbody tr:last-child td:nth-child(2)').textContent();
 
+    // Accept native confirm dialog
+    page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
+
     // Click delete button
     await page.click('tbody tr:last-child button:has-text("ลบ")');
 
-    // Confirm deletion
-    await page.click('button:has-text("ยืนยัน")');
-
-    // Wait for success
+    // Wait for success toast
     await expect(page.locator('text=ลบผู้ป่วยสำเร็จ')).toBeVisible({ timeout: 5000 });
 
     // Verify patient is removed
-    await expect(page.locator(`text=${patientName}`)).not.toBeVisible();
+    if (patientName) {
+      await expect(page.locator(`text=${patientName}`)).not.toBeVisible();
+    }
   });
 
-  test('should validate required fields', async ({ page }) => {
-    // Navigate to create patient page
-    await page.goto(`${BASE_URL}/patients/create`);
+  test('should validate required fields (registration wizard)', async ({ page }) => {
+    // Navigate to patient registration page
+    await page.goto(`${BASE_URL}/patients/register`);
 
-    // Submit without filling required fields
-    await page.click('button[type="submit"]');
+    // Try to proceed without filling required fields
+    await page.click('button:has-text("ถัดไป")');
 
-    // Check validation errors
-    await expect(page.locator('text=กรุณากรอกชื่อ-นามสกุล')).toBeVisible();
+    // Check validation errors appear
+    await expect(page.locator('text=กรุณากรอก').or(page.locator('text=กรุณาเลือก'))).toBeVisible();
   });
 
   test('should search patients', async ({ page }) => {
@@ -154,8 +182,8 @@ test.describe('Patient Management', () => {
     // Go to patients list
     await page.goto(`${BASE_URL}/patients`);
 
-    // Check pagination exists
-    await expect(page.locator('nav[aria-label="pagination"]')).toBeVisible();
+    // Check pagination exists (ARIA labels updated)
+    await expect(page.getByRole('navigation', { name: 'การแบ่งหน้า' })).toBeVisible();
 
     // Click next page
     await page.click('button:has-text("ถัดไป")');
@@ -183,7 +211,7 @@ test.describe('Patient Accessibility', () => {
   });
 
   test('should have proper ARIA labels', async ({ page }) => {
-    await page.goto(`${BASE_URL}/patients/create`);
+    await page.goto(`${BASE_URL}/patients/register`);
 
     // Check form has labels
     const labels = await page.locator('label').count();

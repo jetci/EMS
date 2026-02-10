@@ -7,6 +7,7 @@ import request from 'supertest';
 import express from 'express';
 import authRoutes from '../../src/routes/auth';
 import { sqliteDB } from '../../src/db/sqliteDB';
+import accountLockoutService from '../../src/services/accountLockoutService';
 
 // Create test app
 const app = express();
@@ -39,6 +40,9 @@ describe('Auth API Integration Tests', () => {
         } catch (error) {
             // Ignore errors
         }
+
+        // Close database to prevent open handles
+        try { sqliteDB.close(); } catch {}
     });
 
     describe('POST /api/auth/register', () => {
@@ -182,6 +186,8 @@ describe('Auth API Integration Tests', () => {
         let authToken: string;
 
         beforeAll(async () => {
+            // Ensure account not locked before login
+            accountLockoutService.unlockAccount(testUser.email);
             // Login to get token
             const response = await request(app)
                 .post('/api/auth/login')

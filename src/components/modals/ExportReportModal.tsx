@@ -15,8 +15,8 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({ isOpen, onClose }
 
     const handleDownload = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+            const token = localStorage.getItem('wecare_token');
+            const baseUrl = import.meta.env.VITE_API_URL || '/api';
             const url = `${baseUrl}/executive/reports/export?type=${reportType}&format=${fileFormat}`;
 
             const response = await fetch(url, {

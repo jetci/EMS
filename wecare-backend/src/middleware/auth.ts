@@ -23,7 +23,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   const token = authHeader && authHeader.split(' ')[1]; // Bearer <TOKEN>
 
   if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   try {
@@ -98,16 +98,34 @@ export const optionalAuth = async (req: AuthRequest, _res: Response, next: NextF
 
 export const requireRole = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !req.user.role) {
-      return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+    // Require authentication
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'You must be logged in to access this resource'
+      });
     }
 
-    // Case-insensitive role comparison
-    const userRole = req.user.role.toUpperCase();
-    const allowedRoles = roles.map(r => r.toUpperCase());
+    // Require role
+    if (!req.user.role) {
+      return res.status(403).json({
+        error: 'No role assigned',
+        message: 'Your account does not have a role assigned'
+      });
+    }
+
+    // Case-insensitive exact match
+    const normalize = (role: string) => role.toUpperCase();
+    const userRole = normalize(req.user.role);
+    const allowedRoles = roles.map(normalize);
 
     if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+      return res.status(403).json({
+        error: 'Insufficient permissions',
+        message: `This resource requires one of the following roles: ${roles.join(', ')}`,
+        userRole: req.user.role,
+        requiredRoles: roles
+      });
     }
 
     next();

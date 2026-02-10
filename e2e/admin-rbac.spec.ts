@@ -13,25 +13,25 @@
  */
 import { test, expect } from '@playwright/test';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:3000';
 
 // Test users for different roles
 const TEST_USERS = {
     developer: {
         email: 'dev@wecare.ems',
-        password: 'dev123'
+        password: 'password123'
     },
     admin: {
         email: 'admin@wecare.ems',
-        password: 'admin123'
+        password: 'password123'
     },
     community: {
         email: 'community1@wecare.dev',
-        password: 'community123'
+        password: 'password123'
     },
     driver: {
         email: 'driver1@wecare.dev',
-        password: 'driver123'
+        password: 'password123'
     }
 };
 
@@ -137,7 +137,8 @@ test.describe('Admin System Endpoints - Role Access Control', () => {
                 expect(response.status()).toBe(403);
 
                 const data = await response.json();
-                expect(data.error).toContain('Forbidden');
+                // Accept either standard RBAC message or custom message from backend
+                expect(!!data.error && (data.error.includes('Forbidden') || data.error.includes('Insufficient permissions'))).toBeTruthy();
             } else {
                 console.log('Community user not available, skipping test');
             }
@@ -173,7 +174,8 @@ test.describe('Admin System Endpoints - Role Access Control', () => {
                 expect(response.status()).toBe(403);
 
                 const data = await response.json();
-                expect(data.error).toContain('Forbidden');
+                // Accept either standard RBAC message or custom message from backend
+                expect(!!data.error && (data.error.includes('Forbidden') || data.error.includes('Insufficient permissions'))).toBeTruthy();
             } else {
                 console.log('Community user not available, skipping test');
             }

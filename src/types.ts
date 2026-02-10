@@ -304,7 +304,7 @@ export interface NewsArticle {
 }
 
 
-export type CommunityView = 'dashboard' | 'patients' | 'rides' | 'profile' | 'register_patient' | 'request_ride' | 'patient_detail' | 'ride_details' | 'edit_ride';
+export type CommunityView = 'dashboard' | 'patients' | 'rides' | 'profile' | 'register_patient' | 'request_ride' | 'patient_detail' | 'edit_patient' | 'ride_details' | 'edit_ride';
 export type DriverView = 'today_jobs' | 'history' | 'profile';
 export type RadioView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'map_command' | 'request_ride' | 'view_news';
 export type RadioCenterView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'map_command' | 'manage_teams' | 'manage_schedules' | 'news' | 'reports' | 'request_ride' | 'view_news';

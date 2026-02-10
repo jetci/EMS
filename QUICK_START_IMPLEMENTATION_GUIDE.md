@@ -427,7 +427,7 @@ cd d:\EMS
 npm run dev
 
 # 2. เปิด Browser → http://localhost:5173
-# 3. Login as Driver (driver1@wecare.dev / password)
+# 3. Login as Driver (driver1@wecare.dev / password123)
 # 4. เปิด Console (F12)
 # 5. ส่ง Location Update
 # 6. ตรวจสอบ Console:

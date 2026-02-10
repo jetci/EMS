@@ -237,7 +237,7 @@ export const createPatient = (data: PatientData): any => {
   sqliteDB.insert('patients', patientRecord);
   
   // Return decrypted data for response
-  const created = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ?', [id]);
+  const created = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
   return decryptPatientData(created);
 };
 
@@ -245,7 +245,7 @@ export const createPatient = (data: PatientData): any => {
  * Get patient by ID with decrypted data
  */
 export const getPatientById = (id: string): any => {
-  const patient = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ?', [id]);
+  const patient = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
   return decryptPatientData(patient);
 };
 
@@ -260,11 +260,11 @@ export const getAllPatients = (filters: {
   const { createdBy, page = 1, limit = 20 } = filters;
   const offset = (page - 1) * limit;
 
-  let whereClause = '';
+  let whereClause = 'WHERE deleted_at IS NULL';
   const params: any[] = [];
 
   if (createdBy) {
-    whereClause = 'WHERE created_by = ?';
+    whereClause += ' AND created_by = ?';
     params.push(createdBy);
   }
 
@@ -290,7 +290,7 @@ export const getAllPatients = (filters: {
  * Update patient with encrypted data
  */
 export const updatePatient = (id: string, data: Partial<PatientData>): any => {
-  const existing = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ?', [id]);
+  const existing = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!existing) {
     throw new Error('Patient not found');
   }
@@ -368,7 +368,7 @@ export const updatePatient = (id: string, data: Partial<PatientData>): any => {
   sqliteDB.update('patients', id, updateData);
 
   // Return decrypted data
-  const updated = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ?', [id]);
+  const updated = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
   return decryptPatientData(updated);
 };
 
@@ -376,12 +376,12 @@ export const updatePatient = (id: string, data: Partial<PatientData>): any => {
  * Delete patient
  */
 export const deletePatient = (id: string): void => {
-  const existing = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ?', [id]);
+  const existing = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!existing) {
     throw new Error('Patient not found');
   }
 
-  sqliteDB.delete('patients', id);
+  sqliteDB.run('UPDATE patients SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL', [id]);
 };
 
 /**
@@ -390,7 +390,7 @@ export const deletePatient = (id: string): void => {
  * without decrypting all records. Consider using tokenization for searchable encryption.
  */
 export const searchPatientsByName = (query: string, createdBy?: string): any[] => {
-  let sql = 'SELECT * FROM patients WHERE full_name LIKE ?';
+  let sql = 'SELECT * FROM patients WHERE full_name LIKE ? AND deleted_at IS NULL';
   const params: any[] = [`%${query}%`];
 
   if (createdBy) {

@@ -1,18 +1,27 @@
 // Centralized API client using Vite env with fallbacks
 // Priority:
-// 1) Vite env: import.meta.env.VITE_API_BASE_URL
-// 2) Window runtime base configured in index.tsx: window.__BASE_PATH__ + '/api-proxy' (dev proxy)
-// 3) Default: http://localhost:3001/api (direct to backend)
+// 1) window.__API_BASE__ (set in main.tsx) for browser runtime
+// 2) Vite env: import.meta.env.VITE_API_BASE_URL (for SSR/test when window not available)
+// 3) Default: /api (via Vite proxy to backend)
 
 import { PaginatedResponse, PaginationParams, buildPaginationQuery } from '../types/pagination';
 
 const getApiBaseUrl = (): string => {
-  const viteEnv = (import.meta as any).env?.VITE_API_BASE_URL;
-  if (viteEnv) return viteEnv;
+  // Try to read Vite env safely without direct import.meta (which breaks in Jest/CJS)
+  let viteBaseUrl: string | undefined;
+  try {
+    // eslint-disable-next-line no-eval
+    viteBaseUrl = (0, eval)('import.meta?.env?.VITE_API_BASE_URL');
+  } catch {
+    viteBaseUrl = (typeof process !== 'undefined' && process.env?.VITE_API_BASE_URL) || undefined;
+  }
 
-  // Force relative path '/api' to ensure Vite proxy is used
-  // This bypasses CORS issues in development
-  return '/api';
+  // Prefer window.__API_BASE__ if available (set by main.tsx)
+  const apiBaseFromWindow = (typeof window !== 'undefined') ? (window as any).__API_BASE__ : undefined;
+  if (apiBaseFromWindow) return apiBaseFromWindow;
+
+  // Fall back to vite env or default
+  return viteBaseUrl || '/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -66,71 +75,96 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
   const fullUrl = `${API_BASE_URL}${endpoint}`;
   console.log(`📤 API Request: ${method} ${fullUrl}`);
 
-  const res = await fetch(fullUrl, {
-    ...options,
-    headers,
-    credentials: 'include', // Important for CSRF cookies
-  });
+  // Rate limit retry with exponential backoff
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  while (retryCount < maxRetries) {
+    const res = await fetch(fullUrl, {
+      ...options,
+      headers,
+      credentials: 'include', // Important for CSRF cookies
+    });
 
-  console.log(`📥 API Response: ${res.status} ${res.statusText}`);
+    console.log(`📥 API Response: ${res.status} ${res.statusText}`);
 
-  if (!res.ok) {
-    // Handle 401 - token expired or invalid
-    if (res.status === 401) {
+    // If rate limited, wait and retry
+    if (res.status === 429 && retryCount < maxRetries - 1) {
+      retryCount++;
+      const delayMs = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+      console.warn(`⏳ Rate limited. Retrying in ${delayMs}ms (attempt ${retryCount}/${maxRetries - 1})`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      continue;
+    }
+
+    // Process response
+    if (!res.ok) {
+      // Handle 401 - token expired or invalid
+      if (res.status === 401) {
+        let detail: any = null;
+        try { detail = await res.json(); } catch { }
+
+        if (endpoint.includes('/auth/login')) {
+          localStorage.removeItem('wecare_token');
+          localStorage.removeItem('wecare_user');
+          clearCsrfToken();
+          throw new Error(detail?.error || 'Invalid credentials');
+        }
+
+        const hadToken = !!token;
+        localStorage.removeItem('wecare_token');
+        localStorage.removeItem('wecare_user');
+        clearCsrfToken();
+
+        if (hadToken) {
+          window.location.reload();
+          throw new Error('Session expired. Please login again.');
+        }
+
+        throw new Error(detail?.error || detail?.message || 'Unauthorized');
+      }
+
+      // Handle 403 - CSRF token invalid
+      if (res.status === 403) {
+        let detail: any = null;
+        try { detail = await res.json(); } catch { }
+
+        if (detail?.error?.includes('CSRF')) {
+          csrfToken = null;
+          throw new Error('Security token expired. Please refresh the page.');
+        }
+      }
+
+      let detail: any = null;
+      try { detail = await res.json(); } catch { }
+      throw new Error(detail?.error || detail?.message || `HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    // Some endpoints may return 204
+    if (res.status === 204) return null;
+
+    // Get response text first to check if it's HTML
+    const text = await res.text();
+
+    // Check if response is HTML (error page) - but NOT for auth endpoints
+    const isAuthEndpoint = endpoint.includes('/auth/');
+    if (!isAuthEndpoint && (text.includes('<!DOCTYPE') || text.includes('<html'))) {
       localStorage.removeItem('wecare_token');
       localStorage.removeItem('wecare_user');
       clearCsrfToken();
-
-      if (endpoint.includes('/auth/login')) {
-        let detail: any = null;
-        try { detail = await res.json(); } catch { }
-        throw new Error(detail?.error || 'Invalid credentials');
-      }
-
       window.location.reload();
-      throw new Error('Session expired. Please login again.');
+      throw new Error('Authentication error. Please login again.');
     }
 
-    // Handle 403 - CSRF token invalid
-    if (res.status === 403) {
-      let detail: any = null;
-      try { detail = await res.json(); } catch { }
-
-      // If CSRF error, clear token and retry once
-      if (detail?.error?.includes('CSRF')) {
-        csrfToken = null;
-        // Don't retry automatically to avoid infinite loop
-        throw new Error('Security token expired. Please refresh the page.');
-      }
+    // Parse as JSON
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error('Invalid response from server');
     }
-
-    let detail: any = null;
-    try { detail = await res.json(); } catch { }
-    throw new Error(detail?.error || detail?.message || `HTTP ${res.status}: ${res.statusText}`);
   }
 
-  // Some endpoints may return 204
-  if (res.status === 204) return null;
-
-  // Get response text first to check if it's HTML
-  const text = await res.text();
-
-  // Check if response is HTML (error page) - but NOT for auth endpoints
-  const isAuthEndpoint = endpoint.includes('/auth/');
-  if (!isAuthEndpoint && (text.includes('<!DOCTYPE') || text.includes('<html'))) {
-    localStorage.removeItem('wecare_token');
-    localStorage.removeItem('wecare_user');
-    clearCsrfToken();
-    window.location.reload();
-    throw new Error('Authentication error. Please login again.');
-  }
-
-  // Parse as JSON
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    throw new Error('Invalid response from server');
-  }
+  throw new Error(`Failed after ${maxRetries} attempts`);
 };
 
 // --- Auth API ---
@@ -158,6 +192,15 @@ export const authAPI = {
       method: 'POST',
       body: JSON.stringify({ userId, currentPassword, newPassword }),
     }),
+  // New: Upload profile image using FormData with CSRF and Authorization handled by apiRequest
+  uploadProfileImage: (file: File) => {
+    const fd = new FormData();
+    fd.append('profile_image', file);
+    return apiRequest('/auth/upload-profile-image', {
+      method: 'POST',
+      body: fd,
+    });
+  },
 };
 
 // --- Patients API ---

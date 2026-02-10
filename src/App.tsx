@@ -79,6 +79,50 @@ const App: React.FC = () => {
         }
     };
 
+    // Dev-only auto login via query params
+    useEffect(() => {
+        if (!import.meta.env.DEV) return;
+        if (user) return; // already logged in
+
+        // Parse query params
+        const params = new URLSearchParams(location.search);
+        const autoLoginRole = params.get('autologin'); // e.g., COMMUNITY, DEVELOPER, DRIVER
+        if (!autoLoginRole) return;
+
+        const testCreds: Record<string, { email: string; pass: string }> = {
+            ADMIN: { email: 'admin@wecare.ems', pass: 'password123' },
+            DEVELOPER: { email: 'dev@wecare.ems', pass: 'password123' },
+            RADIO: { email: 'office1@wecare.dev', pass: 'password123' },
+            OFFICER: { email: 'officer1@wecare.dev', pass: 'password123' },
+            DRIVER: { email: 'driver1@wecare.dev', pass: 'password123' },
+            COMMUNITY: { email: 'community1@wecare.dev', pass: 'password123' },
+            EXECUTIVE: { email: 'executive1@wecare.dev', pass: 'password123' },
+        };
+
+        const creds = testCreds[autoLoginRole.toUpperCase()];
+        if (!creds) {
+            console.warn('⚠️ Unknown autologin role:', autoLoginRole);
+            return;
+        }
+
+        (async () => {
+            const ok = await handleLogin(creds.email, creds.pass);
+            if (!ok) return;
+
+            // Optional: initial view setup via query params
+            const open = params.get('open'); // e.g., 'patient_detail', 'rides', etc.
+            const patientId = params.get('patientId') || params.get('pid') || '';
+            if (open) {
+                try {
+                    localStorage.setItem('initial_view', open);
+                    localStorage.setItem('view_context', JSON.stringify({ patientId }));
+                    console.log('🧭 Initial view stored:', { open, patientId });
+                } catch {}
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, location.search]);
+
     const handleLogout = () => {
         setUser(null);
         localStorage.removeItem('jwt');

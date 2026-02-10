@@ -79,7 +79,7 @@ export const patientCreateSchema = Joi.object({
         }),
 
     title: Joi.string()
-        .valid('นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง')
+        .valid('นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง', 'น.ส.', 'ด.ช.', 'ด.ญ.')
         .optional()
         .allow(null),
 

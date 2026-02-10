@@ -23,7 +23,7 @@ class SocketService {
       return;
     }
 
-    const serverUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
+    const serverUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
 
     this.socket = io(serverUrl, {
       auth: { token },

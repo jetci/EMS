@@ -27,6 +27,7 @@ export const checkDuplicatePatient = (req: AuthRequest, res: Response, next: Nex
         AND full_name = ? 
         AND (national_id = ? OR (national_id IS NULL AND ? IS NULL))
         AND created_at > datetime('now', '-5 seconds')
+        AND deleted_at IS NULL
     `).get(userId, fullName, nationalId || null, nationalId || null);
 
         if (duplicate) {

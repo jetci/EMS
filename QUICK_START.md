@@ -91,12 +91,12 @@ npm run dev
 ## 🔑 Default Login Credentials
 
 ```
-Email: admin@wecare.com
-Password: admin123
+Email: admin@wecare.ems
+Password: password123
 
 หรือ
 
-Email: community@wecare.com
+Email: community1@wecare.dev
 Password: password123
 ```
 

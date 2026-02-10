@@ -72,15 +72,15 @@ npm run dev
 ```
 Community User:
 - Email: community1@wecare.dev
-- Password: password
+- Password: password123
 
 Officer User:
 - Email: officer1@wecare.dev
-- Password: password
+- Password: password123
 
 Driver User:
 - Email: driver1@wecare.dev
-- Password: password
+- Password: password123
 ```
 
 ---

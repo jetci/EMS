@@ -29,7 +29,7 @@
 1. เปิด http://localhost:5175
 2. Login (ใช้ Quick Login หรือ email/password)
    - Email: community1@wecare.dev
-   - Password: password
+   - Password: password123
 3. คลิกที่เมนู "โปรไฟล์" หรือไปที่ /profile
 4. Hover เมาส์ไปที่รูปโปรไฟล์ (วงกลมสีขาว)
 5. ควรเห็นไอคอนกล้อง 📷 ปรากฏขึ้น
@@ -411,7 +411,7 @@ SELECT id, email, full_name, profile_image_url FROM users WHERE email = 'communi
 2. **Login**
    ```
    Email: community1@wecare.dev
-   Password: password
+   Password: password123
    ```
 
 3. **ไปหน้า Profile**

@@ -116,9 +116,15 @@ function rateLimiter(routeKey) {
 app.use(requestIdMiddleware);
 
 // Initialize SQLite audit DB (file: dev-tools/mock-server/audit.db)
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 let auditDb;
 (async () => {
-  auditDb = await open({ filename: './dev-tools/mock-server/audit.db', driver: sqlite3.Database });
+  const dbPath = path.join(__dirname, 'audit.db');
+  auditDb = await open({ filename: dbPath, driver: sqlite3.Database });
   await auditDb.exec(`CREATE TABLE IF NOT EXISTS audits (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     actor TEXT,
@@ -288,6 +294,85 @@ app.post('/api/upload', authMiddleware, upload.array('files', 10), (req, res) =>
   }
   console.log('Uploaded files:', files.map(f => f.originalname));
   res.json({ success: true, files: files.map((f, i) => ({ fileName: f.originalname, id: `FILE-${Date.now()}-${i}` })) });
+});
+
+// --- Quick Auth endpoints for UI testing ---
+app.get('/api/csrf-token', (req, res) => {
+  // Minimal CSRF token endpoint for frontend to fetch before POST requests
+  res.json({ csrfToken: 'test-csrf-token' });
+});
+
+// Mapping of test users used by QuickLoginPanel and E2E tests
+const quickLoginUsers = {
+  'admin@wecare.ems': { id: 'admin-wecare', full_name: 'Admin User', email: 'admin@wecare.ems', role: 'admin', token: 'admin-wecare-token' },
+  'dev@wecare.ems': { id: 'dev-wecare', full_name: 'Developer User', email: 'dev@wecare.ems', role: 'DEVELOPER', token: 'developer-wecare-token' },
+  'office1@wecare.dev': { id: 'radio-wecare', full_name: 'Radio Office 1', email: 'office1@wecare.dev', role: 'radio', token: 'radio-wecare-token' },
+  'officer1@wecare.dev': { id: 'officer-wecare', full_name: 'Officer 1', email: 'officer1@wecare.dev', role: 'OFFICER', token: 'officer-wecare-token' },
+  'driver1@wecare.dev': { id: 'driver1', full_name: 'Driver One', email: 'driver1@wecare.dev', role: 'driver', token: 'driver1-token' },
+  'community1@wecare.dev': { id: 'community1', full_name: 'Community User', email: 'community1@wecare.dev', role: 'community', token: 'community1-token' },
+  'executive1@wecare.dev': { id: 'exec1', full_name: 'Executive User', email: 'executive1@wecare.dev', role: 'EXECUTIVE', token: 'exec1-token' },
+};
+
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const normalizedPass = (password || '').trim();
+
+    // Accept only the standard test password for our UI tests
+    if (!normalizedEmail || normalizedPass !== 'password123') {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+
+    const user = quickLoginUsers[normalizedEmail];
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+    }
+
+    // Simulate issuing a JWT and set a dummy cookie for CSRF flow
+    res.cookie && res.cookie('XSRF-TOKEN', 'test-csrf-token', { httpOnly: false });
+
+    return res.json({ success: true, user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role }, token: user.token });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  const token = auth.slice('Bearer '.length);
+  const user = Object.values(quickLoginUsers).find(u => u.token === token);
+  if (!user) return res.status(401).json({ success: false, error: 'Unauthorized' });
+  return res.json({ success: true, user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role } });
+});
+
+// --- End Quick Auth endpoints ---
+
+// Public settings endpoint (no auth)
+app.get('/api/settings/public', (req, res) => {
+  return res.json({
+    success: true,
+    appName: 'WeCare Platform',
+    organizationName: 'EMS WeCare HQ',
+    logoUrl: undefined,
+    maintenanceMode: false,
+  });
+});
+
+// Admin settings endpoint (requires auth and admin role)
+app.get('/api/admin/settings', authMiddleware, (req, res) => {
+  const user = req.user;
+  if (!user || (user.role !== 'admin' && user.role !== 'DEVELOPER')) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+  return res.json({
+    success: true,
+    appName: 'WeCare Platform (Admin)',
+    organizationName: 'EMS WeCare HQ',
+    logoUrl: undefined,
+    maintenanceMode: false,
+  });
 });
 
 const PORT = process.env.PORT || 4001;

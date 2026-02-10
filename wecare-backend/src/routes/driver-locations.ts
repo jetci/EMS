@@ -9,7 +9,7 @@ export interface DriverLocation {
     driverName: string;
     latitude: number;
     longitude: number;
-    status: 'AVAILABLE' | 'ON_TRIP' | 'OFFLINE';
+    status: 'AVAILABLE' | 'ON_TRIP' | 'OFFLINE' | 'ON_DUTY' | 'OFF_DUTY' | 'UNAVAILABLE';
     currentRideId?: string;
     lastUpdated: string;
     vehicleInfo?: {
@@ -19,27 +19,28 @@ export interface DriverLocation {
 }
 
 // GET /api/driver-locations - Get all active driver locations
-router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), (req, res) => {
+router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'driver', 'EXECUTIVE']), (req, res) => {
     try {
         const rows = sqliteDB.all<any>(`
             SELECT 
-                d.id, 
-                d.full_name, 
-                d.status, 
-                d.license_plate, 
-                d.vehicle_type,
-                l.latitude, 
-                l.longitude, 
-                l.last_updated
+                d.id,
+                d.full_name,
+                d.status,
+                v.license_plate AS vehicle_license_plate,
+                vt.name AS vehicle_type_name,
+                l.latitude,
+                l.longitude,
+                l.timestamp
             FROM drivers d
-            LEFT JOIN driver_locations l ON d.id = l.driver_id
+            LEFT JOIN vehicles v ON d.current_vehicle_id = v.id
+            LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id
+            LEFT JOIN (
+                SELECT driver_id, latitude, longitude, timestamp,
+                       ROW_NUMBER() OVER (PARTITION BY driver_id ORDER BY timestamp DESC) as rn
+                FROM driver_locations
+            ) l ON d.id = l.driver_id AND l.rn = 1
             WHERE d.status != 'INACTIVE'
         `);
-
-        // Need to check for current active ride separately or via subquery
-        // For now, simplify or do a second query if critical. 
-        // Assuming currentRideId is needed.
-        // Let's attach current active ride ID if any.
 
         const activeRides = sqliteDB.all<any>(`
             SELECT id, driver_id FROM rides 
@@ -52,14 +53,14 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER',
             return {
                 driverId: row.id,
                 driverName: row.full_name,
-                latitude: row.latitude || 19.9213, // Default fallback
+                latitude: row.latitude || 19.9213,
                 longitude: row.longitude || 99.2131,
                 status: row.status || 'AVAILABLE',
                 currentRideId: activeRide ? activeRide.id : null,
-                lastUpdated: row.last_updated || new Date().toISOString(),
+                lastUpdated: row.timestamp || new Date().toISOString(),
                 vehicleInfo: {
-                    licensePlate: row.license_plate || 'N/A',
-                    vehicleType: row.vehicle_type || 'รถพยาบาล'
+                    licensePlate: row.vehicle_license_plate || 'N/A',
+                    vehicleType: row.vehicle_type_name || 'รถพยาบาล'
                 }
             };
         });
@@ -104,14 +105,10 @@ router.put('/:driverId', authenticateToken, (req, res) => {
         // Perform UPSERT for location
         // Note: 'driver_locations' table schema must have PRIMARY KEY (driver_id)
         sqliteDB.transaction(() => {
-            // Update Location
+            // Update Location (insert new record for history)
             sqliteDB.prepare(`
-                INSERT INTO driver_locations (driver_id, latitude, longitude, last_updated)
+                INSERT INTO driver_locations (driver_id, latitude, longitude, timestamp)
                 VALUES (?, ?, ?, ?)
-                ON CONFLICT(driver_id) DO UPDATE SET
-                latitude = excluded.latitude,
-                longitude = excluded.longitude,
-                last_updated = excluded.last_updated
             `).run(driverId, lat, lng, lastUpdated);
 
             // Update Status if provided
@@ -145,16 +142,22 @@ router.get('/:driverId', authenticateToken, (req, res) => {
 
         const row = sqliteDB.get<any>(`
             SELECT 
-                d.id, 
-                d.full_name, 
-                d.status, 
-                d.license_plate, 
-                d.vehicle_type,
-                l.latitude, 
-                l.longitude, 
-                l.last_updated
+                d.id,
+                d.full_name,
+                d.status,
+                v.license_plate AS vehicle_license_plate,
+                vt.name AS vehicle_type_name,
+                l.latitude,
+                l.longitude,
+                l.timestamp
             FROM drivers d
-            LEFT JOIN driver_locations l ON d.id = l.driver_id
+            LEFT JOIN vehicles v ON d.current_vehicle_id = v.id
+            LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id
+            LEFT JOIN (
+                SELECT driver_id, latitude, longitude, timestamp,
+                       ROW_NUMBER() OVER (PARTITION BY driver_id ORDER BY timestamp DESC) as rn
+                FROM driver_locations
+            ) l ON d.id = l.driver_id AND l.rn = 1
             WHERE d.id = ?
         `, [driverId]);
 
@@ -162,7 +165,6 @@ router.get('/:driverId', authenticateToken, (req, res) => {
             return res.status(404).json({ error: 'Driver not found' });
         }
 
-        // Active Ride Check
         const activeRide = sqliteDB.get<any>(`
             SELECT id FROM rides 
             WHERE driver_id = ? AND status IN ('ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS')
@@ -174,11 +176,11 @@ router.get('/:driverId', authenticateToken, (req, res) => {
             latitude: row.latitude || 19.9213,
             longitude: row.longitude || 99.2131,
             status: row.status || 'AVAILABLE',
-            currentRideId: activeRide ? activeRide.id : undefined, // Change from null to undefined to match optional property if stricter
-            lastUpdated: row.last_updated || new Date().toISOString(),
+            currentRideId: activeRide ? activeRide.id : undefined,
+            lastUpdated: row.timestamp || new Date().toISOString(),
             vehicleInfo: {
-                licensePlate: row.license_plate || 'N/A',
-                vehicleType: row.vehicle_type || 'รถพยาบาล'
+                licensePlate: row.vehicle_license_plate || 'N/A',
+                vehicleType: row.vehicle_type_name || 'รถพยาบาล'
             }
         };
 

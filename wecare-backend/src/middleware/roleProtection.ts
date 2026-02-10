@@ -57,25 +57,12 @@ function normalizeRole(role: string): string {
  */
 function hasRequiredRole(userRole: string, requiredRoles: string[]): boolean {
     const normalizedUserRole = normalizeRole(userRole);
-    const userLevel = ROLE_HIERARCHY[normalizedUserRole] || 0;
 
-    // Check if user role matches any required role
-    for (const requiredRole of requiredRoles) {
+    // Exact match only (case-insensitive)
+    return requiredRoles.some(requiredRole => {
         const normalizedRequired = normalizeRole(requiredRole);
-        const requiredLevel = ROLE_HIERARCHY[normalizedRequired] || 0;
-
-        // User has permission if their level is >= required level
-        if (userLevel >= requiredLevel) {
-            return true;
-        }
-
-        // Also check exact match (case-insensitive)
-        if (normalizedUserRole.toLowerCase() === normalizedRequired.toLowerCase()) {
-            return true;
-        }
-    }
-
-    return false;
+        return normalizedUserRole.toLowerCase() === normalizedRequired.toLowerCase();
+    });
 }
 
 /**
@@ -204,3 +191,4 @@ export default {
     normalizeRole,
     hasRequiredRole
 };
+

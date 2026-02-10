@@ -32,12 +32,29 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Suppress console errors in tests (optional)
 const originalError = console.error;
+const suppressedPatterns: RegExp[] = [
+    /Warning: ReactDOM\.render/,
+    /Failed to load profile:/,
+    /Failed to upload image:/,
+    /Failed to update profile:/,
+    /Failed to load dashboard data:/,
+    /Failed to load dashboard:/,
+    /Failed to load density heatmap:/,
+    /Failed to load demographics report:/,
+    /Failed to load village distribution:/,
+    /Failed to fetch logs:/,
+    /Failed to load operational report:/,
+    /Failed to load spatial analytics:/,
+    /Failed to assign driver:/,
+    /Failed to cancel ride:/,
+    /Report generation failed:/,
+    /Export error:/,
+    /Image load failed/,
+];
 beforeAll(() => {
     console.error = (...args: any[]) => {
-        if (
-            typeof args[0] === 'string' &&
-            args[0].includes('Warning: ReactDOM.render')
-        ) {
+        const msg = typeof args[0] === 'string' ? args[0] : '';
+        if (suppressedPatterns.some((re) => re.test(msg))) {
             return;
         }
         originalError.call(console, ...args);

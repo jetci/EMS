@@ -34,7 +34,7 @@ const generateDriverId = (): string => {
 router.use(authenticateToken);
 
 // GET /api/drivers - fetch all drivers
-router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE']), async (_req, res) => {
+router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
   try {
     const drivers = sqliteDB.all<Driver>('SELECT * FROM drivers ORDER BY full_name');
     res.json(drivers);
@@ -44,13 +44,13 @@ router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_ce
 });
 
 // GET /api/drivers/available - fetch available drivers
-router.get('/available', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE']), async (_req, res) => {
+router.get('/available', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
   try {
     const drivers = sqliteDB.all<any>(`
       SELECT d.*, 
              dl.latitude, 
              dl.longitude, 
-             dl.timestamp as last_updated
+             dl.timestamp as last_updated_timestamp
       FROM drivers d
       LEFT JOIN (
         SELECT driver_id, latitude, longitude, timestamp,
@@ -241,3 +241,4 @@ router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
 });
 
 export default router;
+

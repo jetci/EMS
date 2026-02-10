@@ -1,4 +1,4 @@
-$baseUrl = "http://localhost:5000/api"
+$baseUrl = "http://localhost:3001/api"
 
 function Test-Login {
     param ($email, $password, $role)
@@ -22,9 +22,9 @@ function Test-Login {
     }
 }
 
-Test-Login "admin@wecare.dev" "admin123" "ADMIN"
-Test-Login "office1@wecare.dev" "password" "RADIO"
-Test-Login "officer1@wecare.dev" "password" "OFFICER"
-Test-Login "driver1@wecare.dev" "password" "DRIVER"
-Test-Login "community1@wecare.dev" "password" "COMMUNITY"
-Test-Login "executive1@wecare.dev" "password" "EXECUTIVE"
+Test-Login "admin@wecare.ems" "password123" "ADMIN"
+Test-Login "office1@wecare.dev" "password123" "RADIO"
+Test-Login "officer1@wecare.dev" "password123" "OFFICER"
+Test-Login "driver1@wecare.dev" "password123" "DRIVER"
+Test-Login "community1@wecare.dev" "password123" "COMMUNITY"
+Test-Login "executive1@wecare.dev" "password123" "EXECUTIVE"

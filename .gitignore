@@ -40,6 +40,10 @@ uploads/
 test-results/
 playwright-report/
 
+# Local scratch / generated artifacts
+_tmp/
+reports/
+
 # IDE / Editor
 .vscode/
 .idea/

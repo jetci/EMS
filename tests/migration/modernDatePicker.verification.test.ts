@@ -10,7 +10,7 @@ import path from 'path';
 
 describe('ModernDatePicker Migration Verification', () => {
     const PAGES_DIR = path.join(__dirname, '../../src/pages');
-    const COMPONENTS_DIR = path.join(__dirname, '../../components');
+    const COMPONENTS_DIR = path.join(__dirname, '../../src/components');
 
     // Get all .tsx files in a directory
     function getTsxFiles(dir: string): string[] {

@@ -24,7 +24,7 @@ import newsRoutes from './routes/news';
 import apiProxyRoutes from './routes/api-proxy';
 import auditLogRoutes from './routes/audit-logs';
 import dashboardRoutes from './routes/dashboard';
-import settingsRoutes from './routes/settings';
+import settingsRoutes, { getPublicSettingsHandler } from './routes/settings';
 import reportsRoutes from './routes/reports';
 import officeRoutes from './routes/office';
 import mapDataRoutes from './routes/map-data';
@@ -42,18 +42,25 @@ import { handleMulterError } from './middleware/multerErrorHandler';
 import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requireRole, UserRole } from './middleware/roleProtection';
 import backupService from './services/backupService';
+import { enableSoftDelete } from './middleware/softDelete';
 
 // Validate required environment variables
 const requiredEnvVars = ['JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
-  console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  console.error('   Please set them in your .env file');
-  process.exit(1);
+  if (process.env.NODE_ENV === 'test') {
+    // Provide safe defaults in test environment
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+    console.warn(`⚠️ Test mode: setting default env for ${missingEnvVars.join(', ')}`);
+  } else {
+    console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+    console.error('   Please set them in your .env file');
+    process.exit(1);
+  }
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Security Middleware
 app.use(helmet({
@@ -299,6 +306,11 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Dat
 // Routes
 app.get('/', (req, res) => res.send('EMS WeCare Backend is running!'));
 
+// Serve Socket.IO test page via backend (port 3000)
+app.get('/socket_locations_test.html', (req, res) => {
+  res.sendFile(path.resolve('D:\\EMS\\_tmp\\socket_locations_test.html'));
+});
+
 // Apply rate limiters to auth routes (dual-layer: IP + user-based)
 app.use('/api/auth/login', authLimiter, userBasedAuthLimiter);
 app.use('/api/auth/register', authLimiter);
@@ -343,7 +355,7 @@ app.use('/api/community/patients',
 // Driver routes - accessible by admin, officer, and drivers themselves
 app.use('/api/drivers',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO, UserRole.DRIVER, UserRole.EXECUTIVE]),
   driverRoutes
 );
 
@@ -366,17 +378,17 @@ app.use('/api/users',
   userRoutes
 );
 
-// Team management - admin, developer, officer
+// Team management - admin, developer, officer, radio center, radio, executive
 app.use('/api/teams',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO, UserRole.EXECUTIVE]),
   teamRoutes
 );
 
-// Vehicle management - admin, developer, officer
+// Vehicle management - admin, developer, officer, radio center, radio
 app.use('/api/vehicles',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO]),
   vehicleRoutes
 );
 
@@ -418,6 +430,9 @@ app.use('/api/admin/settings',
   settingsRoutes
 );
 
+// Public Settings - no auth required
+app.get('/api/settings/public', getPublicSettingsHandler);
+
 // Reports - officer and executive
 app.use('/api/office/reports',
   authenticateToken,
@@ -433,21 +448,21 @@ app.use('/api/executive/reports',
 // Office routes - officer and radio center
 app.use('/api/office',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO]),
   officeRoutes
 );
 
 // Map data - admin, developer, officer, radio center
 app.use('/api/map-data',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO]),
   mapDataRoutes
 );
 
 // Driver locations - accessible by multiple roles for tracking
 app.use('/api/driver-locations',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER, UserRole.EXECUTIVE]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO, UserRole.DRIVER, UserRole.EXECUTIVE]),
   driverLocationRoutes
 );
 
@@ -612,6 +627,9 @@ const startServer = async () => {
     const { initializeDatabase } = require('./db/sqliteDB');
     await initializeDatabase();
 
+    // Enable soft delete on critical tables
+    enableSoftDelete(['patients']);
+
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
       console.log(`🔌 WebSocket server ready for real-time location tracking`);
@@ -628,7 +646,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 httpServer.on('error', (error: any) => {
   if (error.code === 'EADDRINUSE') {
@@ -650,3 +670,7 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 // Force restart
+
+// Exports for testing
+export default app;
+export { httpServer, startServer };

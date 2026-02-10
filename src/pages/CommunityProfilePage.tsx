@@ -182,40 +182,16 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
         try {
             setUploadingImage(true);
 
-            const formData = new FormData();
-            formData.append('profile_image', file);
+            // Upload via centralized API (handles CSRF & auth)
+            const result = await authAPI.uploadProfileImage(file);
 
-            console.log('🚀 Starting upload...');
-
-            const response = await fetch('/api/auth/upload-profile-image', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('wecare_token')}`
-                },
-                body: formData
-            });
-
-            console.log('📥 Response status:', response.status);
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('❌ Upload failed:', errorData);
-                throw new Error(errorData.error || 'Failed to upload image');
-            }
-
-            const data = await response.json();
-            console.log('✅ Upload successful:', data);
-
-
-            // Update profile image URL
-            if (data.imageUrl) {
-                setProfileImage(data.imageUrl);
-
-                // Update global user state
-                const updatedUser = { ...initialUser, profileImageUrl: data.imageUrl };
+            // After upload, fetch latest profile to get canonical image URL
+            const latest = await authAPI.getProfile();
+            const imageUrl = latest.profile_image_url || initialUser.profileImageUrl || undefined;
+            if (imageUrl) {
+                setProfileImage(imageUrl);
+                const updatedUser = { ...initialUser, profileImageUrl: imageUrl } as any;
                 onUpdateUser(updatedUser);
-
-                // Update localStorage
                 localStorage.setItem('wecare_user', JSON.stringify(updatedUser));
             }
 
@@ -293,10 +269,12 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                                     {/* Hidden file input */}
                                     <input
                                         ref={fileInputRef}
+                                        id="profile-image-input"
                                         type="file"
                                         accept="image/jpeg,image/jpg,image/png,image/webp"
                                         onChange={handleImageSelect}
                                         className="hidden"
+                                        aria-label="เลือกรูปภาพโปรไฟล์"
                                     />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

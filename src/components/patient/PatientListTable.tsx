@@ -46,7 +46,7 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
 
     return (
         <div className="patient-list-table">
-            <table className="table">
+            <table className="table" aria-label="รายชื่อผู้ป่วย">
                 <thead>
                     <tr>
                         <th>รหัสผู้ป่วย</th>
@@ -62,7 +62,15 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
                 <tbody>
                     {patients.map((patient) => (
                         <tr key={patient.id}>
-                            <td>{patient.id}</td>
+                            <td>
+                                <a
+                                    href={`/patients/${patient.id}`}
+                                    onClick={(e) => { e.preventDefault(); onViewDetails(patient.id); }}
+                                    aria-label={`ดูรายละเอียดผู้ป่วย ${patient.fullName}`}
+                                >
+                                    {patient.id}
+                                </a>
+                            </td>
                             <td>
                                 <div className="patient-name">
                                     {patient.profileImage && (
@@ -89,21 +97,25 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
                                 </span>
                             </td>
                             <td>
-                                <div className="action-buttons">
+                                <div className="action-buttons" role="group" aria-label={`การจัดการผู้ป่วย ${patient.fullName}`}>
                                     <button
                                         className="btn btn-sm btn-info"
                                         onClick={() => onViewDetails(patient.id)}
                                         title="ดูรายละเอียด"
+                                        aria-label={`ดูรายละเอียดผู้ป่วย ${patient.fullName}`}
                                     >
                                         <i className="fas fa-eye"></i>
+                                        ดูรายละเอียด
                                     </button>
                                     {canEdit && (
                                         <button
                                             className="btn btn-sm btn-primary"
                                             onClick={() => onEdit(patient)}
                                             title="แก้ไข"
+                                            aria-label={`แก้ไขผู้ป่วย ${patient.fullName}`}
                                         >
                                             <i className="fas fa-edit"></i>
+                                            แก้ไข
                                         </button>
                                     )}
                                     {canDelete && (
@@ -111,8 +123,10 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
                                             className="btn btn-sm btn-danger"
                                             onClick={() => onDelete(patient.id)}
                                             title="ลบ"
+                                            aria-label={`ลบผู้ป่วย ${patient.fullName}`}
                                         >
                                             <i className="fas fa-trash"></i>
+                                            ลบ
                                         </button>
                                     )}
                                 </div>

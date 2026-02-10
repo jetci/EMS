@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Patient } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -23,6 +23,7 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
     overrideRole
 }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const permissions = usePermissions('patient');
 
@@ -83,6 +84,34 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
         const startIndex = (currentPage - 1) * itemsPerPage;
         return filteredPatients.slice(startIndex, startIndex + itemsPerPage);
     }, [filteredPatients, currentPage, itemsPerPage]);
+
+    // ซิงก์ currentPage กับค่าจาก URL เมื่อมีการเปลี่ยนแปลง query string หรือจำนวนหน้ารวม
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const pageParam = params.get('page');
+        const parsed = pageParam ? parseInt(pageParam, 10) : 1;
+        const clamped = Math.max(1, Math.min(parsed || 1, totalPages || 1));
+        if (!Number.isNaN(parsed) && clamped !== currentPage) {
+            setCurrentPage(clamped);
+        }
+    }, [location.search, totalPages]);
+
+    // อัปเดต URL query (?page=) เมื่อ currentPage เปลี่ยน เพื่อรองรับ deep-linking และการทดสอบ
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const existingPage = parseInt(params.get('page') || '1', 10);
+        if (existingPage !== currentPage) {
+            params.set('page', String(currentPage));
+            navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+        }
+    }, [currentPage, location.pathname, location.search, navigate]);
+
+    // จำกัด currentPage ไม่ให้เกินจำนวนหน้ารวมเมื่อข้อมูลเปลี่ยน
+    useEffect(() => {
+        if (currentPage > (totalPages || 1)) {
+            setCurrentPage(totalPages || 1);
+        }
+    }, [totalPages]);
 
     // ✅ Handlers with permission checks
     const handleEdit = (patient: Patient) => {
@@ -204,17 +233,18 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="pagination">
+                <nav className="pagination" role="navigation" aria-label="การแบ่งหน้า">
                     <button
                         className="btn btn-secondary"
                         onClick={handlePrevPage}
                         disabled={currentPage === 1}
+                        aria-label="หน้าก่อนหน้า"
                     >
                         <i className="fas fa-chevron-left"></i>
                         ก่อนหน้า
                     </button>
 
-                    <span className="page-info">
+                    <span className="page-info" aria-live="polite">
                         หน้า {currentPage} จาก {totalPages}
                     </span>
 
@@ -222,11 +252,12 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
                         className="btn btn-secondary"
                         onClick={handleNextPage}
                         disabled={currentPage === totalPages}
+                        aria-label="หน้าถัดไป"
                     >
                         ถัดไป
                         <i className="fas fa-chevron-right"></i>
                     </button>
-                </div>
+                </nav>
             )}
 
             {/* Toast */}

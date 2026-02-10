@@ -37,8 +37,8 @@ const PublicHeader: React.FC<PublicHeaderProps> = ({
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <button onClick={onLogoClick} className="text-2xl font-bold text-[#005A9C]">
-              WeCare
+            <button onClick={onLogoClick} className="text-2xl font-bold text-[#005A9C]" title="DEV" data-testid="public-header-logo">
+              WeCare DEV
             </button>
           </div>
 
@@ -54,12 +54,14 @@ const PublicHeader: React.FC<PublicHeaderProps> = ({
             <button
               onClick={onLoginClick}
               className="text-[#005A9C] border border-[#005A9C] px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-50 transition duration-300"
+              data-testid="public-header-login-desktop"
             >
               เข้าสู่ระบบ
             </button>
             <button
               onClick={onRegisterClick}
               className="bg-[#005A9C] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition duration-300"
+              data-testid="public-header-register-desktop"
             >
               สมัครสมาชิก
             </button>
@@ -73,6 +75,7 @@ const PublicHeader: React.FC<PublicHeaderProps> = ({
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
               aria-controls="mobile-menu"
               aria-expanded="false"
+              data-testid="public-header-mobile-toggle"
             >
               <span className="sr-only">Open main menu</span>
               {isMenuOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
@@ -83,7 +86,7 @@ const PublicHeader: React.FC<PublicHeaderProps> = ({
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white shadow-lg" id="mobile-menu">
+        <div className="md:hidden bg-white shadow-lg" id="mobile-menu" data-testid="public-header-mobile-menu">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 flex flex-col">
             {navLinks}
           </div>
@@ -92,12 +95,14 @@ const PublicHeader: React.FC<PublicHeaderProps> = ({
                 <button
                 onClick={() => { onLoginClick(); setIsMenuOpen(false); }}
                 className="w-full text-center text-[#005A9C] border border-[#005A9C] px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-50 transition duration-300"
+                data-testid="public-header-login-mobile"
                 >
                 เข้าสู่ระบบ
                 </button>
                 <button
                 onClick={() => { onRegisterClick(); setIsMenuOpen(false); }}
                 className="w-full text-center bg-[#005A9C] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition duration-300"
+                data-testid="public-header-register-mobile"
                 >
                 สมัครสมาชิก
                 </button>

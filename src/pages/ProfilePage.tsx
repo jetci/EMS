@@ -127,24 +127,9 @@ const ProfilePage: React.FC = () => {
         try {
             setUploadingImage(true);
 
-            const formData = new FormData();
-            formData.append('profile_image', imageFile);
+            // Use centralized API with CSRF
+            await authAPI.uploadProfileImage(imageFile);
 
-            // Upload to API
-            const response = await fetch('/api/auth/upload-profile-image', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to upload image');
-            }
-
-            const data = await response.json();
-            
             showToast('✅ อัพโหลดรูปภาพเรียบร้อยแล้ว');
             setImageFile(null);
             

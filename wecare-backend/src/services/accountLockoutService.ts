@@ -222,10 +222,12 @@ export function cleanupExpiredAttempts(): number {
     return cleaned;
 }
 
-// Start cleanup interval (every 5 minutes)
-setInterval(() => {
-    cleanupExpiredAttempts();
-}, 5 * 60 * 1000);
+// Start cleanup interval (every 5 minutes) - disabled in test environment to prevent open handles
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(() => {
+        cleanupExpiredAttempts();
+    }, 5 * 60 * 1000);
+}
 
 export const accountLockoutService = {
     recordFailedAttempt,

@@ -10,7 +10,6 @@ import RidesIcon from '../components/icons/RidesIcon';
 import ChevronLeftIcon from '../components/icons/ChevronLeftIcon';
 import ChevronRightIcon from '../components/icons/ChevronRightIcon';
 import XCircleIcon from '../components/icons/XCircleIcon';
-import EditPatientModal from '../components/modals/EditPatientModal';
 import { formatDateToThai } from '../utils/dateUtils';
 import ModernDatePicker from '../components/ui/ModernDatePicker';
 import StatCard from '../components/dashboard/StatCard';
@@ -89,8 +88,9 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
     const [searching, setSearching] = useState(false);
     const [filters, setFilters] = useState({ registeredBy: 'All', village: 'All', healthCoverage: 'All', startDate: '', endDate: '' });
     const [currentPage, setCurrentPage] = useState(1);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+    // Remove modal-related states after migrating to full-page edit view
+    // const [isModalOpen, setIsModalOpen] = useState(false);
+    // const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -147,8 +147,9 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
     const paginatedPatients = filteredPatients.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handleOpenEditModal = (patient: Patient) => {
-        setSelectedPatient(patient);
-        setIsModalOpen(true);
+        if (setActiveView) {
+            setActiveView('edit_patient', { patientId: patient.id });
+        }
     };
 
 
@@ -188,7 +189,6 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                 showToast('✅ ลงทะเบียนผู้ป่วยใหม่สำเร็จ');
             }
             await loadPatients();
-            setIsModalOpen(false);
         } catch (error: any) {
             console.error('Failed to save patient:', error);
             showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`);
@@ -356,7 +356,8 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                 </div>
             </div>
 
-            {selectedPatient && <EditPatientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} patient={selectedPatient} onSave={handleSavePatient} />}
+            // Remove EditPatientModal render after migrating to full-page edit view
+            // {selectedPatient && <EditPatientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} patient={selectedPatient} onSave={handleSavePatient} />}
             <Toast message={toastMessage} />
         </div>
     );

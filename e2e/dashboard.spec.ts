@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E Test: Dashboard and Navigation
  * Tests main dashboard functionality and navigation
  */
@@ -7,7 +7,7 @@ import { test, expect, Page } from '@playwright/test';
 // Test data
 const TEST_ADMIN = {
     email: 'admin@wecare.ems',
-    password: 'admin123'
+    password: 'password123'
 };
 
 // Helper function to login
@@ -44,7 +44,7 @@ test.describe('Dashboard & Navigation', () => {
         await expect(sidebar.first()).toBeVisible();
 
         // Check for menu items
-        const menuItems = page.locator('a[href], button').filter({ hasText: /(หน้าหลัก|Dashboard|ผู้ป่วย|คนขับ|รถ|รายงาน)/i });
+        const menuItems = page.locator('a[href], button').filter({ hasText: /(à¸«à¸™à¹‰à¸²à¸«à¸¥à¸±à¸|Dashboard|à¸œà¸¹à¹‰à¸›à¹ˆà¸§à¸¢|à¸„à¸™à¸‚à¸±à¸š|à¸£à¸–|à¸£à¸²à¸¢à¸‡à¸²à¸™)/i });
         const count = await menuItems.count();
         expect(count).toBeGreaterThan(0);
     });
@@ -52,9 +52,9 @@ test.describe('Dashboard & Navigation', () => {
     test('should navigate to different sections', async ({ page }) => {
         // Try navigating to different sections
         const sections = [
-            { link: /(ผู้ป่วย|Patient)/i, urlPattern: /patient/ },
-            { link: /(คนขับ|Driver)/i, urlPattern: /driver/ },
-            { link: /(การเดินทาง|Ride)/i, urlPattern: /ride/ },
+            { link: /(à¸œà¸¹à¹‰à¸›à¹ˆà¸§à¸¢|Patient)/i, urlPattern: /patient/ },
+            { link: /(à¸„à¸™à¸‚à¸±à¸š|Driver)/i, urlPattern: /driver/ },
+            { link: /(à¸à¸²à¸£à¹€à¸”à¸´à¸™à¸—à¸²à¸‡|Ride)/i, urlPattern: /ride/ },
         ];
 
         for (const section of sections) {

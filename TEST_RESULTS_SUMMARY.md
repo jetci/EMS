@@ -188,7 +188,7 @@ await login(page, TEST_USER.email, TEST_USER.password);
 // tests/fixtures.ts
 export const test = base.extend({
   authenticatedPage: async ({ page }, use) => {
-    await login(page, 'community1@wecare.dev', 'password');
+    await login(page, 'community1@wecare.dev', 'password123');
     await use(page);
   },
 });

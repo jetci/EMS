@@ -105,7 +105,8 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       req.user?.role !== 'radio_center' &&
       req.user?.role !== 'radio' &&
       req.user?.role !== 'OFFICER' &&
-      req.user?.role !== 'EXECUTIVE'
+      req.user?.role !== 'EXECUTIVE' &&
+      req.user?.role !== 'driver'
     ) {
       // If not an authorized role, deny access to full list
       return res.status(403).json({ error: 'Access denied' });
@@ -481,3 +482,4 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 export default router;
+

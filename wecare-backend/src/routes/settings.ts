@@ -91,8 +91,8 @@ router.put('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (r
     }
 });
 
-// GET /api/public/settings - Public endpoint for landing page and non-authenticated users
-router.get('/public', async (_req, res) => {
+// Exportable handler for public settings
+export const getPublicSettingsHandler = async (_req: express.Request, res: express.Response) => {
     try {
         const rows = sqliteDB.all<any>('SELECT key, value FROM system_settings');
 
@@ -117,6 +117,9 @@ router.get('/public', async (_req, res) => {
         console.error('Error fetching public settings:', err);
         res.status(500).json({ error: err.message });
     }
-});
+};
+
+// GET /api/public/settings - Public endpoint for landing page and non-authenticated users
+router.get('/public', getPublicSettingsHandler);
 
 export default router;

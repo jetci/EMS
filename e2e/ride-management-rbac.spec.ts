@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E Test: Officer Ride Management RBAC
  * 
  * Tests role-based access control for ride management endpoints:
@@ -14,14 +14,14 @@
  */
 import { test, expect } from '@playwright/test';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:3000';
 
 // Test users
 const TEST_USERS = {
-    admin: { email: 'admin@wecare.ems', password: 'admin123' },
-    officer: { email: 'officer1@wecare.dev', password: 'officer123' },
-    community: { email: 'community1@wecare.dev', password: 'community123' },
-    driver: { email: 'driver1@wecare.dev', password: 'driver123' }
+    admin: { email: 'admin@wecare.ems', password: 'password123' },
+    officer: { email: 'officer1@wecare.dev', password: 'password123' },
+    community: { email: 'community1@wecare.dev', password: 'password123' },
+    driver: { email: 'driver1@wecare.dev', password: 'password123' }
 };
 
 // Helper to get auth token
@@ -106,7 +106,7 @@ test.describe('Ride Management - RBAC Tests', () => {
                         pickup_location: 'Test Location',
                         destination: 'Test Hospital',
                         appointment_time: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-                        trip_type: 'นัดหมอตามปกติ'
+                        trip_type: 'à¸™à¸±à¸”à¸«à¸¡à¸­à¸•à¸²à¸¡à¸›à¸à¸•à¸´'
                     }
                 });
 

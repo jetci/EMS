@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -19,7 +19,7 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('wecare_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

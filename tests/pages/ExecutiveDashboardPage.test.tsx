@@ -82,7 +82,27 @@ describe('ExecutiveDashboardPage', () => {
         });
     });
 
+    it('shows initial default stats during loading, then updates after data resolves', async () => {
+        jest.useFakeTimers();
+        mockedApiRequest.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(mockData), 100)));
+
+        render(<ExecutiveDashboardPage />);
+
+        // During loading, initial default KPIs should be rendered with zeros
+        expect(screen.getByText('จำนวนผู้ป่วยทั้งหมด')).toBeInTheDocument();
+        expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+
+        // Resolve the delayed API call
+        jest.advanceTimersByTime(100);
+        await waitFor(() => {
+            expect(screen.getByText('50')).toBeInTheDocument();
+            expect(screen.getByText('100')).toBeInTheDocument();
+        });
+        jest.useRealTimers();
+    });
+
     it('handles API error', async () => {
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockedApiRequest.mockRejectedValue(new Error('API Error'));
         render(<ExecutiveDashboardPage />);
 
@@ -91,5 +111,8 @@ describe('ExecutiveDashboardPage', () => {
             expect(screen.getByText('ภาพรวมโครงการ')).toBeInTheDocument();
             expect(screen.getAllByText('0').length).toBeGreaterThan(0);
         });
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        consoleErrorSpy.mockRestore();
     });
 });

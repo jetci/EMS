@@ -6,6 +6,23 @@
 
 ---
 
+## ⚠️ หมายเหตุเอกสาร/สคริปต์ประวัติ
+
+> เอกสาร/สคริปต์ในโฟลเดอร์ต่อไปนี้เป็นประวัติ (Archive/Legacy) และอาจไม่สะท้อนค่ามาตรฐานปัจจุบัน:
+> - `_archive_old_docs/`
+> - `_legacy_python_backup/`
+> - `dev-tools/scripts/archive/`
+>
+> ตัวอย่างข้อมูลเก่าที่พบ: รหัสผ่าน `password` หรือ `Admin@123`, อีเมล `*.@wecare.dev` บางรายการ
+>
+> มาตรฐานปัจจุบัน (อ้างอิงเดียว):
+> - Admin: `admin@wecare.ems`
+> - Test Password (ทุกบทบาท): `password123`
+>
+> โปรดอ้างอิงค่าใน `QUICK_START.md`, `QUICK_START_IMPLEMENTATION_GUIDE.md` และเอกสารหลักในโฟลเดอร์ราก (`d:\EMS`) เท่านั้น เมื่อพบความไม่สอดคล้องกันให้ถือค่ามาตรฐานนี้เป็นหลัก
+
+---
+
 ## 🗄️ ฐานข้อมูล
 
 **ระบบใช้:** **SQLite Database** 
@@ -58,15 +75,15 @@ npm run dev  # Port 3000
 
 | Role | Email | Password |
 |------|-------|----------|
-| Developer | jetci.jm@gmail.com | devpass123 |
-| Admin | admin@wecare.dev | password |
-| Officer | officer1@wecare.dev | password |
-| Radio Center | office1@wecare.dev | password |
-| Office | office@wecare.dev | password |
-| Radio | radio@wecare.dev | password |
-| Driver | driver1@wecare.dev | password |
-| Community | community1@wecare.dev | password |
-| Executive | executive1@wecare.dev | password |
+| Admin | admin@wecare.ems | password123 |
+| Developer | dev@wecare.ems | password123 |
+| Officer | officer1@wecare.dev | password123 |
+| Radio Center | office1@wecare.dev | password123 |
+| Office | office@wecare.dev | password123 |
+| Radio | radio@wecare.dev | password123 |
+| Driver | driver1@wecare.dev | password123 |
+| Community | community1@wecare.dev | password123 |
+| Executive | executive1@wecare.dev | password123 |
 
 ---
 

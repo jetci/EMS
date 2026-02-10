@@ -2,6 +2,7 @@ import express from 'express';
 import { sqliteDB, seedData, initializeSchema } from '../db/sqliteDB';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { auditService } from '../services/auditService';
+import backupService from '../services/backupService';
 
 const router = express.Router();
 
@@ -12,27 +13,85 @@ router.use(requireRole(['admin', 'DEVELOPER']));
 // POST /api/admin/system/reset-db
 router.post('/reset-db', async (req: any, res) => {
     try {
+        // Guard: Disable in production and behind feature flag
+        const isProduction = process.env.NODE_ENV === 'production';
+        const enableDevReset = process.env.ENABLE_DEV_DB_RESET === 'true';
+        if (isProduction || !enableDevReset) {
+            console.warn('⚠️ Reset DB attempted but BLOCKED by environment guard', {
+                env: process.env.NODE_ENV,
+                enableDevReset
+            });
+            auditService.log(req.user!.email, req.user!.role, 'SYSTEM_RESET_BLOCKED', 'DB');
+            return res.status(403).json({ error: 'Reset DB is disabled in this environment' });
+        }
+
+        // Explicit confirmation requirement to prevent accidental/unauthorized deletion
+        const requiredPhrase = process.env.RESET_DB_CONFIRM_PHRASE || 'CONFIRM_RESET_DB';
+        const confirmPhrase = req.body?.confirm as string | undefined;
+        const reason = (req.body?.reason as string | undefined)?.trim();
+        if (!confirmPhrase || confirmPhrase !== requiredPhrase || !reason || reason.length < 10) {
+            auditService.log(req.user!.email, req.user!.role, 'SYSTEM_RESET_VALIDATION_FAILED', 'DB');
+            return res.status(400).json({
+                error: 'Reset DB requires explicit confirmation and a detailed reason (>= 10 characters)',
+                requiredPhrase
+            });
+        }
+
+        auditService.log(req.user!.email, req.user!.role, 'SYSTEM_RESET_CONFIRMED', `Reason: ${reason}`);
         console.log('⚠️ System Reset Initiated by', req.user?.email);
 
-        // 1. Drop all tables
-        const tables = sqliteDB.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        // Safety backup before reset
+        console.log('📦 Creating safety backup before database reset...');
+        const safetyBackup = await backupService.createBackup();
+        if (safetyBackup.success) {
+            console.log(`✅ Safety backup created: ${safetyBackup.filename} (${((safetyBackup.size || 0) / 1024 / 1024).toFixed(2)}MB)`);
+            auditService.log(req.user!.email, req.user!.role, 'SYSTEM_RESET_SAFETY_BACKUP', safetyBackup.filename || 'unknown');
+        } else {
+            console.warn('⚠️ Safety backup failed:', safetyBackup.error);
+            auditService.log(req.user!.email, req.user!.role, 'SYSTEM_RESET_SAFETY_BACKUP_FAILED', safetyBackup.error || 'unknown');
+        }
 
+        // Whitelist tables to drop (prevent SQL injection & limit scope)
+        const allowedTables = [
+            'users',
+            'patients',
+            'rides',
+            'drivers',
+            'vehicles',
+            'vehicle_types',
+            'teams',
+            'news',
+            'audit_logs',
+            'system_settings',
+            'map_data',
+            'ride_events',
+            'driver_locations',
+            'patient_attachments'
+        ];
+
+        console.log(`🗑️ Dropping ${allowedTables.length} tables...`);
+
+        // IMPORTANT: Disable FK enforcement outside of transaction (SQLite does not apply PRAGMA changes mid-transaction)
+        sqliteDB.exec('PRAGMA foreign_keys = OFF');
+
+        // Drop tables in a transaction
         sqliteDB.transaction(() => {
-            // Disable FK check to allow dropping
-            sqliteDB.exec('PRAGMA foreign_keys = OFF');
-
-            for (const table of tables) {
-                sqliteDB.exec(`DROP TABLE IF EXISTS ${table.name}`);
+            for (const tableName of allowedTables) {
+                sqliteDB.exec(`DROP TABLE IF EXISTS "${tableName}"`);
             }
-
-            sqliteDB.exec('PRAGMA foreign_keys = ON');
         });
 
-        // 2. Re-init Schema
-        initializeSchema();
+        // Re-enable FK enforcement
+        sqliteDB.exec('PRAGMA foreign_keys = ON');
 
-        // 3. Seed Data
+        // Reset schema version to baseline v1 to force migrations on next init
+        sqliteDB.exec('PRAGMA user_version = 1');
+
+        // Re-init Schema and Seed Data (development only)
+        initializeSchema();
         await seedData();
+
+        console.log('✅ Database reset completed and baseline schema re-initialized');
 
         auditService.log(req.user!.email, req.user!.role, 'SYSTEM_RESET', 'DB');
         res.json({ message: 'Database reset successfully' });
@@ -45,6 +104,17 @@ router.post('/reset-db', async (req: any, res) => {
 // POST /api/admin/system/seed-users
 router.post('/seed-users', async (req: any, res) => {
     try {
+        const isProduction = process.env.NODE_ENV === 'production';
+        const enableDevSeed = process.env.ENABLE_DEV_DB_SEED === 'true';
+        if (isProduction || !enableDevSeed) {
+            console.warn('⚠️ Seed Users attempted but BLOCKED by environment guard', {
+                env: process.env.NODE_ENV,
+                enableDevSeed
+            });
+            auditService.log(req.user!.email, req.user!.role, 'SYSTEM_SEED_BLOCKED', 'USERS');
+            return res.status(403).json({ error: 'Seed Users is disabled in this environment' });
+        }
+
         await seedData();
         auditService.log(req.user!.email, req.user!.role, 'SYSTEM_SEED', 'USERS');
         res.json({ message: 'Users seeded successfully' });
@@ -62,6 +132,20 @@ router.get('/logs', async (req: any, res) => {
             [limit]
         );
         res.json(logs);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/admin/system/health
+router.get('/health', async (req: any, res) => {
+    try {
+        // Simple health check info
+        res.json({
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            nodeEnv: process.env.NODE_ENV || 'development'
+        });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

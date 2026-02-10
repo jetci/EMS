@@ -83,6 +83,7 @@ describe('VillageDistributionPage', () => {
     });
 
     it('handles error state', async () => {
+        const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockedApiRequest.mockRejectedValue(new Error('API Error'));
         render(<VillageDistributionPage />);
 
@@ -91,5 +92,6 @@ describe('VillageDistributionPage', () => {
         });
 
         expect(screen.getByText('ไม่สามารถโหลดข้อมูลได้')).toBeInTheDocument();
+        errSpy.mockRestore();
     });
 });

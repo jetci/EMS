@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthenticatedView, User } from '../../types';
-import { getAppSettings, fetchLogoFromAPI } from '../../utils/settings';
+import { getAppSettings, fetchSettingsOptimized } from '../../utils/settings';
 import XIcon from '../icons/XIcon';
 import DashboardIcon from '../icons/DashboardIcon';
 import UsersIcon from '../icons/UsersIcon';
@@ -103,8 +103,10 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
   useEffect(() => {
     const handleSettingsChange = () => {
       setSettings(getAppSettings());
-      fetchLogoFromAPI().then(logoUrl => {
-        setSettings(prev => ({ ...prev, logoUrl: logoUrl || prev.logoUrl }));
+      fetchSettingsOptimized(user.role).then(res => {
+        if (res?.logoUrl) {
+          setSettings(prev => ({ ...prev, logoUrl: res.logoUrl }));
+        }
       });
     };
     window.addEventListener('settingsChanged', handleSettingsChange);
@@ -112,8 +114,8 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
   }, []);
 
   useEffect(() => {
-    fetchLogoFromAPI().then(logoUrl => {
-      if (logoUrl) setSettings(prev => ({ ...prev, logoUrl }));
+    fetchSettingsOptimized(user.role).then(res => {
+      if (res?.logoUrl) setSettings(prev => ({ ...prev, logoUrl: res.logoUrl }));
     });
   }, []);
 
@@ -134,6 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
           ? 'bg-[var(--wecare-blue)] text-white shadow'
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           }`}
+        data-testid={`sidebar-nav-${item.id}`}
       >
         <item.icon className={`w-5 h-5 mr-3 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-500'
           }`} />
@@ -149,6 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
         <div
           className="fixed inset-0 z-20 bg-black bg-opacity-50 md:hidden"
           onClick={onClose}
+          data-testid="sidebar-overlay"
         ></div>
       )}
 
@@ -157,46 +161,50 @@ const Sidebar: React.FC<SidebarProps> = ({ user, activeView, setActiveView, onLo
         fixed inset-y-0 left-0 z-30 w-64 bg-[var(--bg-card)] border-r border-[var(--border-color)] transform transition-transform duration-300 ease-in-out
         md:translate-x-0 md:static md:inset-auto md:flex md:flex-shrink-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-20 flex-shrink-0 px-4 border-b border-[var(--border-color)]">
-            <div className="flex items-center gap-3">
-              {settings.logoUrl ? (
-                <img src={settings.logoUrl} alt={settings.appName} className="w-10 h-10 object-contain rounded" />
-              ) : (
-                <div className="w-10 h-10 bg-[var(--wecare-blue)] rounded flex items-center justify-center text-white font-bold">
-                  {settings.appName.charAt(0)}
-                </div>
-              )}
-              <h1 className="text-xl font-bold text-[var(--wecare-blue)] truncate max-w-[140px]">{settings.appName}</h1>
-            </div>
-            {/* Close button for mobile */}
-            <button
-              onClick={onClose}
-              className="md:hidden p-1 text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none"
-            >
-              <XIcon className="w-6 h-6" />
-            </button>
-          </div>
-
-          <div className="flex-1 flex flex-col overflow-y-auto p-4">
-            <nav className="flex-1 space-y-1">
-              {navItems.map(item => <NavLink key={item.id} item={item} />)}
-            </nav>
-            <div className="mt-auto">
-              <div className="border-t border-[var(--border-color)] my-4"></div>
-              <div className="space-y-1">
-                <NavLink item={profileItem} />
-                <button
-                  onClick={onLogout}
-                  className="w-full flex items-center px-4 py-2.5 text-sm font-semibold rounded-lg text-gray-600 hover:bg-gray-100 group"
-                >
-                  <LogoutIcon className="w-5 h-5 mr-3 text-gray-400 group-hover:text-gray-500 transition-colors" />
-                  <span>ออกจากระบบ</span>
-                </button>
+      `}
+      data-testid="sidebar-root"
+    >
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between h-20 flex-shrink-0 px-4 border-b border-[var(--border-color)]">
+          <div className="flex items-center gap-3">
+            {settings.logoUrl ? (
+              <img src={settings.logoUrl} alt={settings.appName} className="w-10 h-10 object-contain rounded" />
+            ) : (
+              <div className="w-10 h-10 bg-[var(--wecare-blue)] rounded flex items-center justify-center text-white font-bold">
+                {settings.appName.charAt(0)}
               </div>
+            )}
+            <h1 className="text-xl font-bold text-[var(--wecare-blue)] truncate max-w-[140px]">{settings.appName}</h1>
+          </div>
+          {/* Close button for mobile */}
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 text-gray-500 hover:bg-gray-100 rounded-full focus:outline-none"
+            data-testid="sidebar-close-mobile"
+          >
+            <XIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 flex flex-col overflow-y-auto p-4">
+          <nav className="flex-1 space-y-1">
+            {navItems.map(item => <NavLink key={item.id} item={item} />)}
+          </nav>
+          <div className="mt-auto">
+            <div className="border-t border-[var(--border-color)] my-4"></div>
+            <div className="space-y-1">
+              <NavLink item={profileItem} />
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center px-4 py-2.5 text-sm font-semibold rounded-lg text-gray-600 hover:bg-gray-100 group"
+                data-testid="sidebar-logout"
+              >
+                <LogoutIcon className="w-5 h-5 mr-3 text-gray-400 group-hover:text-gray-500 transition-colors" />
+                <span>ออกจากระบบ</span>
+              </button>
             </div>
           </div>
+        </div>
         </div>
       </aside>
     </>

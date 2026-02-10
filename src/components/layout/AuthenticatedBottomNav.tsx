@@ -47,6 +47,7 @@ const AuthenticatedBottomNav: React.FC<AuthenticatedBottomNavProps> = ({ user, a
           return (
             <button
               key={item.id}
+              data-testid={`bottom-nav-${item.id}`}
               onClick={() => setActiveView(item.id as AuthenticatedView)}
               className={`flex flex-col items-center justify-center w-full pt-2 pb-1 px-1 text-sm transition-colors duration-200 relative ${
                 isActive ? 'text-[var(--wecare-blue)]' : 'text-gray-600 hover:text-[var(--wecare-blue)]'

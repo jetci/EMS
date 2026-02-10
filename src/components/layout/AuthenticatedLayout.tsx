@@ -46,8 +46,9 @@ import MapCommandPage from '../../pages/MapCommandPage';
 import TestUnifiedRadioPage from '../../pages/TestUnifiedRadioPage';
 import PublicSingleNewsPage from '../../pages/PublicSingleNewsPage';
 import ExecutiveProfilePage from '../../pages/ExecutiveProfilePage';
-
+import EditPatientPage from '../../pages/EditPatientPage';
 import { initializeSocket, disconnectSocket, onNotification } from '../../services/socketService';
+import { patientsAPI } from '../../services/api';
 
 interface AuthenticatedLayoutProps {
   user: User;
@@ -78,7 +79,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
   // Initialize Socket.IO
   useEffect(() => {
     try {
-      if (user) {
+      if (user?.id) {
         initializeSocket();
         console.log('🔌 Socket initialized for user:', user.email);
 
@@ -96,14 +97,14 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
         });
 
         return () => {
+          // Keep socket connection alive across user prop re-renders; only remove notification listener here
           cleanup();
-          disconnectSocket();
         };
       }
     } catch (err) {
       console.error('Failed to initialize socket:', err);
     }
-  }, [user]);
+  }, [user?.id]);
 
   const addNotification = (notification: Omit<Notification, 'id' | 'timestamp'>) => {
     const newNotification: Notification = {
@@ -119,11 +120,57 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
     setViewContext(context);
   };
 
+  // Dev-only: Apply initial view/context from localStorage (set by App.tsx via query params)
+  useEffect(() => {
+    try {
+      if (!import.meta.env.DEV) return;
+      const initialView = localStorage.getItem('initial_view');
+      if (initialView) {
+        const ctxRaw = localStorage.getItem('view_context');
+        const ctx = ctxRaw ? JSON.parse(ctxRaw) : null;
+
+        // If targeting patient_detail without patientId, auto-pick the first patient
+        if (initialView === 'patient_detail' && (!ctx || !ctx.patientId)) {
+          (async () => {
+            try {
+              const response = await patientsAPI.getPatients();
+              const rawData = response?.data || response || [];
+              const firstPatient = Array.isArray(rawData) ? rawData[0] : null;
+              const pid = firstPatient?.id;
+              if (pid) {
+                setActiveView('patient_detail');
+                setViewContext({ patientId: pid });
+                console.log('🧭 Auto-open first patient:', pid);
+              } else {
+                setActiveView('patients');
+              }
+            } catch (err) {
+              console.warn('Failed to auto-open first patient:', err);
+              setActiveView('patients');
+            } finally {
+              // Clear after applying to avoid stale navigation
+              localStorage.removeItem('initial_view');
+              localStorage.removeItem('view_context');
+            }
+          })();
+          return; // prevent below block
+        }
+
+        setActiveView(initialView as AuthenticatedView);
+        setViewContext(ctx);
+        // Clear after applying to avoid stale navigation
+        localStorage.removeItem('initial_view');
+        localStorage.removeItem('view_context');
+        console.log('🔎 Applied initial view from storage:', { initialView, ctx });
+      }
+    } catch (e) {
+      console.warn('Failed to apply initial view from storage:', e);
+    }
+  }, [user]);
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
-
-  // ... renderContent switch ...
 
   const renderContent = () => {
     switch (user.role) {
@@ -145,6 +192,11 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'patient_detail':
             if (viewContext?.patientId) {
               return <PatientDetailPage patientId={viewContext.patientId} setActiveView={handleSetView} />;
+            }
+            return <ManagePatientsPage setActiveView={handleSetView} />; // Fallback
+          case 'edit_patient':
+            if (viewContext?.patientId) {
+              return <EditPatientPage patientId={viewContext.patientId} setActiveView={handleSetView} />;
             }
             return <ManagePatientsPage setActiveView={handleSetView} />; // Fallback
           default: return <CommunityDashboard setActiveView={handleSetView} />;

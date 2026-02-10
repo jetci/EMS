@@ -61,10 +61,12 @@ class SimpleCache {
 // Export singleton instance
 export const cache = new SimpleCache();
 
-// Auto-cleanup every 5 minutes
-setInterval(() => {
-    cache.cleanup();
-}, 300000);
+// Auto-cleanup every 5 minutes (disabled in test environment to prevent open handles)
+if (process.env.NODE_ENV !== 'test') {
+    setInterval(() => {
+        cache.cleanup();
+    }, 300000);
+}
 
 /**
  * Optimized Patient Queries (Fixes N+1 Problem)
@@ -120,6 +122,7 @@ export function getPatientsWithAttachments(): PatientWithAttachments[] {
       pa.uploaded_at
     FROM patients p
     LEFT JOIN patient_attachments pa ON p.id = pa.patient_id
+    WHERE p.deleted_at IS NULL
     ORDER BY p.created_at DESC, pa.uploaded_at ASC
   `;
 
@@ -194,7 +197,7 @@ export function getPatientWithAttachments(patientId: string): PatientWithAttachm
       pa.uploaded_at
     FROM patients p
     LEFT JOIN patient_attachments pa ON p.id = pa.patient_id
-    WHERE p.id = ?
+    WHERE p.id = ? AND p.deleted_at IS NULL
     ORDER BY pa.uploaded_at ASC
   `;
 

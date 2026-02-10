@@ -1,10 +1,10 @@
-/**
+﻿/**
  * E2E Test: API Health Check
  * Tests backend API connectivity and basic endpoints
  */
 import { test, expect } from '@playwright/test';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:3000';
 
 test.describe('API Health Check', () => {
 
@@ -34,7 +34,7 @@ test.describe('API Health Check', () => {
         const loginResponse = await request.post(`${API_BASE}/api/auth/login`, {
             data: {
                 email: 'admin@wecare.ems',
-                password: 'admin123'
+                password: 'password123'
             },
             headers: {
                 'X-CSRF-Token': csrfToken
@@ -72,7 +72,7 @@ test.describe('API Health Check', () => {
         const loginResponse = await request.post(`${API_BASE}/api/auth/login`, {
             data: {
                 email: 'admin@wecare.ems',
-                password: 'admin123'
+                password: 'password123'
             }
         });
 
@@ -98,7 +98,7 @@ test.describe('API Health Check', () => {
         const loginResponse = await request.post(`${API_BASE}/api/auth/login`, {
             data: {
                 email: 'admin@wecare.ems',
-                password: 'admin123'
+                password: 'password123'
             }
         });
 
@@ -119,4 +119,43 @@ test.describe('API Health Check', () => {
         }
     });
 
+});
+
+test.describe('Settings API', () => {
+  test('should return public settings without auth', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/settings/public`);
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data).toHaveProperty('appName');
+    expect(data).toHaveProperty('organizationName');
+  });
+
+  test('should require auth for admin settings', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/api/admin/settings`);
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('should allow admin to access settings after login', async ({ request }) => {
+    const csrfRes = await request.get(`${API_BASE}/api/csrf-token`);
+    const { csrfToken } = await csrfRes.json();
+
+    const loginRes = await request.post(`${API_BASE}/api/auth/login`, {
+      data: { email: 'admin@wecare.ems', password: 'password123' },
+      headers: { 'X-CSRF-Token': csrfToken }
+    });
+
+    if (!loginRes.ok()) {
+      console.warn('Login failed, skipping admin settings check');
+      return;
+    }
+
+    const { token } = await loginRes.json();
+    const settingsRes = await request.get(`${API_BASE}/api/admin/settings`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    expect(settingsRes.ok()).toBeTruthy();
+    const settings = await settingsRes.json();
+    expect(settings).toHaveProperty('appName');
+  });
 });

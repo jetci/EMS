@@ -1,7 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import './styles/tailwind.css';
 import App from './App';
+import { AuthProvider } from './contexts/AuthContext';
 
 /**
  * ตรวจจับ base path อัตโนมัติ
@@ -30,7 +32,9 @@ const basePath = getBasePath();
 
 // ตั้งค่า global สำหรับใช้ใน components อื่น
 (window as any).__BASE_PATH__ = basePath;
-(window as any).__API_BASE__ = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
+// ในโหมดพัฒนา ให้ใช้ '/api' เสมอเพื่อผ่าน Vite proxy ไปยัง mock server
+const isDev = (import.meta as any)?.env?.DEV;
+(window as any).__API_BASE__ = isDev ? '/api' : ((import.meta as any).env?.VITE_API_BASE_URL || '/api');
 
 // Debug log (เฉพาะ development)
 if ((import.meta as any)?.env?.DEV) {
@@ -40,8 +44,10 @@ if ((import.meta as any)?.env?.DEV) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter basename={basePath}>
-      <App />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter basename={basePath}>
+        <App />
+      </BrowserRouter>
+    </AuthProvider>
   </React.StrictMode>,
 );
