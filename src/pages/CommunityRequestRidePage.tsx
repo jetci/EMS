@@ -41,7 +41,8 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         patientId: '',
         appointmentDate: '',
         appointmentTime: '',
-        tripType: tripTypes[0],
+        tripType: '',
+        tripTypeOtherDetails: '',
         caregiverCount: '' as number | string,
         contactPhone: '',
         pickupLocation: '',
@@ -179,6 +180,15 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             return;
         }
 
+        if (name === 'tripType') {
+            setFormData(prev => ({
+                ...prev,
+                tripType: value,
+                tripTypeOtherDetails: value === 'อื่นๆ' ? prev.tripTypeOtherDetails : ''
+            }));
+            return;
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -196,6 +206,8 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         if (!formData.patientId) errors.push('กรุณาเลือกผู้ป่วย');
         if (!formData.appointmentDate) errors.push('กรุณาเลือกวันนัดหมาย');
         if (!formData.appointmentTime) errors.push('กรุณาเลือกเวลานัดหมาย');
+        if (!formData.tripType) errors.push('กรุณาเลือกประเภทการเดินทาง');
+        if (formData.tripType === 'อื่นๆ' && !formData.tripTypeOtherDetails.trim()) errors.push('กรุณาระบุรายละเอียดประเภทการเดินทาง (อื่นๆ)');
         if (!formData.pickupLocation) errors.push('กรุณากรอกจุดรับผู้ป่วย');
         if (!formData.destination) errors.push('กรุณากรอกจุดหมายปลายทาง');
         if (!formData.contactPhone) errors.push('กรุณากรอกเบอร์โทรติดต่อ');
@@ -241,6 +253,7 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             caregiver_count: formData.caregiverCount === '' ? 0 : formData.caregiverCount,
             contact_phone: formData.contactPhone,
             trip_type: formData.tripType, // Added trip_type
+            notes: formData.tripType === 'อื่นๆ' ? formData.tripTypeOtherDetails.trim() : undefined,
         } as any;
 
         setIsSubmitting(true);
@@ -252,7 +265,8 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                 patientId: '',
                 appointmentDate: '',
                 appointmentTime: '',
-                tripType: tripTypes[0],
+                tripType: '',
+                tripTypeOtherDetails: '',
                 caregiverCount: '',
                 contactPhone: '',
                 pickupLocation: '',
@@ -362,11 +376,32 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                                 onChange={handleChange}
                                 required
                             >
+                                <option value="" disabled>-- กรุณาเลือกประเภทการเดินทาง --</option>
                                 {tripTypes.map(type => (
                                     <option key={type} value={type}>{type}</option>
                                 ))}
                             </select>
                         </div>
+
+                        {formData.tripType === 'อื่นๆ' && (
+                            <div className="md:col-span-2">
+                                <label htmlFor="tripTypeOtherDetails" className="block text-sm font-medium text-gray-700 mb-1">
+                                    รายละเอียดเพิ่มเติม (อื่นๆ)
+                                </label>
+                                <textarea
+                                    name="tripTypeOtherDetails"
+                                    id="tripTypeOtherDetails"
+                                    value={formData.tripTypeOtherDetails}
+                                    onChange={handleChange}
+                                    placeholder="โปรดระบุรายละเอียด เช่น ต้องการเปล/อุปกรณ์ยกย้าย, ผู้ป่วยนั่งรถเข็นไม่ได้, ต้องมีคนช่วยพยุง ฯลฯ"
+                                    rows={3}
+                                    required
+                                />
+                                <p className="mt-1 text-xs text-gray-500">
+                                    ข้อมูลนี้จะถูกส่งให้เจ้าหน้าที่เพื่อจัดเตรียมอุปกรณ์รองรับการขนย้ายผู้ป่วย
+                                </p>
+                            </div>
+                        )}
 
                         {/* Appointment Date & Time */}
                         <div>

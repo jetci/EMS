@@ -20,7 +20,7 @@ import UserSwitchIcon from '../components/icons/UserSwitchIcon';
 import WheelchairIcon from '../components/icons/WheelchairIcon';
 
 const ITEMS_PER_PAGE = 10;
-const tripTypes = ['All', 'นัดหมอตามปกติ', 'รับยา', 'กายภาพบำบัด', 'ฉุกเฉิน'];
+const tripTypes = ['All', 'นัดหมอตามปกติ', 'รับยา', 'กายภาพบำบัด', 'ฉุกเฉิน', 'อื่นๆ'];
 
 interface OfficeManageRidesPageProps {
     setActiveView?: (view: any) => void;
@@ -250,6 +250,11 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
                                                     </span>
                                                 )}
                                             </div>
+                                            {ride.tripType === 'อื่นๆ' && ride.notes && (
+                                                <div className="mt-1 text-xs text-gray-500 line-clamp-2">
+                                                    {ride.notes}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-4 py-3">{ride.driverName || 'N/A'}</td>
                                         <td className="px-4 py-3 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
