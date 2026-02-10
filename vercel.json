@@ -2,6 +2,18 @@
     "outputDirectory": "dist",
     "rewrites": [
         {
+            "source": "/api/(.*)",
+            "destination": "https://api.wiangwecare.com/api/$1"
+        },
+        {
+            "source": "/uploads/(.*)",
+            "destination": "https://api.wiangwecare.com/uploads/$1"
+        },
+        {
+            "source": "/socket.io/(.*)",
+            "destination": "https://api.wiangwecare.com/socket.io/$1"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }

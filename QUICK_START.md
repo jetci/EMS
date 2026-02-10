@@ -124,10 +124,15 @@ Password: password123
 
 Vercel เป็น hosting สำหรับ Frontend เป็นหลัก หาก deploy เฉพาะ Frontend ขึ้น Vercel แล้ว “ไม่ได้มี backend ที่ Vercel” API ที่เรียก `/api/*` จะล้มเหลวทันที
 
-- ทางที่แนะนำ: deploy backend แยก (เช่น VM/Render/Railway/Docker) แล้วตั้งค่า Env บน Vercel:
-  - `VITE_API_URL=https://<backend-domain>/api`
-  - จากนั้น redeploy
-- ถ้าต้องการให้ Frontend+Backend อยู่โดเมนเดียวกัน ต้องมี reverse proxy/rewrites ให้ `/api` วิ่งไป backend
+- ทางที่แนะนำ (ดีที่สุดกับ CSRF/cookie): ใช้ rewrites ของ Vercel ให้ `/api/*` วิ่งไป backend แล้วให้ frontend เรียก API แบบ same-origin
+  - ตั้ง `VITE_API_URL=/api`
+  - เพิ่มไฟล์ `vercel.json` (ใน repo) ให้มี rewrites:
+    - `/api/(.*)` → `https://api.wiangwecare.com/api/$1`
+    - `/uploads/(.*)` → `https://api.wiangwecare.com/uploads/$1`
+    - `/socket.io/(.*)` → `https://api.wiangwecare.com/socket.io/$1`
+  - Redeploy บน Vercel
+- ถ้าจะชี้ไป backend ตรงๆ (ข้ามโดเมน) เช่น `VITE_API_URL=https://api.wiangwecare.com/api`
+  - ต้องตั้ง CORS (`ALLOWED_ORIGINS`) และอาจต้องปรับ cookie/CSRF ให้รองรับ cross-site
 
 ---
 
