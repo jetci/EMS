@@ -21,6 +21,8 @@ npm install
 ```bash
 # Frontend (.env)
 VITE_API_URL=http://localhost:3001/api
+# (ทางเลือก/legacy) ถ้าต้องการระบุ base แบบไม่ต่อท้าย /api ให้ใช้ตัวนี้แทน
+# VITE_API_BASE_URL=http://localhost:3001
 ```
 
 สร้างไฟล์ `.env` ใน `D:\EMS\wecare-backend`:
@@ -115,6 +117,17 @@ Password: password123
 - Backend จะ seed user เริ่มต้นให้อัตโนมัติที่ [sqliteDB.ts](file:///D:/EMS/wecare-backend/src/db/sqliteDB.ts)
 - ถ้าต้องการให้ข้อมูลอยู่ถาวรบนออนไลน์ ให้ใช้ persistent volume กับโฟลเดอร์ `db/` หรือกำหนด `DB_PATH` ไปยังที่เก็บแบบถาวร
 - ถ้า host เป็นแบบ file system ชั่วคราว (ephemeral) ข้อมูลจะหายเมื่อ restart/deploy ใหม่ ซึ่งเหมาะกับ “จำลองเทส” แต่ไม่เหมาะกับ production
+
+---
+
+## ▲ Deploy Frontend บน Vercel (หมายเหตุสำคัญ)
+
+Vercel เป็น hosting สำหรับ Frontend เป็นหลัก หาก deploy เฉพาะ Frontend ขึ้น Vercel แล้ว “ไม่ได้มี backend ที่ Vercel” API ที่เรียก `/api/*` จะล้มเหลวทันที
+
+- ทางที่แนะนำ: deploy backend แยก (เช่น VM/Render/Railway/Docker) แล้วตั้งค่า Env บน Vercel:
+  - `VITE_API_URL=https://<backend-domain>/api`
+  - จากนั้น redeploy
+- ถ้าต้องการให้ Frontend+Backend อยู่โดเมนเดียวกัน ต้องมี reverse proxy/rewrites ให้ `/api` วิ่งไป backend
 
 ---
 

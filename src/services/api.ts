@@ -11,9 +11,13 @@ const getApiBaseUrl = (): string => {
   let viteBaseUrl: string | undefined;
   try {
     // eslint-disable-next-line no-eval
-    viteBaseUrl = (0, eval)('import.meta?.env?.VITE_API_BASE_URL');
+    viteBaseUrl =
+      (0, eval)('import.meta?.env?.VITE_API_URL') ||
+      (0, eval)('import.meta?.env?.VITE_API_BASE_URL');
   } catch {
-    viteBaseUrl = (typeof process !== 'undefined' && process.env?.VITE_API_BASE_URL) || undefined;
+    viteBaseUrl =
+      (typeof process !== 'undefined' && (process.env?.VITE_API_URL || process.env?.VITE_API_BASE_URL)) ||
+      undefined;
   }
 
   // Prefer window.__API_BASE__ if available (set by main.tsx)
@@ -35,6 +39,39 @@ const API_BASE_URL = getApiBaseUrl();
 
 // CSRF Token management
 let csrfToken: string | null = null;
+
+const shouldDisableAutoReload = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('noreload')) return true;
+  } catch { }
+  try {
+    return (window as any).__DISABLE_AUTO_RELOAD__ === true;
+  } catch { }
+  return false;
+};
+
+const clearAuthState = () => {
+  localStorage.removeItem('wecare_token');
+  localStorage.removeItem('wecare_user');
+  clearCsrfToken();
+};
+
+const reloadOnceOrThrow = (message: string) => {
+  if (typeof window === 'undefined') throw new Error(message);
+  if (shouldDisableAutoReload()) throw new Error(message);
+  const key = '__wecare_reload_once__';
+  try {
+    const alreadyReloaded = sessionStorage.getItem(key);
+    if (alreadyReloaded) throw new Error(message);
+    sessionStorage.setItem(key, '1');
+    window.location.reload();
+    return;
+  } catch {
+    throw new Error(message);
+  }
+};
 
 const getCsrfToken = async (): Promise<string> => {
   if (csrfToken) return csrfToken;
@@ -116,20 +153,15 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
         try { detail = await res.json(); } catch { }
 
         if (endpoint.includes('/auth/login')) {
-          localStorage.removeItem('wecare_token');
-          localStorage.removeItem('wecare_user');
-          clearCsrfToken();
+          clearAuthState();
           throw new Error(detail?.error || 'Invalid credentials');
         }
 
         const hadToken = !!token;
-        localStorage.removeItem('wecare_token');
-        localStorage.removeItem('wecare_user');
-        clearCsrfToken();
+        clearAuthState();
 
         if (hadToken) {
-          window.location.reload();
-          throw new Error('Session expired. Please login again.');
+          reloadOnceOrThrow('Session expired. Please login again.');
         }
 
         throw new Error(detail?.error || detail?.message || 'Unauthorized');
@@ -160,11 +192,8 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     // Check if response is HTML (error page) - but NOT for auth endpoints
     const isAuthEndpoint = endpoint.includes('/auth/');
     if (!isAuthEndpoint && (text.includes('<!DOCTYPE') || text.includes('<html'))) {
-      localStorage.removeItem('wecare_token');
-      localStorage.removeItem('wecare_user');
-      clearCsrfToken();
-      window.location.reload();
-      throw new Error('Authentication error. Please login again.');
+      clearAuthState();
+      reloadOnceOrThrow('Authentication error. Please login again.');
     }
 
     // Parse as JSON

@@ -34,7 +34,9 @@ const basePath = getBasePath();
 (window as any).__BASE_PATH__ = basePath;
 // ในโหมดพัฒนา ให้ใช้ '/api' เสมอเพื่อผ่าน Vite proxy ไปยัง mock server
 const isDev = (import.meta as any)?.env?.DEV;
-(window as any).__API_BASE__ = isDev ? '/api' : ((import.meta as any).env?.VITE_API_BASE_URL || '/api');
+(window as any).__API_BASE__ = isDev
+  ? '/api'
+  : ((import.meta as any).env?.VITE_API_URL || (import.meta as any).env?.VITE_API_BASE_URL || '/api');
 
 // Debug log (เฉพาะ development)
 if ((import.meta as any)?.env?.DEV) {
