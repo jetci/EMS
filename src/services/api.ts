@@ -187,7 +187,21 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
           .join('\n');
         if (msg) throw new Error(msg);
       }
-      throw new Error(detail?.error || detail?.message || `HTTP ${res.status}: ${res.statusText}`);
+      const coerceErrorMessage = (v: any): string | null => {
+        if (!v) return null;
+        if (typeof v === 'string') return v;
+        if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+        if (typeof v === 'object') {
+          if (typeof v.message === 'string' && v.message.trim()) return v.message;
+          try { return JSON.stringify(v); } catch { return String(v); }
+        }
+        return String(v);
+      };
+      const msg =
+        coerceErrorMessage(detail?.error) ||
+        coerceErrorMessage(detail?.message) ||
+        `HTTP ${res.status}: ${res.statusText}`;
+      throw new Error(msg);
     }
 
     // Some endpoints may return 204
@@ -256,7 +270,22 @@ export const patientsAPI = {
     const query = buildPaginationQuery(params);
     return apiRequest(`/patients${query}`);
   },
-  getPatientById: (id: string) => apiRequest(`/patients/${id}`),
+  getPatientById: async (id: string) => {
+    try {
+      return await apiRequest(`/patients/${id}`);
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (!/404|not found|ไม่พบ/i.test(msg)) throw e;
+
+      const list = await apiRequest('/patients?limit=200&page=1');
+      const items = Array.isArray(list)
+        ? list
+        : (list?.data || list?.patients || list?.items || list?.results || []);
+      const found = (items || []).find((p: any) => String(p?.id) === String(id));
+      if (found) return found;
+      throw e;
+    }
+  },
   createPatient: (data: any) =>
     apiRequest('/patients', { method: 'POST', body: JSON.stringify(data) }),
   updatePatient: (id: string, data: any) =>
