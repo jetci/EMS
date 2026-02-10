@@ -170,6 +170,9 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                 chronic_diseases: updatedPatient.chronicDiseases,
                 allergies: updatedPatient.allergies,
                 contact_phone: updatedPatient.contactPhone,
+                emergencyContactName: updatedPatient.emergencyContactName,
+                emergencyContactPhone: updatedPatient.emergencyContactPhone,
+                emergencyContactRelation: updatedPatient.emergencyContactRelation,
                 id_card_address: updatedPatient.idCardAddress,
                 current_address: updatedPatient.currentAddress,
                 landmark: updatedPatient.landmark,
@@ -177,6 +180,8 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                 longitude: updatedPatient.longitude,
                 attachments: updatedPatient.attachments,
                 key_info: updatedPatient.keyInfo,
+                caregiverName: updatedPatient.caregiverName,
+                caregiverPhone: updatedPatient.caregiverPhone,
             };
 
             if (updatedPatient.id) {
