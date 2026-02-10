@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HeroIllustration from './illustrations/HeroIllustration';
 import Button from './ui/Button';
-import { getAppSettings, fetchLogoFromAPI } from '../utils/settings';
+import { getAppSettings, fetchSettingsOptimized } from '../utils/settings';
 import { SystemSettings } from '../types';
 
 interface LandingPageProps {
@@ -9,14 +9,16 @@ interface LandingPageProps {
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
-    const [settings, setSettings] = useState<SystemSettings | null>(null);
-    const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
+    const [settings, setSettings] = useState<SystemSettings>(() => getAppSettings());
 
     useEffect(() => {
-        setSettings(getAppSettings());
-        // Fetch logo from API instead of localStorage
-        fetchLogoFromAPI().then(logo => {
-            setLogoUrl(logo);
+        fetchSettingsOptimized(undefined).then(res => {
+            if (!res) return;
+            const normalizedLogoUrl = (res.logoUrl && String(res.logoUrl).trim().length > 0) ? String(res.logoUrl).trim() : undefined;
+            if (normalizedLogoUrl !== undefined) {
+                localStorage.setItem('wecare_logoUrl', normalizedLogoUrl);
+            }
+            setSettings(prev => ({ ...prev, ...res, logoUrl: normalizedLogoUrl }));
         });
     }, []);
 
@@ -54,9 +56,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onRegisterClick }) => {
                         </div>
                         {/* Illustration or Logo */}
                         <div className="hidden lg:block">
-                            {logoUrl ? (
+                            {settings.logoUrl ? (
                                 <div className="animate-scale-in flex items-center justify-center p-8 bg-white rounded-3xl shadow-xl border border-gray-100 max-w-lg mx-auto overflow-hidden min-h-[400px]">
-                                    <img src={logoUrl} alt={appName} className="max-w-full max-h-full object-contain" />
+                                    <img src={settings.logoUrl} alt={appName} className="max-w-full max-h-full object-contain" />
                                 </div>
                             ) : (
                                 <HeroIllustration className="w-full h-auto max-w-lg mx-auto" />

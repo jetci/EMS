@@ -29,7 +29,7 @@ export const getAppSettings = (): SystemSettings => {
             organizationAddress: localStorage.getItem('wecare_organizationAddress') || DEFAULTS.organizationAddress,
             organizationPhone: localStorage.getItem('wecare_organizationPhone') || DEFAULTS.organizationPhone,
             contactEmail: localStorage.getItem('wecare_contactEmail') || DEFAULTS.contactEmail,
-            logoUrl: DEFAULTS.logoUrl,
+            logoUrl: localStorage.getItem('wecare_logoUrl') || DEFAULTS.logoUrl,
             googleMapsApiKey: localStorage.getItem('wecare_googleMapsApiKey') || DEFAULTS.googleMapsApiKey,
             mapCenterLat: parseFloat(localStorage.getItem('wecare_mapCenterLat') || String(DEFAULTS.mapCenterLat)),
             mapCenterLng: parseFloat(localStorage.getItem('wecare_mapCenterLng') || String(DEFAULTS.mapCenterLng)),

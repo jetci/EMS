@@ -73,6 +73,7 @@ const AdminSystemSettingsPage: React.FC<AdminSystemSettingsPageProps> = ({ curre
             localStorage.setItem('wecare_organizationAddress', settings.organizationAddress || '');
             localStorage.setItem('wecare_organizationPhone', settings.organizationPhone || '');
             localStorage.setItem('wecare_contactEmail', settings.contactEmail);
+            localStorage.setItem('wecare_logoUrl', settings.logoUrl || '');
             localStorage.setItem('wecare_googleMapsApiKey', settings.googleMapsApiKey);
             localStorage.setItem('wecare_mapCenterLat', String(settings.mapCenterLat));
             localStorage.setItem('wecare_mapCenterLng', String(settings.mapCenterLng));
