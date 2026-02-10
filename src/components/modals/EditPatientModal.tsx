@@ -30,7 +30,10 @@ const villages = [
 
 const titles = ["นาย", "นาง", "นางสาว", "เด็กชาย", "เด็กหญิง"];
 const bloodTypes = ["A", "B", "AB", "O"];
-const rhFactors = ["Rh+", "Rh-"];
+const rhFactors = [
+    { value: '+', label: 'Rh+' },
+    { value: '-', label: 'Rh-' }
+];
 const healthCoverages = ["สิทธิบัตรทอง (UC)", "ประกันสังคม", "ข้าราชการ", "ชำระเงินเอง", "อื่นๆ"];
 const patientTypeOptions = ['ผู้ป่วยติดเตียง', 'ผู้ป่วยภาวะพึงพิง', 'ผู้ป่วยยากไร้'];
 
@@ -50,7 +53,14 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
             const isSameAddress = JSON.stringify(patient.idCardAddress) === JSON.stringify(patient.currentAddress);
             setAddressOption(isSameAddress ? 'same' : 'new');
 
-            setFormData({ ...patient });
+            const normalizeRh = (v: any): string => {
+                const s = (v ?? '').toString().trim();
+                if (s === 'Rh+' || s === '+') return '+';
+                if (s === 'Rh-' || s === '-') return '-';
+                return s;
+            };
+
+            setFormData({ ...patient, rhFactor: normalizeRh((patient as any).rhFactor) });
             setPatientTypes(patient.patientTypes || []);
             setChronicDiseases(patient.chronicDiseases || []);
             setAllergies(patient.allergies || []);
@@ -278,7 +288,7 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
                                     <label className="block text-sm font-medium text-gray-700">Rh Factor</label>
                                     <select name="rhFactor" value={formData.rhFactor} onChange={handleBasicChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm bg-white">
                                         <option value="">-- เลือก --</option>
-                                        {rhFactors.map(t => <option key={t} value={t}>{t}</option>)}
+                                        {rhFactors.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                     </select>
                                 </div>
                                 <div className="md:col-span-2">
