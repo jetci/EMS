@@ -351,6 +351,13 @@ const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, on
                                             <div><label className="block text-sm font-medium">เบอร์โทรศัพท์</label><input type="tel" name="emergencyContactPhone" value={formData.emergencyContactPhone || ''} onChange={handleBasicChange} className="mt-1 w-full border-gray-300 rounded-md" /></div>
                                         </div>
                                     </div>
+                                    <div className="md:col-span-2 border-t pt-4 mt-2">
+                                        <h4 className="text-sm font-semibold text-gray-700 mb-3">ผู้ดูแล</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div><label className="block text-sm font-medium">ชื่อผู้ดูแล</label><input type="text" name="caregiverName" value={(formData as any).caregiverName || ''} onChange={handleBasicChange} className="mt-1 w-full border-gray-300 rounded-md" /></div>
+                                            <div><label className="block text-sm font-medium">เบอร์โทรผู้ดูแล</label><input type="tel" name="caregiverPhone" value={(formData as any).caregiverPhone || ''} onChange={handleBasicChange} className="mt-1 w-full border-gray-300 rounded-md" maxLength={10} /></div>
+                                        </div>
+                                    </div>
                                     <div className="md:col-span-2"><label className="block text-sm font-medium">จุดสังเกต/รายละเอียดที่อยู่เพิ่มเติม</label><textarea name="landmark" rows={2} value={formData.landmark} onChange={handleBasicChange} className="mt-1 w-full border-gray-300 rounded-md"></textarea></div>
                                     <div className="md:col-span-2">
                                         <div className="mt-2 border rounded-lg overflow-hidden h-[500px]">

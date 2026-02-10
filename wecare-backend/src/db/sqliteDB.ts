@@ -618,7 +618,8 @@ function applyMigrationsIfNeeded(): void {
             { version: 2, file: 'add_missing_patient_fields.sql' },
             { version: 3, file: 'add_title_column.sql' },
             { version: 4, file: 'add_emergency_contact.sql' },
-            { version: 5, file: 'add_user_profile_fields.sql' }
+            { version: 5, file: 'add_user_profile_fields.sql' },
+            { version: 6, file: 'add_caregiver_and_key_info.sql' }
         ];
 
         // Determine latest schema version from migration list
@@ -652,6 +653,11 @@ function applyMigrationsIfNeeded(): void {
                     } else if (m.version === 5) {
                         // Add phone and profile_image_url to users
                         if (hasColumn('users', 'phone') && hasColumn('users', 'profile_image_url')) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 6) {
+                        // Add caregiver and key_info to patients
+                        if (hasColumn('patients', 'caregiver_name') && hasColumn('patients', 'caregiver_phone') && hasColumn('patients', 'key_info')) {
                             shouldApply = false;
                         }
                     }

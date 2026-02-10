@@ -55,6 +55,8 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         },
         addressOption: 'same', // 'same' or 'new'
         contactPhone: '',
+        caregiverName: '',
+        caregiverPhone: '',
         emergencyContactName: '',
         emergencyContactPhone: '',
         emergencyContactRelation: '',
@@ -131,6 +133,8 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
                     bloodType: parsedDraft.bloodType || parsedDraft.bloodGroup || '',
                     rhFactor: parsedDraft.rhFactor || '',
                     healthCoverage: parsedDraft.healthCoverage || parsedDraft.insuranceType || '',
+                    caregiverName: parsedDraft.caregiverName || parsedDraft.caregiver_name || '',
+                    caregiverPhone: parsedDraft.caregiverPhone || parsedDraft.caregiver_phone || '',
                 };
                 console.log('✅ Setting formData to:', normalizedDraft);
                 setFormData(normalizedDraft);
@@ -199,6 +203,8 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
             appendIfPresent(requestData, 'emergencyContactName', finalData.emergencyContactName);
             appendIfPresent(requestData, 'emergencyContactPhone', finalData.emergencyContactPhone);
             appendIfPresent(requestData, 'emergencyContactRelation', finalData.emergencyContactRelation);
+            appendIfPresent(requestData, 'caregiverName', finalData.caregiverName);
+            appendIfPresent(requestData, 'caregiverPhone', finalData.caregiverPhone);
 
             // Address Objects (Send as JSON string)
             requestData.append('idCardAddress', JSON.stringify(finalData.idCardAddress));

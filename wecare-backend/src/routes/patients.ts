@@ -210,6 +210,9 @@ const mapPatientToResponse = (p: any, attachments: any[] = []) => {
     profileImageUrl: p.profile_image_url,  // รูปภาพ
     registeredDate: p.registered_date,
     createdBy: p.created_by,
+    keyInfo: p.key_info || null,
+    caregiverName: p.caregiver_name || null,
+    caregiverPhone: p.caregiver_phone || null,
 
     // Attachments (เอกสารแนบ)
     attachments: attachments.map(a => ({
@@ -380,6 +383,9 @@ router.post(
         rh_factor: req.body.rhFactor || null,
         health_coverage: req.body.healthCoverage || null,
         contact_phone: req.body.contactPhone || null,
+        key_info: req.body.keyInfo || null,
+        caregiver_name: req.body.caregiverName || null,
+        caregiver_phone: req.body.caregiverPhone || null,
 
         // Registered Address (ID Card)
         id_card_house_number: idCardAddress.houseNumber || null,
@@ -500,6 +506,9 @@ router.put(
       if (req.body.rhFactor) updateData.rh_factor = req.body.rhFactor;
       if (req.body.healthCoverage) updateData.health_coverage = req.body.healthCoverage;
       if (req.body.contactPhone) updateData.contact_phone = req.body.contactPhone;
+      if (req.body.keyInfo) updateData.key_info = req.body.keyInfo;
+      if (req.body.caregiverName) updateData.caregiver_name = req.body.caregiverName;
+      if (req.body.caregiverPhone) updateData.caregiver_phone = req.body.caregiverPhone;
 
       // Address (Parse JSON)
       if (req.body.currentAddress) {

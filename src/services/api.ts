@@ -340,6 +340,10 @@ export const patientsAPI = {
     const emergencyContactRelation =
       data?.emergencyContactRelation ?? data?.emergency_contact_relation ?? data?.emergencyContact?.relation;
 
+    const keyInfo = data?.keyInfo ?? data?.key_info;
+    const caregiverName = data?.caregiverName ?? data?.caregiver_name;
+    const caregiverPhone = data?.caregiverPhone ?? data?.caregiver_phone;
+
     appendIfPresent('title', data?.title ?? data?.prefix);
     appendIfPresent('fullName', fullName);
     appendIfPresent('nationalId', nationalId);
@@ -349,6 +353,7 @@ export const patientsAPI = {
     appendIfPresent('bloodType', bloodType);
     appendIfPresent('rhFactor', rhFactor);
     appendIfPresent('healthCoverage', healthCoverage);
+    appendIfPresent('keyInfo', keyInfo);
     appendIfPresent('contactPhone', contactPhone);
     appendIfPresent('landmark', landmark);
     appendIfPresent('latitude', latitude);
@@ -358,6 +363,8 @@ export const patientsAPI = {
     appendIfPresent('emergencyContactName', emergencyContactName);
     appendIfPresent('emergencyContactPhone', emergencyContactPhone);
     appendIfPresent('emergencyContactRelation', emergencyContactRelation);
+    appendIfPresent('caregiverName', caregiverName);
+    appendIfPresent('caregiverPhone', caregiverPhone);
 
     appendJsonIfPresent('currentAddress', data?.currentAddress ?? data?.current_address ?? data?.address);
     appendJsonIfPresent('idCardAddress', data?.idCardAddress ?? data?.id_card_address ?? data?.registeredAddress ?? data?.registered_address);

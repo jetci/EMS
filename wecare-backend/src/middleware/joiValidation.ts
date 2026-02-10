@@ -114,6 +114,18 @@ export const patientCreateSchema = Joi.object({
         .optional()
         .allow(null),
 
+    keyInfo: Joi.string()
+        .max(1000)
+        .optional()
+        .allow(null, ''),
+
+    caregiverName: Joi.string()
+        .max(100)
+        .optional()
+        .allow(null, ''),
+
+    caregiverPhone: phoneSchema.optional().allow(null, ''),
+
     contactPhone: phoneSchema.optional().allow(null),
 
     // Address
