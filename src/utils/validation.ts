@@ -37,7 +37,7 @@ export const validateThaiNationalId = (id: string): boolean => {
 };
 
 /**
- * Validate Thai phone number (10 digits, starts with 0)
+ * Validate Thai phone number (9-10 digits, starts with 0)
  */
 export const validateThaiPhoneNumber = (phone: string): boolean => {
     if (!phone) return false;
@@ -45,8 +45,8 @@ export const validateThaiPhoneNumber = (phone: string): boolean => {
     // Remove spaces and dashes
     const cleaned = phone.replace(/[\s-]/g, '');
 
-    // Must be 10 digits and start with 0
-    return /^0\d{9}$/.test(cleaned);
+    // Must be 9-10 digits and start with 0 (landline/mobile)
+    return /^0\d{8,9}$/.test(cleaned);
 };
 
 /**
@@ -143,7 +143,7 @@ export const validatePatientData = (data: any): ValidationResult => {
     } else if (!validateThaiPhoneNumber(data.contactPhone)) {
         errors.push({
             field: 'contactPhone',
-            message: 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก เริ่มต้นด้วย 0)'
+            message: 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็น 9-10 หลัก เริ่มต้นด้วย 0)'
         });
     }
 
@@ -234,7 +234,7 @@ export const validateRideData = (data: any): ValidationResult => {
     } else if (!validateThaiPhoneNumber(data.contact_phone)) {
         errors.push({
             field: 'contact_phone',
-            message: 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก เริ่มต้นด้วย 0)'
+            message: 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็น 9-10 หลัก เริ่มต้นด้วย 0)'
         });
     }
 

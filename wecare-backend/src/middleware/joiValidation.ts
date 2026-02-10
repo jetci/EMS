@@ -16,11 +16,11 @@ const nationalIdSchema = Joi.string()
         'string.pattern.base': 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก'
     });
 
-// Thai Phone Number: 10 digits starting with 0
+// Thai Phone Number: 9-10 digits starting with 0 (supports landline and mobile)
 const phoneSchema = Joi.string()
-    .pattern(/^0\d{9}$/)
+    .pattern(/^0\d{8,9}$/)
     .messages({
-        'string.pattern.base': 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก ขึ้นต้นด้วย 0'
+        'string.pattern.base': 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0'
     });
 
 // Email

@@ -187,7 +187,7 @@ test.describe('Patient Registration Wizard', () => {
     await page.click('button:has-text("ถัดไป")');
     
     // Check error message
-    await expect(page.locator('text=10 หลัก').or(page.locator('text=ไม่ถูกต้อง'))).toBeVisible();
+    await expect(page.locator('text=9-10 หลัก').or(page.locator('text=ไม่ถูกต้อง'))).toBeVisible();
   });
 
   test('Step 4: should handle file uploads', async ({ page }) => {

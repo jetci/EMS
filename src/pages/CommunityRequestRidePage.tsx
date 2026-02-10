@@ -203,7 +203,7 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         // Phone validation
         if (formData.contactPhone) {
             const isValid = validateThaiPhoneNumber(formData.contactPhone);
-            if (!isValid) errors.push('เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็น 10 หลัก เริ่มต้นด้วย 0)');
+            if (!isValid) errors.push('เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องเป็น 9-10 หลัก เริ่มต้นด้วย 0)');
         }
 
         // Location validation

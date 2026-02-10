@@ -110,8 +110,8 @@ const Step3Contact: React.FC<Step3Props> = ({ onNext, onBack, formData = {} as a
 
     if (!data.contactPhone?.trim()) {
       newErrors.contactPhone = 'กรุณากรอกเบอร์โทรศัพท์';
-    } else if (!/^0\d{9}$/.test(data.contactPhone)) {
-      newErrors.contactPhone = 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องขึ้นต้นด้วย 0 และมี 10 หลัก)';
+    } else if (!/^0\d{8,9}$/.test(data.contactPhone)) {
+      newErrors.contactPhone = 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องขึ้นต้นด้วย 0 และมี 9-10 หลัก)';
     }
 
     setErrors(newErrors);
@@ -154,7 +154,7 @@ const Step3Contact: React.FC<Step3Props> = ({ onNext, onBack, formData = {} as a
           maxLength={10}
           className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${errors.contactPhone ? 'border-red-300' : 'border-gray-300'
             }`}
-          placeholder="0812345678"
+          placeholder="0812345678 หรือ 053382670"
         />
         {errors.contactPhone && (
           <p className="mt-1 text-sm text-red-600">{errors.contactPhone}</p>
