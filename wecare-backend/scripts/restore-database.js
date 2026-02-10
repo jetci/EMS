@@ -16,7 +16,12 @@ const path = require('path');
 const readline = require('readline');
 
 // Configuration
-const DB_PATH = path.join(__dirname, '../db/wecare.db');
+const DEFAULT_DB_PATH = path.join(__dirname, '../db/wecare.db');
+const DB_PATH = (() => {
+    const envPath = (process.env.DB_PATH || '').trim();
+    if (!envPath) return DEFAULT_DB_PATH;
+    return path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+})();
 const BACKUP_DIR = path.join(__dirname, '../backups');
 
 /**

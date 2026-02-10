@@ -5,6 +5,7 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
 process.env.PORT = '3002'; // Different port for testing
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 // Mock console methods to reduce noise in tests
 global.console = {

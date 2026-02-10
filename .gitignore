@@ -43,6 +43,8 @@ playwright-report/
 # Local scratch / generated artifacts
 _tmp/
 reports/
+dev-tools/mock-server/audit.ndjson
+dev-tools/mock-server/audit.db
 
 # IDE / Editor
 .vscode/

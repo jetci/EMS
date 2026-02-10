@@ -15,7 +15,16 @@ const mkdir = promisify(fs.mkdir);
  */
 
 // Configuration
-const DB_PATH = path.join(__dirname, '..', '..', 'db', 'wecare.db');
+const DEFAULT_DB_PATH = path.join(__dirname, '..', '..', 'db', 'wecare.db');
+const DB_PATH = (() => {
+    const stats = sqliteDB.getStats?.();
+    const name = stats?.name;
+    if (name && name !== ':memory:') return name;
+
+    const envPath = process.env.DB_PATH?.trim();
+    if (!envPath) return DEFAULT_DB_PATH;
+    return path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+})();
 const BACKUP_DIR = path.join(__dirname, '..', '..', 'backups');
 const MAX_BACKUPS = 7; // Keep last 7 backups
 const BACKUP_INTERVAL_HOURS = 24; // Backup every 24 hours

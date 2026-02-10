@@ -57,7 +57,10 @@ describe('Database migrations create safety backup before applying', () => {
     const resetRes = await request(app)
       .post('/api/admin/system/reset-db')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({});
+      .send({
+        confirm: process.env.RESET_DB_CONFIRM_PHRASE || 'CONFIRM_RESET_DB',
+        reason: 'reset database for migration integration test'
+      });
     expect([200, 201]).toContain(resetRes.status);
   });
 

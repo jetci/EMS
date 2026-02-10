@@ -8,6 +8,7 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../src/index'; // Assuming app is exported from index.ts
+import { initializeDatabase, sqliteDB } from '../src/db/sqliteDB';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 
@@ -32,8 +33,15 @@ const tokens = {
     noRole: generateToken('user-001', 'user@wecare.dev', ''),
 };
 
-describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
+beforeAll(async () => {
+    await initializeDatabase();
+});
 
+afterAll(() => {
+    try { sqliteDB.close(); } catch {}
+});
+
+describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
     // Test tokens for different roles
     const tokens = {
         developer: generateToken('dev-001', 'developer@wecare.dev', 'DEVELOPER'),

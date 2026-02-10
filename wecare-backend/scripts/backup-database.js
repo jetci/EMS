@@ -18,7 +18,12 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const DB_PATH = path.join(__dirname, '../db/wecare.db');
+const DEFAULT_DB_PATH = path.join(__dirname, '../db/wecare.db');
+const DB_PATH = (() => {
+    const envPath = (process.env.DB_PATH || '').trim();
+    if (!envPath) return DEFAULT_DB_PATH;
+    return path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+})();
 const BACKUP_DIR = path.join(__dirname, '../backups');
 const RETENTION_DAYS = 30; // Keep backups for 30 days
 const MAX_BACKUPS = 30; // Maximum number of backups to keep

@@ -9,34 +9,36 @@
 
 import crypto from 'crypto';
 
-// Get encryption key from environment variable
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16; // AES block size
 
 /**
  * Validate encryption key
  */
-const validateKey = (): void => {
-  if (!ENCRYPTION_KEY) {
+function getEncryptionKey(): string | undefined {
+  return process.env.ENCRYPTION_KEY;
+}
+
+function validateKey(key: string | undefined): asserts key is string {
+  if (!key) {
     throw new Error(
       'ENCRYPTION_KEY is not set in environment variables. ' +
       'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
     );
   }
 
-  if (ENCRYPTION_KEY.length !== 64) {
+  if (key.length !== 64) {
     throw new Error(
       'ENCRYPTION_KEY must be 64 characters (32 bytes in hex). ' +
-      `Current length: ${ENCRYPTION_KEY.length}`
+      `Current length: ${key.length}`
     );
   }
 
   // Validate hex format
-  if (!/^[0-9a-f]{64}$/i.test(ENCRYPTION_KEY)) {
+  if (!/^[0-9a-f]{64}$/i.test(key)) {
     throw new Error('ENCRYPTION_KEY must be a valid hex string');
   }
-};
+}
 
 /**
  * Encrypt text using AES-256-CBC
@@ -48,7 +50,8 @@ export const encrypt = (text: string): string => {
     throw new Error('Cannot encrypt empty text');
   }
 
-  validateKey();
+  const key = getEncryptionKey();
+  validateKey(key);
 
   try {
     // Generate random IV for each encryption
@@ -57,7 +60,7 @@ export const encrypt = (text: string): string => {
     // Create cipher
     const cipher = crypto.createCipheriv(
       ALGORITHM,
-      Buffer.from(ENCRYPTION_KEY!, 'hex'),
+      Buffer.from(key, 'hex'),
       iv
     );
 
@@ -82,7 +85,8 @@ export const decrypt = (encryptedText: string): string => {
     throw new Error('Cannot decrypt empty text');
   }
 
-  validateKey();
+  const key = getEncryptionKey();
+  validateKey(key);
 
   try {
     // Split IV and encrypted data
@@ -103,7 +107,7 @@ export const decrypt = (encryptedText: string): string => {
     // Create decipher
     const decipher = crypto.createDecipheriv(
       ALGORITHM,
-      Buffer.from(ENCRYPTION_KEY!, 'hex'),
+      Buffer.from(key, 'hex'),
       iv
     );
 
@@ -179,7 +183,7 @@ export const isEncrypted = (text: string): boolean => {
 // Validate key on module load (in production)
 if (process.env.NODE_ENV === 'production') {
   try {
-    validateKey();
+    validateKey(getEncryptionKey());
     console.log('✅ Encryption key validated successfully');
   } catch (error) {
     console.error('❌ Encryption key validation failed:', error);

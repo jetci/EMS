@@ -5,8 +5,14 @@ import fs from 'fs';
 // SQLite Database helper for EMS WeCare
 // Replaces JSON-based storage with proper relational database
 
-const DB_FILENAME = process.env.NODE_ENV === 'test' ? 'wecare_test.db' : 'wecare.db'
-const DB_PATH = path.join(__dirname, '..', '..', 'db', DB_FILENAME);
+const TEST_DB_SUFFIX = process.env.JEST_WORKER_ID ? `_${process.env.JEST_WORKER_ID}` : '';
+const DB_FILENAME = process.env.NODE_ENV === 'test' ? `wecare_test${TEST_DB_SUFFIX}.db` : 'wecare.db'
+const DEFAULT_DB_PATH = path.join(__dirname, '..', '..', 'db', DB_FILENAME);
+const DB_PATH = (() => {
+    const envPath = process.env.DB_PATH?.trim();
+    if (!envPath) return DEFAULT_DB_PATH;
+    return path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+})();
 const SCHEMA_PATH = path.join(__dirname, '..', '..', 'db', 'schema.sql');
 
 // Ensure db directory exists

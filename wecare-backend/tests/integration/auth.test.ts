@@ -6,7 +6,7 @@
 import request from 'supertest';
 import express from 'express';
 import authRoutes from '../../src/routes/auth';
-import { sqliteDB } from '../../src/db/sqliteDB';
+import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
 import accountLockoutService from '../../src/services/accountLockoutService';
 
 // Create test app
@@ -23,7 +23,8 @@ describe('Auth API Integration Tests', () => {
     };
 
     // Cleanup before tests
-    beforeAll(() => {
+    beforeAll(async () => {
+        await initializeDatabase();
         // Delete test user if exists
         try {
             sqliteDB.db.prepare('DELETE FROM users WHERE email = ?').run(testUser.email);

@@ -20,6 +20,13 @@ const getApiBaseUrl = (): string => {
   const apiBaseFromWindow = (typeof window !== 'undefined') ? (window as any).__API_BASE__ : undefined;
   if (apiBaseFromWindow) return apiBaseFromWindow;
 
+  const runtimeBase = (typeof window !== 'undefined') ? (window as any).__BASE_PATH__ : undefined;
+  const nodeEnv = (typeof process !== 'undefined' && process.env?.NODE_ENV) ? process.env.NODE_ENV : undefined;
+  const isDev = nodeEnv === 'development';
+  if (isDev && typeof runtimeBase === 'string' && /^https?:\/\//i.test(runtimeBase)) {
+    return `${runtimeBase.replace(/\/$/, '')}/api-proxy`;
+  }
+
   // Fall back to vite env or default
   return viteBaseUrl || '/api';
 };
@@ -36,6 +43,10 @@ const getCsrfToken = async (): Promise<string> => {
     const response = await fetch(`${API_BASE_URL}/csrf-token`, {
       credentials: 'include' // Important for cookies
     });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+    }
     const data = await response.json();
     csrfToken = data.csrfToken;
     return csrfToken;

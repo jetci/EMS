@@ -8,6 +8,9 @@
     "strict": true
   },
   "exclude": [
+    "scripts",
+    "src/config/logger.ts",
+    "src/config/sentry.ts",
     "tests",
     "node_modules"
   ]

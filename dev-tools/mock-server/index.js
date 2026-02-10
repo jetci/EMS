@@ -3,9 +3,8 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import multer from 'multer';
 import Joi from 'joi';
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 import crypto from 'crypto';
+import fs from 'fs';
 
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit for safety
@@ -121,21 +120,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let auditDb;
-(async () => {
-  const dbPath = path.join(__dirname, 'audit.db');
-  auditDb = await open({ filename: dbPath, driver: sqlite3.Database });
-  await auditDb.exec(`CREATE TABLE IF NOT EXISTS audits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    actor TEXT,
-    action TEXT,
-    target TEXT,
-    client_ip TEXT,
-    request_id TEXT,
-    token_hash TEXT,
-    timestamp INTEGER
-  )`);
-})();
+const auditLogPath = path.join(__dirname, 'audit.ndjson');
+try {
+  if (!fs.existsSync(auditLogPath)) fs.writeFileSync(auditLogPath, '');
+} catch (err) {
+  console.error('Failed to initialize audit log file', err);
+}
 
 function hashToken(t) {
   if (!t) return null;
@@ -146,7 +136,16 @@ async function writeAudit(audit) {
   try {
     const ts = Date.now();
     const token_hash = hashToken(audit.token);
-    await auditDb.run('INSERT INTO audits (actor, action, target, client_ip, request_id, token_hash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)', audit.actor, audit.action, audit.target, audit.client_ip, audit.request_id, token_hash, ts);
+    const record = {
+      actor: audit.actor,
+      action: audit.action,
+      target: audit.target,
+      client_ip: audit.client_ip,
+      request_id: audit.request_id,
+      token_hash,
+      timestamp: ts
+    };
+    await fs.promises.appendFile(auditLogPath, `${JSON.stringify(record)}\n`, 'utf8');
   } catch (err) {
     console.error('Failed to write audit', err);
   }
@@ -385,8 +384,15 @@ app.get('/api/admin/audit/:requestId', authMiddleware, async (req, res) => {
   if (!req.user || req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Forbidden' });
   const rid = req.params.requestId;
   try {
-    const rows = await auditDb.all('SELECT * FROM audits WHERE request_id = ?', rid);
-    res.json({ success: true, audits: rows });
+    const content = await fs.promises.readFile(auditLogPath, 'utf8').catch(() => '');
+    const audits = content
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        try { return JSON.parse(line); } catch { return null; }
+      })
+      .filter((row) => row && row.request_id === rid);
+    res.json({ success: true, audits });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Audit query failed' });
   }

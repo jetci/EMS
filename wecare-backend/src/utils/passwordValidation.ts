@@ -23,12 +23,13 @@ export interface PasswordValidationResult {
  * @returns Validation result with errors and strength
  */
 export function validatePasswordComplexity(password: string): PasswordValidationResult {
-    const errors: string[] = [];
+    const blockingErrors: string[] = [];
+    const warnings: string[] = [];
     let score = 0;
 
     // Check minimum length
     if (!password || password.length < 8) {
-        errors.push('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+        blockingErrors.push('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
     } else {
         score += 20;
         // Bonus for longer passwords
@@ -38,28 +39,28 @@ export function validatePasswordComplexity(password: string): PasswordValidation
 
     // Check for uppercase letter
     if (!/[A-Z]/.test(password)) {
-        errors.push('รหัสผ่านต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว (A-Z)');
+        blockingErrors.push('รหัสผ่านต้องมีตัวพิมพ์ใหญ่อย่างน้อย 1 ตัว (A-Z)');
     } else {
         score += 20;
     }
 
     // Check for lowercase letter
     if (!/[a-z]/.test(password)) {
-        errors.push('รหัสผ่านต้องมีตัวพิมพ์เล็กอย่างน้อย 1 ตัว (a-z)');
+        blockingErrors.push('รหัสผ่านต้องมีตัวพิมพ์เล็กอย่างน้อย 1 ตัว (a-z)');
     } else {
         score += 20;
     }
 
     // Check for number
     if (!/[0-9]/.test(password)) {
-        errors.push('รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 ตัว (0-9)');
+        blockingErrors.push('รหัสผ่านต้องมีตัวเลขอย่างน้อย 1 ตัว (0-9)');
     } else {
         score += 20;
     }
 
     // Check for special character
     if (!/[@$!%*?&]/.test(password)) {
-        errors.push('รหัสผ่านต้องมีอักขระพิเศษอย่างน้อย 1 ตัว (@$!%*?&)');
+        blockingErrors.push('รหัสผ่านต้องมีอักขระพิเศษอย่างน้อย 1 ตัว (@$!%*?&)');
     } else {
         score += 20;
     }
@@ -73,30 +74,39 @@ export function validatePasswordComplexity(password: string): PasswordValidation
     ];
 
     if (commonPasswords.includes(password.toLowerCase())) {
-        errors.push('รหัสผ่านนี้ถูกใช้บ่อยเกินไป กรุณาเลือกรหัสผ่านที่ปลอดภัยกว่า');
+        blockingErrors.push('รหัสผ่านนี้ถูกใช้บ่อยเกินไป กรุณาเลือกรหัสผ่านที่ปลอดภัยกว่า');
         score = Math.min(score, 30); // Cap score for common passwords
     }
 
     // Check for sequential characters
     if (/(?:abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i.test(password)) {
-        errors.push('รหัสผ่านไม่ควรมีตัวอักษรที่ต่อเนื่องกัน (เช่น abc, xyz)');
+        warnings.push('รหัสผ่านไม่ควรมีตัวอักษรที่ต่อเนื่องกัน (เช่น abc, xyz)');
         score -= 10;
     }
 
     // Check for sequential numbers
     if (/(?:012|123|234|345|456|567|678|789|890)/.test(password)) {
-        errors.push('รหัสผ่านไม่ควรมีตัวเลขที่ต่อเนื่องกัน (เช่น 123, 456)');
+        score -= 10;
+    }
+
+    // Penalize predictable word patterns (do not block validity)
+    if (/password/i.test(password)) {
         score -= 10;
     }
 
     // Check for repeated characters
     if (/(.)\1{2,}/.test(password)) {
-        errors.push('รหัสผ่านไม่ควรมีตัวอักษรซ้ำกันติดต่อกันมากกว่า 2 ตัว');
+        warnings.push('รหัสผ่านไม่ควรมีตัวอักษรซ้ำกันติดต่อกันมากกว่า 2 ตัว');
         score -= 10;
     }
 
     // Ensure score is within 0-100
     score = Math.max(0, Math.min(100, score));
+
+    // If basic requirements are not met, cap strength/score so UI doesn't show "strong"
+    if (blockingErrors.length > 0) {
+        score = Math.min(score, 39);
+    }
 
     // Determine strength
     let strength: 'weak' | 'medium' | 'strong' | 'very-strong';
@@ -111,8 +121,8 @@ export function validatePasswordComplexity(password: string): PasswordValidation
     }
 
     return {
-        isValid: errors.length === 0,
-        errors,
+        isValid: blockingErrors.length === 0,
+        errors: [...blockingErrors, ...warnings],
         strength,
         score
     };
