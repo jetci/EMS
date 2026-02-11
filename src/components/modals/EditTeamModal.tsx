@@ -51,8 +51,9 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
     if (!isOpen) return null;
 
     const handleStaffChange = (selectedNames: string[]) => {
-        if (selectedNames.length > 3) {
-            setError('สามารถเลือกเจ้าหน้าที่ได้สูงสุด 3 คน');
+        if (selectedNames.length > 4) {
+            setError('สามารถเลือกผู้ช่วยประจำรถได้สูงสุด 4 คน');
+            setTimeout(() => setError(''), 2000);
             return;
         }
         setError('');
@@ -62,14 +63,19 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (selectedStaffNames.length === 0 || selectedStaffNames.length > 3) {
-            setError('กรุณาเลือกเจ้าหน้าที่ 1-3 คน');
+        if (selectedStaffNames.length === 0 || selectedStaffNames.length > 4) {
+            setError('กรุณาเลือกผู้ช่วยประจำรถ 1-4 คน');
             return;
         }
 
         const staffIds = selectedStaffNames.map(name => {
             return availableStaff.find(s => s.name === name)?.id || '';
         }).filter(id => id);
+
+        if (staffIds.length !== selectedStaffNames.length) {
+            setError('กรุณาเลือกผู้ช่วยประจำรถ 1-4 คน');
+            return;
+        }
 
         const finalTeamData: Team = {
             id: isEditing ? team.id : `TEAM-${Date.now()}`,
@@ -101,17 +107,19 @@ const EditTeamModal: React.FC<EditTeamModalProps> = ({ isOpen, onClose, onSave, 
                             <label htmlFor="driverId" className="block text-sm font-medium text-gray-700">คนขับ (1 คน)</label>
                             <select name="driverId" id="driverId" value={driverId} onChange={(e) => setDriverId(e.target.value)} className="mt-1" required>
                                 <option value="" disabled>-- เลือกคนขับ --</option>
-                                {availableDrivers.map(d => <option key={d.id} value={d.id!}>{d.fullName}</option>)}
+                                {availableDrivers
+                                    .filter(d => !!d?.id)
+                                    .map(d => <option key={d.id} value={d.id!}>{d.fullName || 'ไม่ระบุชื่อ'}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="staffIds" className="block text-sm font-medium text-gray-700">เจ้าหน้าที่ (เลือกได้ 3 คน)</label>
+                            <label htmlFor="staffIds" className="block text-sm font-medium text-gray-700">ผู้ช่วยประจำรถ (เลือกได้ 4 คน)</label>
                             <MultiSelectAutocomplete
                                 id="staffIds"
                                 options={staffOptions}
                                 selectedItems={selectedStaffNames}
                                 setSelectedItems={handleStaffChange}
-                                placeholder="เลือกเจ้าหน้าที่..."
+                                placeholder="เลือกผู้ช่วยประจำรถ..."
                             />
                             {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
                         </div>

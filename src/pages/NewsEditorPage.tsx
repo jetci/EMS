@@ -53,8 +53,11 @@ const NewsEditorPage: React.FC<NewsEditorPageProps> = ({ setActiveView, articleI
             // Map backend data to frontend model
             setArticle({
                 ...data,
-                author: data.author_name || data.author || '',
-                tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : data.tags
+                author: data.author || data.author_name || '',
+                status: data.status || (data.is_published ? 'published' : 'draft'),
+                publishedDate: data.publishedDate || data.published_date || undefined,
+                featuredImageUrl: data.featuredImageUrl || data.image_url || undefined,
+                tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : (data.tags || [])
             });
             setIsNew(false);
         } catch (err) {
@@ -90,10 +93,11 @@ const NewsEditorPage: React.FC<NewsEditorPageProps> = ({ setActiveView, articleI
             const payload = {
                 ...article,
                 title: article.title.trim(),
-                author_name: article.author.trim(), // Backend expects author_name
-                status: status === 'published' ? 'published' : 'draft', // Ensure string match
+                author_name: article.author.trim(),
+                status: status === 'published' ? 'published' : 'draft',
                 is_published: status === 'published',
-                published_date: status === 'published' ? new Date().toISOString() : null
+                published_date: status === 'published' ? (article.publishedDate || new Date().toISOString()) : null,
+                image_url: article.featuredImageUrl
             };
 
             if (isNew) {

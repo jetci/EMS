@@ -61,6 +61,38 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DEVELOPER']), async (r
   }
 });
 
+// GET /api/users/staff
+router.get('/staff', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (_req, res) => {
+  try {
+    const users = sqliteDB.all<User>(
+      `SELECT id, email, role, full_name, phone, profile_image_url, date_created, status, created_at, updated_at
+       FROM users
+       WHERE role IN ('OFFICER', 'radio_center', 'EXECUTIVE')
+       ORDER BY full_name ASC`
+    );
+    res.json(users.map(excludePassword));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/users/driver-candidates
+router.get('/driver-candidates', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (_req, res) => {
+  try {
+    const users = sqliteDB.all<User>(
+      `SELECT u.id, u.email, u.role, u.full_name, u.date_created, u.status, u.phone, u.profile_image_url, u.created_at, u.updated_at
+       FROM users u
+       LEFT JOIN drivers d ON d.user_id = u.id
+       WHERE d.user_id IS NULL
+         AND u.role IN ('driver', 'community')
+       ORDER BY u.full_name ASC`
+    );
+    res.json(users.map(excludePassword));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/users/:id
 router.get('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {

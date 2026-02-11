@@ -17,7 +17,6 @@ interface TopHeaderProps {
 
 const viewToName: Record<string, string> = {
   // Community & Office Views (Shared)
-  dashboard: 'System Overview',
   patients: 'Manage Patients',
   rides: 'Manage Rides',
 
@@ -58,9 +57,33 @@ const viewToName: Record<string, string> = {
   patient_detail: 'Patient Details',
 };
 
+const getDashboardTitleByRole = (role: User['role']): string => {
+  switch (role) {
+    case 'admin':
+    case 'DEVELOPER':
+      return 'ภาพรวมระบบ';
+    case 'OFFICER':
+      return 'ภาพรวมบริหาร';
+    case 'radio_center':
+      return 'ศูนย์สั่งการ';
+    case 'community':
+      return 'หน้าหลัก';
+    case 'driver':
+      return 'งานของฉัน';
+    case 'EXECUTIVE':
+      return 'ภาพรวมโครงการ';
+    default:
+      return 'Dashboard';
+  }
+};
+
+const getViewTitle = (activeView: AuthenticatedView, role: User['role']): string => {
+  if (activeView === 'dashboard') return getDashboardTitleByRole(role);
+  return viewToName[activeView] || (activeView ? `View: ${activeView}` : 'Dashboard');
+};
+
 
 const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, setNotifications, onMenuClick }) => {
-  console.log('DEBUG: TopHeader activeView =', activeView);
   const [settings, setSettings] = useState(getAppSettings());
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -110,7 +133,7 @@ const TopHeader: React.FC<TopHeaderProps> = ({ user, activeView, notifications, 
             )}
             <span>Home</span>
             <ChevronRightIcon className="w-4 h-4 mx-1" />
-            <span className="font-medium text-gray-800">{viewToName[activeView] || (activeView ? `View: ${activeView}` : 'Dashboard')}</span>
+            <span className="font-medium text-gray-800">{getViewTitle(activeView, user.role)}</span>
           </div>
         </div>
 

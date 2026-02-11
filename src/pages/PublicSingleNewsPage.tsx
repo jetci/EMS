@@ -44,7 +44,13 @@ const PublicSingleNewsPage: React.FC<PublicSingleNewsPageProps> = ({ articleId, 
                     }
                 }
                 const data = await resp.json();
-                setArticle(data as NewsArticle);
+                setArticle({
+                    ...(data as any),
+                    author: (data as any).author || (data as any).author_name || 'ไม่ระบุ',
+                    status: (data as any).status || ((data as any).is_published ? 'published' : 'draft'),
+                    publishedDate: (data as any).publishedDate || (data as any).published_date,
+                    featuredImageUrl: (data as any).featuredImageUrl || (data as any).image_url,
+                } as NewsArticle);
             } catch (e: any) {
                 setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข่าว');
             } finally {

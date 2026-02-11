@@ -103,7 +103,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       req.user?.role !== 'admin' &&
       req.user?.role !== 'DEVELOPER' &&
       req.user?.role !== 'radio_center' &&
-      req.user?.role !== 'radio' &&
       req.user?.role !== 'OFFICER' &&
       req.user?.role !== 'EXECUTIVE' &&
       req.user?.role !== 'driver'
@@ -124,11 +123,14 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Get paginated data
     const dataSql = `
-      SELECT r.*, 
-             p.latitude, 
-             p.longitude,
-             p.contact_phone as patient_contact_phone,
-             p.current_village
+      SELECT
+        r.*,
+        p.latitude,
+        p.longitude,
+        p.contact_phone as patient_contact_phone,
+        p.current_village,
+        COALESCE(r.village, p.current_village) as village,
+        COALESCE(r.landmark, p.landmark) as landmark
       FROM rides r
       LEFT JOIN patients p ON r.patient_id = p.id
       ${whereClause}
@@ -257,6 +259,19 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
 
     const created = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [newId]);
 
+    try {
+      const io = (req as any).app?.get?.('io');
+      if (io) {
+        const ns = io.of('/locations');
+        const message = `🆕 คำขอเดินทางใหม่: ${patient_name || 'ผู้ป่วย'} (${newId})`;
+        const payload = { eventType: 'job_request', type: 'info', message, rideId: newId };
+        ns.to('role:radio_center').emit('notification:new', payload);
+        ns.to('role:OFFICER').emit('notification:new', payload);
+        ns.to('role:admin').emit('notification:new', payload);
+        ns.to('role:DEVELOPER').emit('notification:new', payload);
+      }
+    } catch { }
+
     // Transform to camelCase
     const camelCaseRide = transformResponse(created);
     if (typeof camelCaseRide.specialNeeds === 'string') {
@@ -283,6 +298,9 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Ride not found' });
     }
 
+    const assignmentChanged = driver_id && driver_id !== existing.driver_id;
+    const statusChanged = status && status !== existing.status;
+
     // Community users can only update their own rides
     if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
       return res.status(403).json({ error: 'Access denied' });
@@ -294,7 +312,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
     }
 
     // Only OFFICER, RADIO_CENTER, ADMIN can assign drivers
-    if (driver_id && driver_id !== existing.driver_id) {
+    if (assignmentChanged) {
       const allowedRoles = ['OFFICER', 'radio_center', 'RADIO_CENTER', 'admin', 'DEVELOPER'];
       if (!req.user?.role || !allowedRoles.includes(req.user.role)) {
         return res.status(403).json({ error: 'Access denied: Only officers can assign drivers' });
@@ -309,7 +327,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 
     // Check for driver conflict if assigning a new driver
     // Use transaction to prevent race conditions
-    if (driver_id && driver_id !== existing.driver_id) {
+    if (assignmentChanged) {
       try {
         sqliteDB.transaction(() => {
           // Check driver availability first
@@ -367,7 +385,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 
     // Audit Log
     if (req.user) {
-      const isAssignment = driver_id && driver_id !== existing.driver_id;
+      const isAssignment = assignmentChanged;
       auditService.log(
         req.user.email || 'unknown',
         req.user.role || 'unknown',
@@ -390,7 +408,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
       }
 
       // Log status change events
-      if (status && status !== existing.status) {
+      if (statusChanged) {
         const eventTypeMap: Record<string, any> = {
           'EN_ROUTE_TO_PICKUP': 'EN_ROUTE',
           'ARRIVED_AT_PICKUP': 'ARRIVED',
@@ -433,6 +451,21 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
     }
 
     const updated = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [id]);
+
+    try {
+      const io = (req as any).app?.get?.('io');
+      if (io && (assignmentChanged || statusChanged)) {
+        const ns = io.of('/locations');
+        const message = assignmentChanged
+          ? `✅ จ่ายงาน ${id} ให้ ${driver_name || driver_id}`
+          : `🔄 อัปเดตสถานะงาน ${id}: ${existing.status} → ${status}`;
+        const payload = { eventType: 'ride_status', type: assignmentChanged ? 'success' : 'info', message, rideId: id, status };
+        ns.to('role:radio_center').emit('notification:new', payload);
+        ns.to('role:OFFICER').emit('notification:new', payload);
+        ns.to('role:admin').emit('notification:new', payload);
+        ns.to('role:DEVELOPER').emit('notification:new', payload);
+      }
+    } catch { }
 
     // Transform to camelCase
     const camelCaseRide = transformResponse(updated);

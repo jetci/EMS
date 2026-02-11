@@ -59,7 +59,6 @@ export enum UserRole {
     DRIVER = 'driver',
     COMMUNITY = 'community',
     RADIO_CENTER = 'radio_center',
-    RADIO = 'radio',
     ADMIN = 'admin',
     OFFICER = 'OFFICER',
     EXECUTIVE = 'EXECUTIVE',
@@ -306,7 +305,6 @@ export interface NewsArticle {
 
 export type CommunityView = 'dashboard' | 'patients' | 'rides' | 'profile' | 'register_patient' | 'request_ride' | 'patient_detail' | 'edit_patient' | 'ride_details' | 'edit_ride';
 export type DriverView = 'today_jobs' | 'history' | 'profile';
-export type RadioView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'map_command' | 'request_ride' | 'view_news';
 export type RadioCenterView = 'dashboard' | 'rides' | 'patients' | 'drivers' | 'profile' | 'map_command' | 'manage_teams' | 'manage_schedules' | 'news' | 'reports' | 'request_ride' | 'view_news';
 export type OfficerView = 'dashboard' | 'map_command' | 'rides' | 'patients' | 'drivers' | 'profile' | 'manage_teams' | 'manage_schedules' | 'news' | 'edit_news' | 'view_news' | 'reports' | 'manage_vehicles' | 'register_patient' | 'request_ride';
 export type AdminView = 'dashboard' | 'users' | 'logs' | 'settings' | 'profile' | 'news' | 'edit_news' | 'view_news' | 'reports' | 'manage_teams' | 'manage_schedules' | 'manage_vehicles' | 'manage_vehicle_types' | 'test_map';
@@ -320,7 +318,7 @@ export type ExecutiveView =
     'financial_report' |
     'patient_demographics_report' |
     'profile';
-export type AuthenticatedView = CommunityView | DriverView | OfficerView | RadioView | RadioCenterView | AdminView | ExecutiveView;
+export type AuthenticatedView = CommunityView | DriverView | OfficerView | RadioCenterView | AdminView | ExecutiveView;
 
 // ==========================================
 // Database Schema Interfaces (snake_case)

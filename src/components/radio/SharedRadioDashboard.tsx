@@ -4,7 +4,7 @@ import StatCard from '../dashboard/StatCard';
 import UsersIcon from '../icons/UsersIcon';
 import ClockWaitingIcon from '../icons/ClockWaitingIcon';
 import RidesIcon from '../icons/RidesIcon';
-import { RideStatus, Ride, RadioView, RadioCenterView } from '../../types';
+import { RideStatus, Ride, RadioCenterView } from '../../types';
 import UserIcon from '../icons/UserIcon';
 import { formatDateTimeToThai, formatFullDateToThai } from '../../utils/dateUtils';
 import AssignDriverModal from '../modals/AssignDriverModal';
@@ -17,9 +17,9 @@ import { dashboardService } from '../../services/dashboardService';
 import { onNotification } from '../../services/socketService';
 
 interface SharedRadioDashboardProps {
-    role: 'radio' | 'radio_center';
+    role: 'radio_center';
     title: string;
-    setActiveView: (view: RadioView | RadioCenterView, context?: any) => void;
+    setActiveView: (view: RadioCenterView, context?: any) => void;
 }
 
 /**
@@ -50,7 +50,8 @@ const SharedRadioDashboard: React.FC<SharedRadioDashboardProps> = ({ role, title
             console.log('🔔 Dashboard received notification:', data);
 
             // Reload data if relevant event
-            if (data.type === 'job_request' || data.type === 'ride_status' || data.type === 'driver_status') {
+            const eventType = data?.eventType || data?.type;
+            if (eventType === 'job_request' || eventType === 'ride_status' || eventType === 'driver_status') {
                 showToast('⚡ มีข้อมูลอัปเดตใหม่');
                 loadDashboardData();
             }
@@ -71,8 +72,46 @@ const SharedRadioDashboard: React.FC<SharedRadioDashboardProps> = ({ role, title
                 dashboardService.getDrivers(),
                 dashboardService.getOfficeDashboard(),
             ]);
-            setUrgentRides(urgentData.rides || []);
-            setTodaysSchedule(scheduleData.rides || []);
+            const coerceSpecialNeeds = (v: any): string[] => {
+                if (Array.isArray(v)) return v.filter(x => typeof x === 'string');
+                if (typeof v === 'string') {
+                    try {
+                        const parsed = JSON.parse(v);
+                        if (Array.isArray(parsed)) return parsed.filter(x => typeof x === 'string');
+                    } catch { }
+                    return v.trim() ? [v] : [];
+                }
+                return [];
+            };
+
+            const mapRide = (r: any): Ride => ({
+                id: String(r?.id ?? ''),
+                patientId: String(r?.patient_id ?? r?.patientId ?? r?.patient?.id ?? ''),
+                patientName: String(r?.patient_name ?? r?.patientName ?? r?.passengerName ?? r?.patient?.full_name ?? r?.patient?.fullName ?? ''),
+                patientPhone: String(r?.patient_phone ?? r?.patientPhone ?? r?.contact_phone ?? r?.contactPhone ?? '').trim() || undefined,
+                pickupLocation: String(r?.pickup_location ?? r?.pickupLocation ?? ''),
+                village: String(r?.village ?? r?.current_village ?? r?.currentVillage ?? '').trim() || undefined,
+                landmark: String(r?.landmark ?? '').trim() || undefined,
+                destination: String(r?.destination ?? ''),
+                appointmentTime: String(r?.appointment_time ?? r?.appointmentTime ?? new Date().toISOString()),
+                status: (r?.status as RideStatus) || RideStatus.PENDING,
+                driverName: String(r?.driver_name ?? r?.driverName ?? '').trim() || undefined,
+                requestedBy: String(r?.requested_by ?? r?.requestedBy ?? '').trim() || undefined,
+                specialNeeds: coerceSpecialNeeds(r?.special_needs ?? r?.specialNeeds),
+                caregiverCount: typeof r?.caregiver_count === 'number' ? r.caregiver_count : (typeof r?.caregiverCount === 'number' ? r.caregiverCount : undefined),
+                contactPhone: String(r?.contact_phone ?? r?.contactPhone ?? '').trim() || undefined,
+                caregiverPhone: String(r?.caregiver_phone ?? r?.caregiverPhone ?? '').trim() || undefined,
+                tripType: String(r?.trip_type ?? r?.tripType ?? '').trim() || undefined,
+                notes: String(r?.notes ?? '').trim() || undefined,
+                createdAt: String(r?.created_at ?? r?.createdAt ?? '').trim() || undefined,
+                updatedAt: String(r?.updated_at ?? r?.updatedAt ?? '').trim() || undefined,
+            });
+
+            const urgentRaw = Array.isArray(urgentData?.rides) ? urgentData.rides : [];
+            const scheduleRaw = Array.isArray(scheduleData?.rides) ? scheduleData.rides : [];
+
+            setUrgentRides(urgentRaw.map(mapRide).filter(r => r.id));
+            setTodaysSchedule(scheduleRaw.map(mapRide).filter(r => r.id));
             setDrivers(Array.isArray(driversData) ? driversData : (driversData.drivers || []));
             setStats(statsData);
         } catch (error) {
@@ -117,10 +156,16 @@ const SharedRadioDashboard: React.FC<SharedRadioDashboardProps> = ({ role, title
     const availableDrivers = stats?.available_drivers || drivers.filter(d => d.status === 'AVAILABLE').length;
     const totalDrivers = stats?.total_drivers || drivers.length;
 
-    // Role-specific subtitle
-    const subtitle = role === 'radio_center'
-        ? 'ศูนย์ควบคุมการสื่อสารและจัดการการเดินทาง'
-        : 'ศูนย์ประสานงานและสนับสนุนการปฏิบัติงาน';
+    const subtitle = 'ศูนย์ควบคุมการสื่อสารและจัดการการเดินทาง';
+    const getTripTypeDisplay = (ride: Ride): string => {
+        const raw = (ride.tripType || '').trim();
+        if (!raw) return 'N/A';
+        if (raw === 'อื่นๆ') {
+            const other = (ride.notes || '').trim();
+            return other || raw;
+        }
+        return raw;
+    };
 
     if (loading) {
         return (
@@ -174,7 +219,7 @@ const SharedRadioDashboard: React.FC<SharedRadioDashboardProps> = ({ role, title
                                             <td className="px-6 py-4 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <span>{ride.tripType}</span>
+                                                    <span>{getTripTypeDisplay(ride)}</span>
                                                     {ride.specialNeeds?.includes('ต้องการวีลแชร์') && (
                                                         <span className="flex items-center text-xs text-blue-600" title="ต้องการวีลแชร์">
                                                             <WheelchairIcon className="w-4 h-4" />

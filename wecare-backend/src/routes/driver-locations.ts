@@ -19,7 +19,7 @@ export interface DriverLocation {
 }
 
 // GET /api/driver-locations - Get all active driver locations
-router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'driver', 'EXECUTIVE']), (req, res) => {
+router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'driver', 'EXECUTIVE']), (req, res) => {
     try {
         const rows = sqliteDB.all<any>(`
             SELECT 

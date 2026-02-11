@@ -9,7 +9,6 @@ import DriverTodayJobsPage from '../../pages/DriverTodayJobsPage';
 import DriverHistoryPage from '../../pages/DriverHistoryPage';
 import DriverProfilePage from '../../pages/DriverProfilePage';
 import OfficeDashboard from '../../pages/OfficeDashboard';
-import RadioDashboard from '../../pages/RadioDashboard';
 import RadioCenterDashboard from '../../pages/RadioCenterDashboard';
 import OfficeManageRidesPage from '../../pages/OfficeManageRidesPage';
 import OfficeManagePatientsPage from '../../pages/OfficeManagePatientsPage';
@@ -60,7 +59,6 @@ const getInitialView = (role: User['role']): AuthenticatedView => {
   switch (role) {
     case 'driver': return 'today_jobs';
     case 'community': return 'dashboard';
-    case 'radio': return 'dashboard';
     case 'radio_center': return 'dashboard';
     case 'OFFICER': return 'dashboard';
     case 'admin': return 'dashboard';
@@ -85,12 +83,15 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
 
         const cleanup = onNotification((data) => {
           console.log('🔔 New notification received:', data);
+          const uiType = (data?.type === 'info' || data?.type === 'success' || data?.type === 'warning' || data?.type === 'error')
+            ? data.type
+            : 'info';
           const newNotification: Notification = {
             id: `N${Date.now()}`,
             message: data.message || 'มีการแจ้งเตือนใหม่',
             timestamp: new Date().toISOString(),
             isRead: false,
-            type: data.type || 'info',
+            type: uiType,
             link: data.link
           };
           setNotifications(prev => [newNotification, ...prev]);
@@ -218,24 +219,6 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'reports': return <OfficeReportsPage />;
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <OfficeDashboard setActiveView={handleSetView} />;
-        }
-      case 'radio':
-        switch (activeView as OfficerView) {
-          case 'dashboard': return <RadioDashboard setActiveView={handleSetView} />;
-          case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
-          case 'rides': return <OfficeManageRidesPage setActiveView={handleSetView} />;
-          case 'request_ride': return <CommunityRequestRidePage setActiveView={handleSetView} addNotification={addNotification} />;
-          case 'patients': return <OfficeManagePatientsPage setActiveView={handleSetView} />;
-          case 'register_patient': return <CommunityRegisterPatientPage setActiveView={handleSetView} />;
-          case 'drivers': return <OfficeManageDriversPage />;
-          case 'manage_teams': return <ManageTeamsPage />;
-          case 'manage_schedules': return <ManageSchedulePage />;
-          case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
-          case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
-          case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
-          case 'reports': return <OfficeReportsPage />;
-          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
-          default: return <RadioDashboard setActiveView={handleSetView} />;
         }
       case 'radio_center':
         switch (activeView as OfficerView) {

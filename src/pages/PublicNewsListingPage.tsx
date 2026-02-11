@@ -49,8 +49,15 @@ const PublicNewsListingPage: React.FC<PublicNewsListingPageProps> = ({ onViewArt
                     }
                 }
                 const data = await resp.json();
-                // Expecting array of articles compatible with NewsArticle
-                setArticles(Array.isArray(data) ? data : (data.items || []));
+                const list = Array.isArray(data) ? data : (data.items || []);
+                const mapped = (Array.isArray(list) ? list : []).map((item: any) => ({
+                    ...item,
+                    author: item.author || item.author_name || 'ไม่ระบุ',
+                    status: item.status || (item.is_published ? 'published' : 'draft'),
+                    publishedDate: item.publishedDate || item.published_date || item.publishedDate,
+                    featuredImageUrl: item.featuredImageUrl || item.image_url || item.featuredImageUrl,
+                }));
+                setArticles(mapped);
             } catch (e: any) {
                 setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข่าวสาร');
             } finally {

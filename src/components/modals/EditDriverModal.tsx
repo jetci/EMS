@@ -50,8 +50,8 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
 
   const searchResults = searchTerm
     ? availableStaff.filter(member =>
-      !availableDrivers.some(d => d.email === member.email) && (
-        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      !availableDrivers.some(d => (d.email || '').toLowerCase() === (member.email || '').toLowerCase()) && (
+        (member.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (member.email && member.email.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     )
@@ -60,7 +60,7 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
   const handleSelectMember = (member: User) => {
     setFormData(prev => ({
       ...prev,
-      fullName: member.name,
+      fullName: member.name || '',
       email: member.email,
       phone: member.phone || '',
       profileImageUrl: member.profileImageUrl
@@ -83,7 +83,7 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave({ ...formData, userId: selectedUser?.id } as any);
   };
 
   return (
@@ -134,10 +134,10 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
                           className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0 transition-colors flex items-center gap-3"
                         >
                           <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                            {member.name.charAt(0)}
+                            {(member.name || '').charAt(0) || '?'}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800 text-sm">{member.name}</p>
+                            <p className="font-semibold text-gray-800 text-sm">{member.name || '-'}</p>
                             <p className="text-xs text-gray-500">{member.email}</p>
                           </div>
                           <div className="ml-auto">
@@ -188,24 +188,24 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
                   <legend className="text-lg font-semibold text-[#005A9C] mb-4">ข้อมูลรถและทะเบียน</legend>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">ยี่ห้อรถ</label>
-                      <input type="text" name="vehicleBrand" value={formData.vehicleBrand} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น Toyota" required />
+                      <label htmlFor="vehicleBrand" className="block text-sm font-medium text-gray-700">ยี่ห้อรถ</label>
+                      <input id="vehicleBrand" type="text" name="vehicleBrand" value={formData.vehicleBrand} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น Toyota" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">รุ่นรถ</label>
-                      <input type="text" name="vehicleModel" value={formData.vehicleModel} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น Commuter" required />
+                      <label htmlFor="vehicleModel" className="block text-sm font-medium text-gray-700">รุ่นรถ</label>
+                      <input id="vehicleModel" type="text" name="vehicleModel" value={formData.vehicleModel} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น Commuter" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">สีรถ</label>
-                      <input type="text" name="vehicleColor" value={formData.vehicleColor} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น ขาว" required />
+                      <label htmlFor="vehicleColor" className="block text-sm font-medium text-gray-700">สีรถ</label>
+                      <input id="vehicleColor" type="text" name="vehicleColor" value={formData.vehicleColor} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น ขาว" required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">ทะเบียนรถ</label>
-                      <input type="text" name="licensePlate" value={formData.licensePlate} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น นข 1234" required />
+                      <label htmlFor="licensePlate" className="block text-sm font-medium text-gray-700">ทะเบียนรถ</label>
+                      <input id="licensePlate" type="text" name="licensePlate" value={formData.licensePlate} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="เช่น นข 1234" required />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700">ที่อยู่ปัจจุบัน</label>
-                      <textarea name="address" rows={2} value={formData.address} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="ระบุที่อยู่สำหรับการติดต่อ..."></textarea>
+                      <label htmlFor="address" className="block text-sm font-medium text-gray-700">ที่อยู่ปัจจุบัน</label>
+                      <textarea id="address" name="address" rows={2} value={formData.address} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="ระบุที่อยู่สำหรับการติดต่อ..."></textarea>
                     </div>
                   </div>
                 </fieldset>

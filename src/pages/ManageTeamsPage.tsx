@@ -8,8 +8,10 @@ import Toast from '../components/Toast';
 import { driversAPI, apiRequest } from '../services/api';
 import { teamsAPI } from '../services/api';
 import SearchIcon from '../components/icons/SearchIcon';
+import { useAuth } from '../contexts/AuthContext';
 
 const ManageTeamsPage: React.FC = () => {
+    const { user } = useAuth();
     const [teams, setTeams] = useState<Team[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [staff, setStaff] = useState<User[]>([]);
@@ -26,6 +28,11 @@ const ManageTeamsPage: React.FC = () => {
         loadAllData();
     }, []);
 
+    const normalizedRole = String(user?.role || '').trim().toUpperCase();
+    const canCreate = ['ADMIN', 'DEVELOPER', 'OFFICER'].includes(normalizedRole);
+    const canEdit = ['ADMIN', 'DEVELOPER', 'OFFICER'].includes(normalizedRole);
+    const canDelete = ['ADMIN', 'DEVELOPER', 'OFFICER'].includes(normalizedRole);
+
     const loadAllData = async () => {
         try {
             setLoading(true);
@@ -33,7 +40,7 @@ const ManageTeamsPage: React.FC = () => {
             const [teamsData, driversData, usersData] = await Promise.all([
                 teamsAPI.getTeams(),
                 driversAPI.getDrivers(),
-                apiRequest('/users'),
+                apiRequest('/users/staff'),
             ]);
 
             // Map Teams (leader_id -> driverId, member_ids -> staffIds)
@@ -49,7 +56,7 @@ const ManageTeamsPage: React.FC = () => {
             const rawDrivers = Array.isArray(driversData) ? driversData : (driversData?.drivers || []);
             const mappedDrivers = rawDrivers.map((d: any) => ({
                 ...d,
-                fullName: d.fullName || d.full_name
+                fullName: (d.fullName || d.full_name || d.name || '').trim()
             }));
             setDrivers(mappedDrivers);
 
@@ -57,7 +64,7 @@ const ManageTeamsPage: React.FC = () => {
             const rawUsers = Array.isArray(usersData) ? usersData : (usersData?.users || []);
             const mappedUsers = rawUsers.map((u: any) => ({
                 ...u,
-                name: u.name || u.full_name
+                name: (u.name || u.full_name || u.fullName || '').trim()
             }));
             setStaff(mappedUsers);
         } catch (err: any) {
@@ -72,6 +79,7 @@ const ManageTeamsPage: React.FC = () => {
         const map = new Map<string, { name: string; profileImageUrl?: string }>();
         const allUsers: (Driver | User)[] = [...drivers, ...staff];
         allUsers.forEach(user => {
+            if (!user.id) return;
             const name = 'fullName' in user ? user.fullName : user.name;
             map.set(user.id!, { name, profileImageUrl: user.profileImageUrl });
         });
@@ -84,22 +92,44 @@ const ManageTeamsPage: React.FC = () => {
     };
 
     const handleOpenCreateModal = () => {
+        if (!canCreate) {
+            showToast('❌ ไม่มีสิทธิ์สร้างทีม');
+            return;
+        }
         setSelectedTeam(null);
         setIsModalOpen(true);
     };
 
     const handleOpenEditModal = (team: Team) => {
+        if (!canEdit) {
+            showToast('❌ ไม่มีสิทธิ์แก้ไขทีม');
+            return;
+        }
         setSelectedTeam(team);
         setIsModalOpen(true);
     };
 
     const handleSaveTeam = async (teamData: Team) => {
         try {
+            const payload = {
+                name: teamData.name,
+                leader_id: teamData.driverId,
+                member_ids: teamData.staffIds,
+                status: 'Active',
+            };
             if (selectedTeam) {
-                await teamsAPI.updateTeam(teamData.id, teamData);
+                if (!canEdit) {
+                    showToast('❌ ไม่มีสิทธิ์แก้ไขทีม');
+                    return;
+                }
+                await teamsAPI.updateTeam(teamData.id, payload);
                 showToast(`✅ แก้ไขข้อมูลทีม "${teamData.name}" สำเร็จ`);
             } else {
-                await teamsAPI.createTeam(teamData);
+                if (!canCreate) {
+                    showToast('❌ ไม่มีสิทธิ์สร้างทีม');
+                    return;
+                }
+                await teamsAPI.createTeam(payload);
                 showToast(`✅ สร้างทีม "${teamData.name}" สำเร็จ`);
             }
             await loadAllData();
@@ -119,6 +149,12 @@ const ManageTeamsPage: React.FC = () => {
     const handleDeleteTeam = async () => {
         if (teamToDelete) {
             try {
+                if (!canDelete) {
+                    showToast('❌ ไม่มีสิทธิ์ลบทีม');
+                    setIsConfirmOpen(false);
+                    setTeamToDelete(null);
+                    return;
+                }
                 await teamsAPI.deleteTeam(teamToDelete.id);
                 showToast(`🗑️ ลบทีม "${teamToDelete.name}" เรียบร้อยแล้ว`);
                 await loadAllData();
@@ -141,13 +177,15 @@ const ManageTeamsPage: React.FC = () => {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการชุดเวร (Team Management)</h1>
-                <button
-                    onClick={handleOpenCreateModal}
-                    className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[#005A9C] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
-                >
-                    <PlusCircleIcon className="w-5 h-5 mr-2" />
-                    <span>สร้างทีมใหม่</span>
-                </button>
+                {canCreate && (
+                    <button
+                        onClick={handleOpenCreateModal}
+                        className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[#005A9C] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
+                    >
+                        <PlusCircleIcon className="w-5 h-5 mr-2" />
+                        <span>สร้างทีมใหม่</span>
+                    </button>
+                )}
             </div>
 
             {/* Toolbar */}
@@ -181,6 +219,8 @@ const ManageTeamsPage: React.FC = () => {
                             staffNames={staffNames}
                             onEdit={() => handleOpenEditModal(team)}
                             onDelete={() => handleOpenDeleteConfirm(team)}
+                            canEdit={canEdit}
+                            canDelete={canDelete}
                         />
                     );
                 })}
@@ -192,7 +232,7 @@ const ManageTeamsPage: React.FC = () => {
                         {searchTerm ? 'ไม่พบทีมที่ตรงกับคำค้นหา' : 'ยังไม่มีทีมที่สร้างไว้'}
                     </h3>
                     <p className="text-gray-500 mt-2">
-                        {searchTerm ? 'ลองใช้คำค้นหาอื่น' : 'คลิก "สร้างทีมใหม่" เพื่อเริ่มต้น'}
+                        {searchTerm ? 'ลองใช้คำค้นหาอื่น' : (canCreate ? 'คลิก "สร้างทีมใหม่" เพื่อเริ่มต้น' : 'ยังไม่มีทีมที่สร้างไว้')}
                     </p>
                 </div>
             )}

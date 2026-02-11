@@ -59,9 +59,20 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
                 driversAPI.getDrivers()
             ]);
             // ✅ Backward compatible: support both old (array) and new (object) formats
-            const rides = ridesData?.data || ridesData || [];
-            setRides(Array.isArray(rides) ? rides : []);
-            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
+            const rawRides = ridesData?.data || ridesData || [];
+            const normalizedRides = (Array.isArray(rawRides) ? rawRides : []).map((r: any) => ({
+                ...r,
+                village: r?.village || r?.currentVillage || r?.current_village || undefined,
+                landmark: r?.landmark || undefined,
+            }));
+            setRides(normalizedRides as any);
+
+            const rawDrivers = Array.isArray(driversData) ? driversData : (driversData?.drivers || []);
+            const normalizedDrivers = (Array.isArray(rawDrivers) ? rawDrivers : []).map((d: any) => ({
+                ...d,
+                fullName: (d?.fullName || d?.full_name || d?.name || '').trim(),
+            }));
+            setDrivers(normalizedDrivers as any);
         } catch (err: any) {
             console.error('Failed to load data:', err);
             setError(err.message || 'ไม่สามารถโหลดข้อมูลได้');
@@ -92,7 +103,10 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
             let matchesDate = true;
             if (filters.startDate && filters.endDate) {
                 const rideDate = new Date(r.appointmentTime);
-                matchesDate = rideDate >= new Date(filters.startDate) && rideDate <= new Date(filters.endDate);
+                const start = new Date(filters.startDate);
+                const end = new Date(filters.endDate);
+                end.setHours(23, 59, 59, 999);
+                matchesDate = rideDate >= start && rideDate <= end;
             }
 
             return matchesSearch && matchesStatus && matchesDriver && matchesVillage && matchesTripType && matchesDate;
@@ -180,7 +194,7 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
                         <label className="text-xs font-medium text-gray-600">คนขับ</label>
                         <select name="driver" value={filters.driver} onChange={handleFilterChange}>
                             <option value="All">คนขับทั้งหมด</option>
-                            {drivers.map(d => <option key={d.id} value={d.fullName}>{d.fullName}</option>)}
+                            {drivers.filter(d => d.fullName).map(d => <option key={d.id} value={d.fullName}>{d.fullName}</option>)}
                         </select>
                     </div>
                     <div>
@@ -244,7 +258,7 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
                                                 <span>{ride.tripType}</span>
-                                                {ride.specialNeeds?.includes('ต้องการวีลแชร์') && (
+                                                {Array.isArray(ride.specialNeeds) && ride.specialNeeds.some(n => String(n).toLowerCase().includes('วีลแชร์') || String(n).toLowerCase().includes('wheelchair') || String(n).toLowerCase().includes('ล้อเข็น')) && (
                                                     <span title="ต้องการวีลแชร์">
                                                         <WheelchairIcon className="w-5 h-5 text-blue-600" />
                                                     </span>

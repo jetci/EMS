@@ -122,7 +122,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSave, 
     'OFFICER',
     'driver',
     'community',
-    'radio',
     'radio_center',
     'EXECUTIVE'
   ].filter(role => {
@@ -140,7 +139,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSave, 
     OFFICER: 'เจ้าหน้าที่',
     driver: 'พนักงานขับรถ',
     community: 'อาสาสมัคร',
-    radio: 'เจ้าหน้าที่วิทยุ',
     radio_center: 'ศูนย์สั่งการ',
     EXECUTIVE: 'ผู้บริหาร'
   };

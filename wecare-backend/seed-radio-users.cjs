@@ -23,10 +23,10 @@ db.exec(`
 
 const users = [
     {
-        email: 'radio@wecare.dev',
+        email: 'office1@wecare.dev',
         password: 'password',
-        fullName: 'Radio Operator',
-        role: 'radio',
+        fullName: 'Radio Center Operator',
+        role: 'radio_center',
         phoneNumber: '0811111111'
     },
     {

@@ -4,6 +4,21 @@ import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = express.Router();
 
+const normalizeVillageList = (villages: any): string[] => {
+    if (!villages) return [];
+    if (Array.isArray(villages)) return villages.map(v => String(v)).filter(Boolean);
+    if (typeof villages === 'string') {
+        const raw = villages.trim();
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.map(v => String(v)).filter(Boolean);
+        } catch { }
+        return raw.split(',').map(v => v.trim()).filter(Boolean);
+    }
+    return [];
+};
+
 // GET /api/office/reports/roster
 router.get('/roster', authenticateToken, async (req, res) => {
     try {
@@ -125,10 +140,20 @@ router.get('/patients', authenticateToken, async (req, res) => {
         // Filter villages in memory (easier than dynamic SQL ORs for comma list)
         let filtered = patients;
         if (villages) {
-            const villageList = (villages as string).split(',');
+            const villageList = normalizeVillageList(villages);
             filtered = patients.filter(p => {
-                // Check both address fields
-                const addr = (p.current_village || '') + (p.id_card_village || '') + (p.address || '');
+                const addr = [
+                    p.current_house_number,
+                    p.current_village,
+                    p.current_tambon,
+                    p.current_amphoe,
+                    p.current_changwat,
+                    p.id_card_house_number,
+                    p.id_card_village,
+                    p.id_card_tambon,
+                    p.id_card_amphoe,
+                    p.id_card_changwat,
+                ].filter(Boolean).join(' ');
                 return villageList.some(v => addr.includes(v));
             });
         }
@@ -140,9 +165,9 @@ router.get('/patients', authenticateToken, async (req, res) => {
 });
 
 // GET /api/reports/export
-router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEVELOPER']), async (req, res) => {
+router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req, res) => {
     try {
-        const { type, format, startDate, endDate } = req.query;
+        const { type, format, startDate, endDate, driverId, status, villages } = req.query;
 
         let data: any[] = [];
         let filename = `report_${type}_${new Date().getTime()}`;
@@ -152,12 +177,49 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
             const params: any[] = [];
             if (startDate) { sql += ' AND appointment_time >= ?'; params.push(`${startDate}T00:00:00`); }
             if (endDate) { sql += ' AND appointment_time <= ?'; params.push(`${endDate}T23:59:59`); }
+            if (driverId && driverId !== 'all') { sql += ' AND driver_id = ?'; params.push(driverId); }
 
             data = sqliteDB.all(sql, params);
             filename = `rides_report_${new Date().toISOString().split('T')[0]}`;
         } else if (type === 'patient_by_village') {
-            data = sqliteDB.all('SELECT * FROM patients WHERE deleted_at IS NULL');
+            let sql = 'SELECT * FROM patients WHERE deleted_at IS NULL';
+            const params: any[] = [];
+            if (startDate) { sql += ' AND registered_date >= ?'; params.push(`${startDate}T00:00:00`); }
+            if (endDate) { sql += ' AND registered_date <= ?'; params.push(`${endDate}T23:59:59`); }
+            const patients = sqliteDB.all<any>(sql, params);
+            const villageList = normalizeVillageList(villages);
+            data = villageList.length === 0 ? patients : patients.filter(p => {
+                const addr = [
+                    p.current_house_number,
+                    p.current_village,
+                    p.current_tambon,
+                    p.current_amphoe,
+                    p.current_changwat,
+                    p.id_card_house_number,
+                    p.id_card_village,
+                    p.id_card_tambon,
+                    p.id_card_amphoe,
+                    p.id_card_changwat,
+                ].filter(Boolean).join(' ');
+                return villageList.some(v => addr.includes(v));
+            });
             filename = `patients_report_${new Date().toISOString().split('T')[0]}`;
+        } else if (type === 'maintenance') {
+            let sql = 'SELECT * FROM vehicles WHERE 1=1';
+            const params: any[] = [];
+            const filter = typeof status === 'string' ? status : 'all';
+            if (filter === 'upcoming') {
+                const today = new Date().toISOString().split('T')[0];
+                sql += " AND next_maintenance_date >= ? AND next_maintenance_date <= date(?, '+30 days')";
+                params.push(today, today);
+            } else if (filter === 'overdue') {
+                const today = new Date().toISOString().split('T')[0];
+                sql += ' AND next_maintenance_date < ?';
+                params.push(today);
+            }
+            sql += ' ORDER BY next_maintenance_date ASC';
+            data = sqliteDB.all(sql, params);
+            filename = `maintenance_report_${new Date().toISOString().split('T')[0]}`;
         } else {
             // Summary
             const ridesCount = sqliteDB.get<{ c: number }>('SELECT COUNT(*) as c FROM rides');

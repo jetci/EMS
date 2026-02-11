@@ -345,7 +345,7 @@ export const registerSchema = Joi.object({
         .required(),
 
     role: Joi.string()
-        .valid('admin', 'OFFICER', 'driver', 'community', 'EXECUTIVE', 'DEVELOPER')
+        .valid('admin', 'OFFICER', 'radio_center', 'driver', 'community', 'EXECUTIVE', 'DEVELOPER')
         .required()
 });
 
@@ -367,7 +367,7 @@ export const userCreateSchema = Joi.object({
         .required(),
 
     role: Joi.string()
-        .valid('admin', 'OFFICER', 'driver', 'community', 'EXECUTIVE', 'DEVELOPER')
+        .valid('admin', 'OFFICER', 'radio_center', 'driver', 'community', 'EXECUTIVE', 'DEVELOPER')
         .required(),
 
     status: Joi.string()

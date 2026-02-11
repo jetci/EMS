@@ -4,16 +4,15 @@ interface QuickLoginPanelProps {
   onQuickLogin: (email: string, pass: string) => Promise<void>;
 }
 
-const testUsers = {
-  ADMIN: { email: 'admin@wecare.ems', pass: 'password123' },
-  DEVELOPER: { email: 'dev@wecare.ems', pass: 'password123' },
-  RADIO: { email: 'office1@wecare.dev', pass: 'password123' },
-  RADIO_CENTER: { email: 'radio_center@wecare.dev', pass: 'password123' },
-  OFFICER: { email: 'officer1@wecare.dev', pass: 'password123' },
-  DRIVER: { email: 'driver1@wecare.dev', pass: 'password123' },
-  COMMUNITY: { email: 'community1@wecare.dev', pass: 'password123' },
-  EXECUTIVE: { email: 'executive1@wecare.dev', pass: 'password123' },
-};
+const testUsers = [
+  { key: 'RADIO_CENTER', label: 'RADIO_CENTER', email: 'radio_center@wecare.dev', pass: 'password123' },
+  { key: 'OFFICER', label: 'OFFICER', email: 'officer1@wecare.dev', pass: 'password123' },
+  { key: 'DRIVER', label: 'DRIVER', email: 'driver1@wecare.dev', pass: 'password123' },
+  { key: 'COMMUNITY', label: 'COMMUNITY', email: 'community1@wecare.dev', pass: 'password123' },
+  { key: 'EXECUTIVE', label: 'EXECUTIVE', email: 'executive1@wecare.dev', pass: 'password123' },
+  { key: 'ADMIN', label: 'ADMIN', email: 'admin@wecare.ems', pass: 'password123' },
+  { key: 'DEVELOPER', label: 'DEVELOPER', email: 'dev@wecare.ems', pass: 'password123' },
+] as const;
 
 const QuickLoginPanel: React.FC<QuickLoginPanelProps> = ({ onQuickLogin }) => {
   const handleQuickLogin = async (email: string, pass: string) => {
@@ -30,13 +29,13 @@ const QuickLoginPanel: React.FC<QuickLoginPanelProps> = ({ onQuickLogin }) => {
         เข้าสู่ระบบด่วน (สำหรับทดสอบ)
       </h3>
       <div className="grid grid-cols-2 gap-2">
-        {(Object.keys(testUsers) as Array<keyof typeof testUsers>).map((role) => (
+        {testUsers.map((u) => (
           <button
-            key={role}
-            onClick={() => handleQuickLogin(testUsers[role].email, testUsers[role].pass)}
+            key={u.key}
+            onClick={() => handleQuickLogin(u.email, u.pass)}
             className="w-full px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#005A9C] transition-colors duration-300"
           >
-            Login as {role}
+            Login as {u.label}
           </button>
         ))}
       </div>

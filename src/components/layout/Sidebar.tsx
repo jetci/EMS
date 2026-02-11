@@ -61,14 +61,10 @@ const getNavItems = (role: User['role']) => {
         { id: 'rides', label: 'จัดการการเดินทาง', icon: RidesIcon },
         { id: 'drivers', label: 'สถานะคนขับ', icon: SteeringWheelIcon },
         { id: 'patients', label: 'ข้อมูลผู้ป่วย', icon: UsersIcon },
+        { id: 'manage_teams', label: 'จัดการชุดเวร', icon: TeamIcon },
+        { id: 'manage_schedules', label: 'จัดการตารางเวร', icon: CalendarCheckIcon },
+        { id: 'news', label: 'จัดการข่าวสาร', icon: NewspaperIcon },
         { id: 'reports', label: 'รายงานประจำวัน', icon: DocumentReportIcon },
-      ];
-    case 'radio':
-      return [
-        { id: 'dashboard', label: 'หน้าปฏิบัติการ', icon: DashboardIcon },
-        { id: 'map_command', label: 'แผนที่', icon: MapIcon },
-        { id: 'rides', label: 'รายการงาน', icon: RidesIcon },
-        { id: 'drivers', label: 'ตรวจสอบคนขับ', icon: SteeringWheelIcon },
       ];
     case 'EXECUTIVE':
       return [

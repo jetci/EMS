@@ -37,7 +37,13 @@ const OfficeReportsPage: React.FC = () => {
                 driversAPI.getDrivers(),
                 teamsAPI.getTeams(),
             ]);
-            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
+            const rawDrivers = Array.isArray(driversData) ? driversData : (driversData?.drivers || []);
+            setDrivers(
+                (Array.isArray(rawDrivers) ? rawDrivers : []).map((d: any) => ({
+                    ...d,
+                    fullName: d?.fullName || d?.full_name || d?.name || '',
+                }))
+            );
             setTeams(Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []));
         } catch (err) {
             console.error('Failed to load data:', err);
@@ -78,6 +84,9 @@ const OfficeReportsPage: React.FC = () => {
                 data = await apiRequest(`/office/reports/personnel?${params}`);
                 exportType = 'detailed_rides'; // Personnel is subset of rides
                 exportParams = { startDate: personnelData.startDate, endDate: personnelData.endDate };
+                if (personnelData.driverId !== 'all') {
+                    exportParams.driverId = personnelData.driverId;
+                }
             } else if (reportName === 'รายงานซ่อมบำรุง') {
                 const params = new URLSearchParams({ status: maintenanceStatus });
                 data = await apiRequest(`/office/reports/maintenance?${params}`);
@@ -85,10 +94,11 @@ const OfficeReportsPage: React.FC = () => {
                 exportType = 'maintenance';
                 exportParams = { status: maintenanceStatus };
             } else if (reportName === 'รายงานข้อมูลผู้ป่วย') {
-                const params = new URLSearchParams({ startDate: patientData.startDate, endDate: patientData.endDate, villages: selectedVillages.join(',') });
+                const villages = JSON.stringify(selectedVillages);
+                const params = new URLSearchParams({ startDate: patientData.startDate, endDate: patientData.endDate, villages });
                 data = await apiRequest(`/office/reports/patients?${params}`);
                 exportType = 'patient_by_village';
-                exportParams = { startDate: patientData.startDate, endDate: patientData.endDate };
+                exportParams = { startDate: patientData.startDate, endDate: patientData.endDate, villages };
             }
 
             setReportResult(data);
@@ -115,7 +125,7 @@ const OfficeReportsPage: React.FC = () => {
             }).toString();
 
             // Direct fetch for blob
-            const response = await fetch(`/api/reports/export?${query}`, {
+            const response = await fetch(`/api/office/reports/export?${query}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

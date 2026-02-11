@@ -72,7 +72,8 @@ class TokenBlacklistService {
 export const tokenBlacklist = new TokenBlacklistService();
 
 // Cleanup expired tokens every hour (disabled in test to prevent open handles)
-if (process.env.NODE_ENV !== 'test') {
+const isJest = typeof process.env.JEST_WORKER_ID === 'string' && process.env.JEST_WORKER_ID.length > 0;
+if (process.env.NODE_ENV !== 'test' && !isJest) {
     setInterval(() => {
         tokenBlacklist.cleanup();
     }, 60 * 60 * 1000); // 1 hour

@@ -30,7 +30,7 @@ const generateVehicleId = (): string => {
 router.use(authenticateToken);
 
 // GET /api/vehicles
-router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), async (_req, res) => {
+router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (_req, res) => {
   try {
     const vehicles = sqliteDB.all<Vehicle>('SELECT * FROM vehicles ORDER BY license_plate');
     res.json(vehicles);

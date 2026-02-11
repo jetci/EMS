@@ -355,7 +355,7 @@ app.use('/api/community/patients',
 // Driver routes - accessible by admin, officer, and drivers themselves
 app.use('/api/drivers',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO, UserRole.DRIVER, UserRole.EXECUTIVE]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER, UserRole.EXECUTIVE]),
   driverRoutes
 );
 
@@ -381,14 +381,14 @@ app.use('/api/users',
 // Team management - admin, developer, officer, radio center, radio, executive
 app.use('/api/teams',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO, UserRole.EXECUTIVE]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.EXECUTIVE]),
   teamRoutes
 );
 
 // Vehicle management - admin, developer, officer, radio center, radio
 app.use('/api/vehicles',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
   vehicleRoutes
 );
 
@@ -448,21 +448,21 @@ app.use('/api/executive/reports',
 // Office routes - officer and radio center
 app.use('/api/office',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
   officeRoutes
 );
 
 // Map data - admin, developer, officer, radio center
 app.use('/api/map-data',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
   mapDataRoutes
 );
 
 // Driver locations - accessible by multiple roles for tracking
 app.use('/api/driver-locations',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.RADIO, UserRole.DRIVER, UserRole.EXECUTIVE]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER, UserRole.EXECUTIVE]),
   driverLocationRoutes
 );
 
@@ -537,16 +537,28 @@ locationNamespace.use((socket, next) => {
     const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
 
+    const userId = decoded.userId || decoded.id || decoded.user_id;
+    const roleRaw = decoded.role;
+    const roleUpper = typeof roleRaw === 'string' ? roleRaw.toUpperCase() : undefined;
+    const roleLower = typeof roleRaw === 'string' ? roleRaw.toLowerCase() : undefined;
+
+    if (!userId) {
+      console.warn('⚠️ WebSocket connection rejected: Invalid token payload (missing user id)');
+      return next(new Error('Invalid token'));
+    }
+
     // Attach user info to socket
     (socket as any).user = {
-      id: decoded.userId,
+      id: userId,
       email: decoded.email,
-      role: decoded.role
+      role: roleRaw
     };
 
     // Join user-specific room for targeted notifications
-    socket.join(`user:${decoded.userId}`);
-    socket.join(`role:${decoded.role}`);
+    socket.join(`user:${userId}`);
+    if (roleRaw) socket.join(`role:${roleRaw}`);
+    if (roleUpper && roleUpper !== roleRaw) socket.join(`role:${roleUpper}`);
+    if (roleLower && roleLower !== roleRaw) socket.join(`role:${roleLower}`);
 
     console.log(`✅ WebSocket authenticated: ${decoded.email} (${decoded.role})`);
     next();
@@ -611,6 +623,17 @@ locationNamespace.on('connection', (socket) => {
       driverEmail: user.email,
       status: data.status,
       timestamp: new Date().toISOString()
+    });
+
+    locationNamespace.to('role:radio_center').emit('notification:new', {
+      eventType: 'driver_status',
+      type: 'info',
+      message: `🔔 อัปเดตสถานะคนขับ: ${data.status || ''}`.trim()
+    });
+    locationNamespace.to('role:OFFICER').emit('notification:new', {
+      eventType: 'driver_status',
+      type: 'info',
+      message: `🔔 อัปเดตสถานะคนขับ: ${data.status || ''}`.trim()
     });
   });
 

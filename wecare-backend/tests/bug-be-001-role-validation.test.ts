@@ -342,9 +342,8 @@ describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
 });
 
 describe('Map Data Routes (/api/map-data)', () => {
-    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER/RADIO to GET map data', async () => {
-        const radioToken = generateToken('radio-002', 'radio2@wecare.dev', 'radio');
-        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter, radioToken];
+    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER to GET map data', async () => {
+        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter];
         for (const tk of allowed) {
             const res = await request(app)
                 .get('/api/map-data')
@@ -365,9 +364,8 @@ describe('Map Data Routes (/api/map-data)', () => {
 });
 
 describe('Driver Location Routes (/api/driver-locations)', () => {
-    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER/RADIO/DRIVER/EXECUTIVE to GET driver locations', async () => {
-        const radioToken = generateToken('radio-003', 'radio3@wecare.dev', 'radio');
-        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter, radioToken, tokens.driver, tokens.executive];
+    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER/DRIVER/EXECUTIVE to GET driver locations', async () => {
+        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter, tokens.driver, tokens.executive];
         for (const tk of allowed) {
             const res = await request(app)
                 .get('/api/driver-locations')
@@ -391,9 +389,8 @@ describe('Driver Location Routes (/api/driver-locations)', () => {
 });
 
 describe('Office Routes (/api/office)', () => {
-    it('should allow OFFICER/RADIO_CENTER/RADIO to access dashboard', async () => {
-        const radioToken = generateToken('radio-004', 'radio4@wecare.dev', 'radio');
-        const allowed = [tokens.officer, tokens.radioCenter, radioToken];
+    it('should allow OFFICER/RADIO_CENTER to access dashboard', async () => {
+        const allowed = [tokens.officer, tokens.radioCenter];
         for (const tk of allowed) {
             await request(app)
                 .get('/api/office/dashboard')
@@ -414,9 +411,8 @@ describe('Office Routes (/api/office)', () => {
 });
 
 describe('Teams Routes (/api/teams)', () => {
-    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER/RADIO/EXECUTIVE to GET teams', async () => {
-        const radioToken = generateToken('radio-005', 'radio5@wecare.dev', 'radio');
-        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter, radioToken, tokens.executive];
+    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER/EXECUTIVE to GET teams', async () => {
+        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter, tokens.executive];
         for (const tk of allowed) {
             await request(app)
                 .get('/api/teams')
@@ -437,9 +433,8 @@ describe('Teams Routes (/api/teams)', () => {
 });
 
 describe('Vehicles Routes (/api/vehicles)', () => {
-    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER/RADIO to GET vehicles', async () => {
-        const radioToken = generateToken('radio-006', 'radio6@wecare.dev', 'radio');
-        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter, radioToken];
+    it('should allow ADMIN/DEVELOPER/OFFICER/RADIO_CENTER to GET vehicles', async () => {
+        const allowed = [tokens.admin, tokens.developer, tokens.officer, tokens.radioCenter];
         for (const tk of allowed) {
             await request(app)
                 .get('/api/vehicles')

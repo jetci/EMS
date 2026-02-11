@@ -38,7 +38,7 @@ router.get('/', authenticateToken, (req, res) => {
 });
 
 // POST /api/map-data
-router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), (req, res) => {
+router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), (req, res) => {
     try {
         const { type, name, description, coordinates, properties } = req.body;
 
@@ -81,7 +81,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER'
 });
 
 // PUT /api/map-data/:id
-router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), (req, res) => {
+router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -120,7 +120,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICE
 });
 
 // DELETE /api/map-data/:id
-router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), (req, res) => {
+router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), (req, res) => {
     try {
         const { id } = req.params;
 

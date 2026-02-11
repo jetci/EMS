@@ -7,7 +7,7 @@ import { logRideEvent } from './ride-events';
 const router = express.Router();
 
 // Apply RBAC to all office routes
-router.use(authenticateToken, requireRole(['radio_center', 'radio', 'OFFICER', 'admin', 'DEVELOPER']));
+router.use(authenticateToken, requireRole(['radio_center', 'OFFICER', 'admin', 'DEVELOPER']));
 
 // GET /api/office/dashboard - Dashboard Stats
 router.get('/dashboard', async (req, res) => {
@@ -37,28 +37,18 @@ router.get('/rides/urgent', async (req, res) => {
     try {
         // Urgent rides are PENDING rides, sorted by appointment time
         const rows = sqliteDB.all<any>(`
-            SELECT * FROM rides
-            WHERE status = 'PENDING'
-            ORDER BY appointment_time ASC
+            SELECT
+                r.*,
+                COALESCE(r.village, p.current_village) as village,
+                COALESCE(r.landmark, p.landmark) as landmark
+            FROM rides r
+            LEFT JOIN patients p ON r.patient_id = p.id
+            WHERE r.status = 'PENDING'
+            ORDER BY r.appointment_time ASC
         `);
 
-        // Map DB fields to frontend format if necessary (camelCase vs snake_case)
-        // Frontend likely expects DB snake_case for some or mixed.
-        // Based on other files, we normally map back to camelCase for consistency, 
-        // but if the frontend was reading JSON directly, it might be expecting what was properly in JSON.
-        // The Ride interface in previous file showed mixed types (status, appointment_time).
-
-        // Let's provide a consistent mapping to match what likely was in JSON or the shared Type
         const rides = rows.map(r => ({
-            id: r.id,
-            passengerName: r.patient_name, // Map for UI if needed or keep raw
-            patient_name: r.patient_name, // Keep raw for compatibility
-            patient_phone: r.patient_phone,
-            pickup_location: r.pickup_location,
-            destination: r.destination,
-            appointment_time: r.appointment_time,
-            status: r.status,
-            trip_type: r.trip_type,
+            ...r,
             special_needs: r.special_needs ? JSON.parse(r.special_needs) : []
         }));
 
@@ -74,9 +64,14 @@ router.get('/rides/today', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
 
         const rows = sqliteDB.all<any>(`
-            SELECT * FROM rides
-            WHERE appointment_time LIKE '${today}%'
-            ORDER BY appointment_time ASC
+            SELECT
+                r.*,
+                COALESCE(r.village, p.current_village) as village,
+                COALESCE(r.landmark, p.landmark) as landmark
+            FROM rides r
+            LEFT JOIN patients p ON r.patient_id = p.id
+            WHERE r.appointment_time LIKE '${today}%'
+            ORDER BY r.appointment_time ASC
         `);
 
         // Use same mapping strategy
@@ -162,6 +157,19 @@ router.post('/rides/:id/assign', async (req, res) => {
             { driver_id, driver_name: result.driver.full_name },
             `จ่ายงานให้ ${result.driver.full_name}`
         );
+
+        try {
+            const io = (req as any).app?.get?.('io');
+            if (io) {
+                const ns = io.of('/locations');
+                const message = `✅ จ่ายงาน ${id} ให้ ${result.driver.full_name}`;
+                const payload = { eventType: 'ride_status', type: 'success', message, rideId: id, status: 'ASSIGNED' };
+                ns.to('role:radio_center').emit('notification:new', payload);
+                ns.to('role:OFFICER').emit('notification:new', payload);
+                ns.to('role:admin').emit('notification:new', payload);
+                ns.to('role:DEVELOPER').emit('notification:new', payload);
+            }
+        } catch { }
 
         res.json({ success: true, message: 'Driver assigned successfully', rideId: id, driverName: result.driver.full_name });
 

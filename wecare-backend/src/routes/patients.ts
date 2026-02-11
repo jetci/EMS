@@ -244,7 +244,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       req.user?.role !== 'admin' &&
       req.user?.role !== 'DEVELOPER' &&
       req.user?.role !== 'radio_center' &&
-      req.user?.role !== 'radio' &&
       req.user?.role !== 'OFFICER' &&
       req.user?.role !== 'EXECUTIVE'
     ) {

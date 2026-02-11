@@ -154,7 +154,7 @@ export const seedData = async () => {
                 id: 'USR-RADIO',
                 email: 'office1@wecare.dev',
                 password: hashedPassword,
-                role: 'radio',
+                role: 'radio_center',
                 full_name: 'Radio Center Operator',
                 date_created: new Date().toISOString(),
                 status: 'Active'
@@ -632,6 +632,15 @@ function hasColumn(table: string, column: string): boolean {
     }
 }
 
+function getCreateTableSql(table: string): string {
+    try {
+        const row = db.prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as { sql?: string } | undefined;
+        return row?.sql || '';
+    } catch {
+        return '';
+    }
+}
+
 function applyMigrationsIfNeeded(): void {
     try {
         const migrationsDir = path.join(__dirname, '..', '..', 'db', 'migrations');
@@ -649,7 +658,10 @@ function applyMigrationsIfNeeded(): void {
             { version: 4, file: 'add_emergency_contact.sql' },
             { version: 5, file: 'add_user_profile_fields.sql' },
             { version: 6, file: 'add_caregiver_and_key_info.sql' },
-            { version: 7, file: 'add_rides_location_columns.sql' }
+            { version: 7, file: 'add_rides_location_columns.sql' },
+            { version: 8, file: 'rebuild_users_remove_radio_role.sql' },
+            { version: 9, file: 'rebuild_teams_drop_leader_fk.sql' },
+            { version: 10, file: 'rebuild_drivers_expand_statuses.sql' }
         ];
 
         // Determine latest schema version from migration list
@@ -693,6 +705,32 @@ function applyMigrationsIfNeeded(): void {
                     } else if (m.version === 7) {
                         // Add village/landmark/caregiver_phone to rides
                         if (hasColumn('rides', 'village') && hasColumn('rides', 'landmark') && hasColumn('rides', 'caregiver_phone')) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 8) {
+                        const usersSql = getCreateTableSql('users').toLowerCase();
+                        const allowsRadio = usersSql.includes("'radio'");
+                        const hasRadioUsers = (() => {
+                            try {
+                                const row = db.prepare(`SELECT COUNT(*) as c FROM users WHERE role = 'radio'`).get() as { c?: number } | undefined;
+                                return (row?.c || 0) > 0;
+                            } catch {
+                                return false;
+                            }
+                        })();
+                        if (!allowsRadio && !hasRadioUsers) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 9) {
+                        const teamsSql = getCreateTableSql('teams').toLowerCase();
+                        const hasLeaderFk = teamsSql.includes('foreign key') && teamsSql.includes('leader_id');
+                        if (!hasLeaderFk) {
+                            shouldApply = false;
+                        }
+                    } else if (m.version === 10) {
+                        const driversSql = getCreateTableSql('drivers').toLowerCase();
+                        const hasOldOnly = driversSql.includes("check(status in ('available', 'on_duty', 'off_duty', 'unavailable'))");
+                        if (!hasOldOnly) {
                             shouldApply = false;
                         }
                     }

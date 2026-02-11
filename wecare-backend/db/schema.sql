@@ -9,13 +9,17 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('DEVELOPER', 'admin', 'OFFICER', 'radio', 'radio_center', 'driver', 'community', 'EXECUTIVE')),
+    role TEXT NOT NULL CHECK(role IN ('DEVELOPER', 'admin', 'OFFICER', 'radio_center', 'driver', 'community', 'EXECUTIVE')),
     full_name TEXT NOT NULL,
     date_created TEXT NOT NULL,
     status TEXT DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
+    phone TEXT,
+    profile_image_url TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 
 -- ============================================
 -- 2. PATIENTS TABLE
@@ -91,7 +95,7 @@ CREATE TABLE IF NOT EXISTS drivers (
     phone TEXT,
     license_number TEXT,
     license_expiry TEXT,
-    status TEXT DEFAULT 'AVAILABLE' CHECK(status IN ('AVAILABLE', 'ON_DUTY', 'OFF_DUTY', 'UNAVAILABLE')),
+    status TEXT DEFAULT 'AVAILABLE' CHECK(status IN ('AVAILABLE', 'ON_TRIP', 'OFFLINE', 'INACTIVE', 'ON_DUTY', 'OFF_DUTY', 'UNAVAILABLE')),
     current_vehicle_id TEXT,
     profile_image_url TEXT,
     total_trips INTEGER DEFAULT 0,
@@ -234,9 +238,7 @@ CREATE TABLE IF NOT EXISTS teams (
     member_ids TEXT, -- JSON array
     status TEXT DEFAULT 'Active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (leader_id) REFERENCES users(id)
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================

@@ -13,10 +13,12 @@ import PowerIcon from '../components/icons/PowerIcon';
 import { defaultProfileImage } from '../assets/defaultProfile';
 import { driversAPI, apiRequest } from '../services/api';
 import Toast from '../components/Toast';
+import { useAuth } from '../contexts/AuthContext';
 
 const ITEMS_PER_PAGE = 10;
 
 const OfficeManageDriversPage: React.FC = () => {
+    const { user } = useAuth();
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [staff, setStaff] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -32,9 +34,32 @@ const OfficeManageDriversPage: React.FC = () => {
         loadAllData();
     }, []);
 
+    const normalizedRole = String(user?.role || '').trim().toUpperCase();
+    const canCreateDriver = normalizedRole === 'ADMIN' || normalizedRole === 'DEVELOPER' || normalizedRole === 'OFFICER';
+
     const showToast = (message: string) => {
         setToastMessage(message);
         setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    const normalizeDriver = (d: any): Driver => {
+        return {
+            id: String(d?.id || ''),
+            fullName: String(d?.fullName || d?.full_name || d?.name || '').trim(),
+            phone: String(d?.phone || ''),
+            licensePlate: String(d?.licensePlate || d?.license_plate || ''),
+            status: (d?.status as any) || DriverStatus.OFFLINE,
+            profileImageUrl: String(d?.profileImageUrl || d?.profile_image_url || ''),
+            email: String(d?.email || ''),
+            address: String(d?.address || ''),
+            vehicleBrand: String(d?.vehicleBrand || d?.brand || ''),
+            vehicleModel: String(d?.vehicleModel || d?.model || ''),
+            vehicleColor: String(d?.vehicleColor || d?.color || ''),
+            tripsThisMonth: Number(d?.tripsThisMonth ?? d?.trips_this_month ?? 0),
+            vehicleType: String(d?.vehicleType || ''),
+            totalTrips: Number(d?.totalTrips ?? d?.total_trips ?? 0),
+            avgReviewScore: Number(d?.avgReviewScore ?? 0),
+        };
     };
 
     const loadAllData = async () => {
@@ -43,10 +68,19 @@ const OfficeManageDriversPage: React.FC = () => {
             setError(null);
             const [driversData, usersData] = await Promise.all([
                 driversAPI.getDrivers(),
-                apiRequest('/users'),
+                canCreateDriver ? apiRequest('/users/driver-candidates') : Promise.resolve([]),
             ]);
-            setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
-            setStaff(Array.isArray(usersData) ? usersData : (usersData?.users || []));
+            const rawDrivers = Array.isArray(driversData) ? driversData : (driversData?.drivers || []);
+            setDrivers((Array.isArray(rawDrivers) ? rawDrivers : []).map(normalizeDriver));
+
+            const rawUsers = Array.isArray(usersData) ? usersData : (usersData?.users || []);
+            const mappedUsers = (Array.isArray(rawUsers) ? rawUsers : []).map((u: any) => ({
+                ...u,
+                name: (u?.name || u?.full_name || u?.fullName || '').trim(),
+                phone: u?.phone || '',
+                profileImageUrl: u?.profile_image_url || u?.profileImageUrl,
+            }));
+            setStaff(mappedUsers);
         } catch (err: any) {
             console.error('Failed to load data:', err);
             setError(err.message || 'ไม่สามารถโหลดข้อมูลได้');
@@ -63,7 +97,11 @@ const OfficeManageDriversPage: React.FC = () => {
         });
     }, [drivers, searchTerm, statusFilter]);
 
-    const totalPages = Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE);
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE));
     const paginatedDrivers = filteredDrivers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const handleOpenModal = (driver: Driver | null) => {
@@ -74,10 +112,30 @@ const OfficeManageDriversPage: React.FC = () => {
     const handleSaveDriver = async (updatedDriver: Driver) => {
         try {
             if (selectedDriver) {
-                await driversAPI.updateDriver(updatedDriver.id, updatedDriver);
+                const payload: any = {
+                    full_name: updatedDriver.fullName,
+                    phone: updatedDriver.phone,
+                    status: updatedDriver.status,
+                    license_plate: updatedDriver.licensePlate,
+                    brand: updatedDriver.vehicleBrand,
+                    model: updatedDriver.vehicleModel,
+                    color: updatedDriver.vehicleColor,
+                };
+                await driversAPI.updateDriver(updatedDriver.id, payload);
                 showToast('✅ อัปเดตข้อมูลคนขับสำเร็จ');
             } else {
-                await driversAPI.createDriver(updatedDriver);
+                const payload: any = {
+                    user_id: (updatedDriver as any).userId || null,
+                    full_name: updatedDriver.fullName,
+                    phone: updatedDriver.phone,
+                    status: updatedDriver.status,
+                    profile_image_url: updatedDriver.profileImageUrl,
+                    license_plate: updatedDriver.licensePlate,
+                    brand: updatedDriver.vehicleBrand,
+                    model: updatedDriver.vehicleModel,
+                    color: updatedDriver.vehicleColor,
+                };
+                await driversAPI.createDriver(payload);
                 showToast('✅ เพิ่มคนขับใหม่สำเร็จ');
             }
             await loadAllData();
@@ -100,7 +158,7 @@ const OfficeManageDriversPage: React.FC = () => {
         if (!window.confirm(confirmMsg)) return;
 
         try {
-            await driversAPI.updateDriver(driverId, { ...driver, status: newStatus });
+            await driversAPI.updateDriver(driverId, { status: newStatus });
             showToast(`✅ ${newStatus === DriverStatus.INACTIVE ? 'ปิด' : 'เปิด'}การใช้งานคนขับสำเร็จ`);
             await loadAllData();
         } catch (err: any) {
@@ -114,10 +172,12 @@ const OfficeManageDriversPage: React.FC = () => {
             {/* Page Header */}
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการข้อมูลคนขับ</h1>
-                <button onClick={() => handleOpenModal(null)} className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
-                    <UserPlusIcon className="w-5 h-5 mr-2" />
-                    <span>เพิ่มคนขับใหม่</span>
-                </button>
+                {canCreateDriver && (
+                    <button onClick={() => handleOpenModal(null)} className="flex items-center justify-center px-5 py-2.5 font-semibold text-white bg-[var(--wecare-blue)] rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
+                        <UserPlusIcon className="w-5 h-5 mr-2" />
+                        <span>เพิ่มคนขับใหม่</span>
+                    </button>
+                )}
             </div>
 
             {/* Toolbar */}
@@ -172,7 +232,13 @@ const OfficeManageDriversPage: React.FC = () => {
                                         <div className="flex items-center justify-center space-x-3">
                                             <button onClick={() => handleOpenModal(driver)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดู/แก้ไข"><EditIcon className="w-5 h-5" /></button>
                                             <button onClick={() => showToast('Feature: Driver History View is coming soon.')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="ดูประวัติการเดินทาง"><HistoryIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleToggleActive(driver.id)} className={`p-2 rounded-full text-gray-400 hover:text-${driver.status === DriverStatus.INACTIVE ? 'green' : 'red'}-600`} title={driver.status === DriverStatus.INACTIVE ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}><PowerIcon className="w-5 h-5" /></button>
+                                            <button
+                                                onClick={() => handleToggleActive(driver.id)}
+                                                className={`p-2 rounded-full text-gray-400 ${driver.status === DriverStatus.INACTIVE ? 'hover:text-green-600' : 'hover:text-red-600'}`}
+                                                title={driver.status === DriverStatus.INACTIVE ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                                            >
+                                                <PowerIcon className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -188,7 +254,7 @@ const OfficeManageDriversPage: React.FC = () => {
                 <div className="inline-flex items-center space-x-2">
                     <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5" /></button>
                     <span className="text-sm font-semibold">Page {currentPage} of {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
+                    <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage >= totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>
 

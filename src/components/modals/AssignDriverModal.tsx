@@ -42,6 +42,22 @@ const isDriverOnDuty = (driver: any): boolean => {
 
 const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, onAssign, ride, allDrivers, allRides }) => {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const getDriverName = (driver: any): string => {
+    const raw =
+      (typeof driver?.fullName === 'string' && driver.fullName.trim()) ? driver.fullName :
+        (typeof driver?.full_name === 'string' && driver.full_name.trim()) ? driver.full_name :
+          (typeof driver?.name === 'string' && driver.name.trim()) ? driver.name :
+            '';
+    return raw;
+  };
+
+  const getDriverId = (driver: any): string => {
+    const raw =
+      (typeof driver?.id === 'string' && driver.id.trim()) ? driver.id :
+        (typeof driver?.driver_id === 'string' && driver.driver_id.trim()) ? driver.driver_id :
+          '';
+    return raw;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -94,7 +110,9 @@ const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, 
       if (a.distance !== null) return -1;
       if (b.distance !== null) return 1;
 
-      return a.driver.fullName.localeCompare(b.driver.fullName);
+      const aName = getDriverName(a.driver);
+      const bName = getDriverName(b.driver);
+      return aName.localeCompare(bName);
     });
   }, [allDrivers, allRides, ride]);
 
@@ -127,38 +145,44 @@ const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, 
             <span className="text-xs text-gray-500 italic">* เรียงตามระยะทางที่ใกล้ที่สุด</span>
           </div>
           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border-t border-b py-2">
-            {driverAvailability.map(({ driver, isAvailable, reason, distance }) => (
-              <label
-                key={driver.id}
-                htmlFor={driver.id}
-                className={`flex items-center p-3 border rounded-lg transition-all ${!isAvailable ? 'bg-gray-100 text-gray-400' : 'cursor-pointer'} ${selectedDriverId === driver.id ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200' : isAvailable ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-200'}`}
-              >
-                <input
-                  type="radio"
-                  id={driver.id}
-                  name="driverSelection"
-                  value={driver.id}
-                  checked={selectedDriverId === driver.id}
-                  onChange={(e) => setSelectedDriverId(e.target.value)}
-                  disabled={!isAvailable}
-                  className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:bg-gray-200"
-                />
-                <div className="ml-3 flex-grow flex items-center">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-600 font-bold text-xs">
-                    {driver.fullName.charAt(0)}
+            {driverAvailability.map(({ driver, isAvailable, reason, distance }, index) => {
+              const driverId = getDriverId(driver);
+              const driverName = getDriverName(driver);
+              const badgeText = (driverName.charAt(0) || '?').toUpperCase();
+              const selected = selectedDriverId === driverId;
+              return (
+                <label
+                  key={driverId ? `driver-${driverId}` : `driver-${index}`}
+                  htmlFor={driverId}
+                  className={`flex items-center p-3 border rounded-lg transition-all ${!isAvailable ? 'bg-gray-100 text-gray-400' : 'cursor-pointer'} ${selected ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200' : isAvailable ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-200'}`}
+                >
+                  <input
+                    type="radio"
+                    id={driverId}
+                    name="driverSelection"
+                    value={driverId}
+                    checked={selected}
+                    onChange={(e) => setSelectedDriverId(e.target.value)}
+                    disabled={!isAvailable || !driverId}
+                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:bg-gray-200"
+                  />
+                  <div className="ml-3 flex-grow flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-600 font-bold text-xs">
+                      {badgeText}
+                    </div>
+                    <div>
+                      <div className={`font-semibold ${isAvailable ? 'text-gray-800' : 'text-gray-500'}`}>{driverName || 'ไม่ระบุชื่อ'}</div>
+                      {distance !== null && (
+                        <div className="text-[10px] text-gray-500">ห่างจากจุดรับ: {distance.toFixed(2)} กม.</div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <div className={`font-semibold ${isAvailable ? 'text-gray-800' : 'text-gray-500'}`}>{driver.fullName}</div>
-                    {distance !== null && (
-                      <div className="text-[10px] text-gray-500">ห่างจากจุดรับ: {distance.toFixed(2)} กม.</div>
-                    )}
-                  </div>
-                </div>
-                <span className={`text-xs font-medium ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                  {isAvailable ? 'ว่าง' : reason}
-                </span>
-              </label>
-            ))}
+                  <span className={`text-xs font-medium ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                    {isAvailable ? 'ว่าง' : reason}
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </div>
 

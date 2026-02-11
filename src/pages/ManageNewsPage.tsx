@@ -34,12 +34,17 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
             const data = await apiRequest('/news');
             const newsList = Array.isArray(data) ? data : (data?.news || []);
 
-            // Map backend data (author_name) to frontend model (author)
-            const mappedNews = newsList.map((item: any) => ({
-                ...item,
-                author: item.author_name || item.author || 'ไม่ระบุ',
-                // Ensure other fields match if needed, though most match
-            }));
+            const mappedNews = newsList.map((item: any) => {
+                const isPublished = item.status === 'published' || item.is_published === true || item.is_published === 1;
+                return {
+                    ...item,
+                    author: item.author || item.author_name || 'ไม่ระบุ',
+                    status: isPublished ? 'published' : 'draft',
+                    publishedDate: item.publishedDate || item.published_date || null,
+                    featuredImageUrl: item.featuredImageUrl || item.image_url,
+                    tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === 'string' ? (() => { try { return JSON.parse(item.tags); } catch { return []; } })() : []),
+                };
+            });
 
             setArticles(mappedNews);
         } catch (err) {
@@ -124,6 +129,16 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
                             </tr>
                         </thead>
                         <tbody>
+                            {loading && (
+                                <tr>
+                                    <td className="px-6 py-6 text-gray-500" colSpan={5}>กำลังโหลดข่าว...</td>
+                                </tr>
+                            )}
+                            {!loading && filteredArticles.length === 0 && (
+                                <tr>
+                                    <td className="px-6 py-6 text-gray-500" colSpan={5}>ยังไม่มีข่าวที่ตรงกับเงื่อนไข</td>
+                                </tr>
+                            )}
                             {filteredArticles.map(article => (
                                 <tr key={article.id} className="bg-white border-b hover:bg-gray-50">
                                     <td className="px-6 py-4 font-medium text-gray-900">{article.title}</td>

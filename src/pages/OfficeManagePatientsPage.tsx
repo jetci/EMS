@@ -44,34 +44,86 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
             // Backward compatible: support both old (array) and new (object) formats
             const data = response?.data || response || [];
             const patientsData = Array.isArray(data) ? data : [];
-            const mapped: Patient[] = patientsData.map((p: any) => ({
-                id: p.id,
-                fullName: p.full_name ?? '',
-                profileImageUrl: undefined,
-                title: p.title ?? '',
-                gender: p.gender ?? '',
-                nationalId: p.national_id ?? '',
-                dob: p.dob ?? '',
-                age: p.dob ? dayjs().diff(dayjs(p.dob), 'year') : 0,
-                patientTypes: Array.isArray(p.patient_types) ? p.patient_types : [],
-                bloodType: p.blood_type ?? '',
-                rhFactor: p.rh_factor ?? '',
-                healthCoverage: p.health_coverage ?? '',
-                chronicDiseases: Array.isArray(p.chronic_diseases) ? p.chronic_diseases : [],
-                allergies: Array.isArray(p.allergies) ? p.allergies : [],
-                contactPhone: p.contact_phone ?? '',
-                idCardAddress: p.id_card_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
-                currentAddress: p.current_address ?? { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' },
-                landmark: p.landmark ?? '',
-                latitude: (p.latitude ?? '').toString(),
-                longitude: (p.longitude ?? '').toString(),
-                attachments: Array.isArray(p.attachments) ? p.attachments : [],
-                registeredDate: p.registered_date ?? new Date().toISOString(),
-                registeredBy: p.registered_by_id ?? 'Unknown',
-                keyInfo: typeof p.key_info === 'string' ? p.key_info : (p.key_info?.summary ?? ''),
-                caregiverName: p.caregiver_name ?? undefined,
-                caregiverPhone: p.caregiver_phone ?? undefined,
-            }));
+            const normalizeAddress = (v: any) => {
+                const fallback = { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' };
+                if (!v || typeof v !== 'object') return fallback;
+                return {
+                    houseNumber: v.houseNumber ?? v.house_number ?? fallback.houseNumber,
+                    village: v.village ?? fallback.village,
+                    tambon: v.tambon ?? fallback.tambon,
+                    amphoe: v.amphoe ?? fallback.amphoe,
+                    changwat: v.changwat ?? fallback.changwat,
+                };
+            };
+
+            const coerceString = (v: any): string => (typeof v === 'string' ? v : (v == null ? '' : String(v)));
+            const coerceArray = (v: any): any[] => (Array.isArray(v) ? v : []);
+            const coerceKeyInfo = (v: any): string => {
+                if (typeof v === 'string') return v;
+                if (v && typeof v === 'object') {
+                    if (typeof v.summary === 'string') return v.summary;
+                    try { return JSON.stringify(v); } catch { }
+                }
+                return '';
+            };
+
+            const mapped: Patient[] = patientsData.map((p: any) => {
+                const fullName = coerceString(p.fullName ?? p.full_name).trim();
+                const dob = coerceString(p.dob ?? p.dateOfBirth ?? p.date_of_birth ?? '');
+                const registeredDate = coerceString(p.registeredDate ?? p.registered_date ?? new Date().toISOString());
+
+                const currentAddress =
+                    p.currentAddress ? normalizeAddress(p.currentAddress)
+                        : (p.current_address ? normalizeAddress(p.current_address) : normalizeAddress({
+                            houseNumber: p.currentHouseNumber ?? p.current_house_number,
+                            village: p.currentVillage ?? p.current_village,
+                            tambon: p.currentTambon ?? p.current_tambon,
+                            amphoe: p.currentAmphoe ?? p.current_amphoe,
+                            changwat: p.currentChangwat ?? p.current_changwat,
+                        }));
+
+                const idCardAddress =
+                    p.idCardAddress ? normalizeAddress(p.idCardAddress)
+                        : (p.id_card_address ? normalizeAddress(p.id_card_address) : normalizeAddress({
+                            houseNumber: p.idCardHouseNumber ?? p.id_card_house_number,
+                            village: p.idCardVillage ?? p.id_card_village,
+                            tambon: p.idCardTambon ?? p.id_card_tambon,
+                            amphoe: p.idCardAmphoe ?? p.id_card_amphoe,
+                            changwat: p.idCardChangwat ?? p.id_card_changwat,
+                        }));
+
+                return {
+                    id: coerceString(p.id),
+                    fullName,
+                    profileImageUrl: p.profileImageUrl ?? p.profile_image_url ?? undefined,
+                    title: coerceString(p.title ?? ''),
+                    gender: coerceString(p.gender ?? ''),
+                    nationalId: coerceString(p.nationalId ?? p.national_id ?? ''),
+                    dob,
+                    age: dob ? dayjs().diff(dayjs(dob), 'year') : 0,
+                    patientTypes: coerceArray(p.patientTypes ?? p.patient_types),
+                    bloodType: coerceString(p.bloodType ?? p.blood_type ?? ''),
+                    rhFactor: coerceString(p.rhFactor ?? p.rh_factor ?? ''),
+                    healthCoverage: coerceString(p.healthCoverage ?? p.health_coverage ?? ''),
+                    chronicDiseases: coerceArray(p.chronicDiseases ?? p.chronic_diseases),
+                    allergies: coerceArray(p.allergies),
+                    contactPhone: coerceString(p.contactPhone ?? p.contact_phone ?? p.phone ?? ''),
+                    idCardAddress,
+                    currentAddress,
+                    landmark: coerceString(p.landmark ?? ''),
+                    latitude: coerceString(p.latitude ?? ''),
+                    longitude: coerceString(p.longitude ?? ''),
+                    attachments: coerceArray(p.attachments),
+                    registeredDate,
+                    registeredBy: coerceString(p.registeredBy ?? p.registered_by ?? p.createdBy ?? p.created_by ?? 'Unknown') || 'Unknown',
+                    keyInfo: coerceKeyInfo(p.keyInfo ?? p.key_info),
+                    caregiverName: coerceString(p.caregiverName ?? p.caregiver_name ?? '') || undefined,
+                    caregiverPhone: coerceString(p.caregiverPhone ?? p.caregiver_phone ?? '') || undefined,
+                    emergencyContactName: coerceString(p.emergencyContact?.name ?? p.emergencyContactName ?? p.emergency_contact_name ?? '') || undefined,
+                    emergencyContactPhone: coerceString(p.emergencyContact?.phone ?? p.emergencyContactPhone ?? p.emergency_contact_phone ?? '') || undefined,
+                    emergencyContactRelation: coerceString(p.emergencyContact?.relation ?? p.emergencyContactRelation ?? p.emergency_contact_relation ?? '') || undefined,
+                };
+            });
             setPatients(mapped);
         } catch (err: any) {
             setRemoteError(err?.message || 'Failed to load patients');
@@ -156,30 +208,29 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
 
     const handleSavePatient = async (updatedPatient: Patient) => {
         try {
-            // Map frontend Patient to backend format
             const backendData = {
-                full_name: updatedPatient.fullName,
+                fullName: updatedPatient.fullName,
                 title: updatedPatient.title,
                 gender: updatedPatient.gender,
-                national_id: updatedPatient.nationalId,
+                nationalId: updatedPatient.nationalId,
                 dob: updatedPatient.dob,
-                patient_types: updatedPatient.patientTypes,
-                blood_type: updatedPatient.bloodType,
-                rh_factor: updatedPatient.rhFactor,
-                health_coverage: updatedPatient.healthCoverage,
-                chronic_diseases: updatedPatient.chronicDiseases,
+                patientTypes: updatedPatient.patientTypes,
+                bloodType: updatedPatient.bloodType,
+                rhFactor: updatedPatient.rhFactor,
+                healthCoverage: updatedPatient.healthCoverage,
+                chronicDiseases: updatedPatient.chronicDiseases,
                 allergies: updatedPatient.allergies,
-                contact_phone: updatedPatient.contactPhone,
+                contactPhone: updatedPatient.contactPhone,
                 emergencyContactName: updatedPatient.emergencyContactName,
                 emergencyContactPhone: updatedPatient.emergencyContactPhone,
                 emergencyContactRelation: updatedPatient.emergencyContactRelation,
-                id_card_address: updatedPatient.idCardAddress,
-                current_address: updatedPatient.currentAddress,
+                idCardAddress: updatedPatient.idCardAddress,
+                currentAddress: updatedPatient.currentAddress,
                 landmark: updatedPatient.landmark,
                 latitude: updatedPatient.latitude,
                 longitude: updatedPatient.longitude,
                 attachments: updatedPatient.attachments,
-                key_info: updatedPatient.keyInfo,
+                keyInfo: updatedPatient.keyInfo,
                 caregiverName: updatedPatient.caregiverName,
                 caregiverPhone: updatedPatient.caregiverPhone,
             };
@@ -360,9 +411,6 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                     <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage === totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>
-
-            // Remove EditPatientModal render after migrating to full-page edit view
-            // {selectedPatient && <EditPatientModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} patient={selectedPatient} onSave={handleSavePatient} />}
             <Toast message={toastMessage} />
         </div>
     );

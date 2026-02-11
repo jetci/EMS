@@ -1,5 +1,5 @@
-﻿/**
- * E2E Test: Radio/Radio Center RBAC & Socket Authentication
+/**
+ * E2E Test: Radio Center RBAC & Socket Authentication
  * 
  * Tests:
  * - HTTP API access for Radio Center role
@@ -9,27 +9,27 @@
  */
 import { test, expect } from '@playwright/test';
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = process.env.API_URL || 'http://localhost:3000';
 
 // Test users
 const TEST_USERS = {
     admin: { email: 'admin@wecare.ems', password: 'password123' },
-    radioCenter: { email: 'radio@wecare.dev', password: 'radio123' },
+    radioCenter: { email: 'radio_center@wecare.dev', password: 'password123' },
     officer: { email: 'officer1@wecare.dev', password: 'password123' },
     community: { email: 'community1@wecare.dev', password: 'password123' },
     driver: { email: 'driver1@wecare.dev', password: 'password123' }
 };
 
+
 // Helper to get auth token
-async function getToken(request: any, email: string, password: string): Promise<string | null> {
+async function getToken(request: any, email: string, password: string): Promise<string> {
     const response = await request.post(`${API_BASE}/api/auth/login`, {
         data: { email, password }
     });
-    if (response.ok()) {
-        const data = await response.json();
-        return data.token;
-    }
-    return null;
+    expect(response.status(), 'login should return 200').toBe(200);
+    const data = await response.json();
+    expect(data.token, 'login response should include token').toBeTruthy();
+    return data.token as string;
 }
 
 test.describe('Radio Center - HTTP API RBAC Tests', () => {
@@ -39,50 +39,31 @@ test.describe('Radio Center - HTTP API RBAC Tests', () => {
         test('RADIO_CENTER should access driver locations', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.radioCenter.email, TEST_USERS.radioCenter.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/driver-locations`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/driver-locations`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(200);
-            } else {
-                // Try with admin if radio user not available
-                const adminToken = await getToken(request, TEST_USERS.admin.email, TEST_USERS.admin.password);
-                if (adminToken) {
-                    const response = await request.get(`${API_BASE}/api/driver-locations`, {
-                        headers: { 'Authorization': `Bearer ${adminToken}` }
-                    });
-                    expect(response.status()).toBe(200);
-                }
-            }
+            expect(response.status()).toBe(200);
         });
 
         test('OFFICER should access driver locations', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.officer.email, TEST_USERS.officer.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/driver-locations`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/driver-locations`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(200);
-            } else {
-                console.log('Officer user not available, skipping test');
-            }
+            expect(response.status()).toBe(200);
         });
 
         test('COMMUNITY should NOT access driver locations', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.community.email, TEST_USERS.community.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/driver-locations`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/driver-locations`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(403);
-            } else {
-                console.log('Community user not available, skipping test');
-            }
+            expect(response.status()).toBe(403);
         });
 
         test('Unauthenticated request should be rejected', async ({ request }) => {
@@ -96,89 +77,64 @@ test.describe('Radio Center - HTTP API RBAC Tests', () => {
         test('RADIO_CENTER should access map data', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.radioCenter.email, TEST_USERS.radioCenter.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/map-data`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/map-data`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                // Should be 200 or 404 if no data
-                expect([200, 404]).toContain(response.status());
-            } else {
-                console.log('Radio Center user not available, skipping test');
-            }
+            expect([200, 404]).toContain(response.status());
         });
 
         test('OFFICER should access map data', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.officer.email, TEST_USERS.officer.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/map-data`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/map-data`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect([200, 404]).toContain(response.status());
-            } else {
-                console.log('Officer user not available, skipping test');
-            }
+            expect([200, 404]).toContain(response.status());
         });
 
         test('COMMUNITY should NOT access map data', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.community.email, TEST_USERS.community.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/map-data`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/map-data`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(403);
-            } else {
-                console.log('Community user not available, skipping test');
-            }
+            expect(response.status()).toBe(403);
         });
     });
 
-    test.describe('GET /api/ride-events - Ride Event Timeline', () => {
+    test.describe('GET /api/ride-events/:rideId - Ride Event Timeline', () => {
 
         test('RADIO_CENTER should access ride events', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.radioCenter.email, TEST_USERS.radioCenter.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/ride-events`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/ride-events/RIDE-001`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(200);
-            } else {
-                console.log('Radio Center user not available, skipping test');
-            }
+            expect(response.status()).toBe(200);
         });
 
         test('DRIVER should access ride events', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.driver.email, TEST_USERS.driver.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/ride-events`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/ride-events/RIDE-001`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(200);
-            } else {
-                console.log('Driver user not available, skipping test');
-            }
+            expect(response.status()).toBe(200);
         });
 
         test('COMMUNITY should NOT access ride events', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.community.email, TEST_USERS.community.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/ride-events`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/ride-events/RIDE-001`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(403);
-            } else {
-                console.log('Community user not available, skipping test');
-            }
+            expect(response.status()).toBe(403);
         });
     });
 
@@ -187,43 +143,31 @@ test.describe('Radio Center - HTTP API RBAC Tests', () => {
         test('RADIO_CENTER should access teams', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.radioCenter.email, TEST_USERS.radioCenter.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/teams`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/teams`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(200);
-            } else {
-                console.log('Radio Center user not available, skipping test');
-            }
+            expect(response.status()).toBe(200);
         });
 
         test('RADIO_CENTER should access vehicles', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.radioCenter.email, TEST_USERS.radioCenter.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/vehicles`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/vehicles`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(200);
-            } else {
-                console.log('Radio Center user not available, skipping test');
-            }
+            expect(response.status()).toBe(200);
         });
 
         test('COMMUNITY should NOT access teams', async ({ request }) => {
             const token = await getToken(request, TEST_USERS.community.email, TEST_USERS.community.password);
 
-            if (token) {
-                const response = await request.get(`${API_BASE}/api/teams`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            const response = await request.get(`${API_BASE}/api/teams`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-                expect(response.status()).toBe(403);
-            } else {
-                console.log('Community user not available, skipping test');
-            }
+            expect(response.status()).toBe(403);
         });
     });
 

@@ -33,10 +33,59 @@ const generateDriverId = (): string => {
 // Apply authentication to all routes
 router.use(authenticateToken);
 
+const normalizeStatusForDb = (status: any): string | null => {
+  if (typeof status !== 'string') return null;
+  const s = status.trim().toUpperCase();
+  if (!s) return null;
+  const allowed = new Set(['AVAILABLE', 'ON_TRIP', 'OFFLINE', 'INACTIVE', 'ON_DUTY', 'OFF_DUTY', 'UNAVAILABLE']);
+  return allowed.has(s) ? s : null;
+};
+
+const getVehicleInput = (body: any) => {
+  const licensePlate =
+    (typeof body?.license_plate === 'string' && body.license_plate.trim()) ? body.license_plate.trim()
+      : (typeof body?.licensePlate === 'string' && body.licensePlate.trim()) ? body.licensePlate.trim()
+        : null;
+
+  const brand =
+    (typeof body?.brand === 'string' && body.brand.trim()) ? body.brand.trim()
+      : (typeof body?.vehicleBrand === 'string' && body.vehicleBrand.trim()) ? body.vehicleBrand.trim()
+        : null;
+
+  const model =
+    (typeof body?.model === 'string' && body.model.trim()) ? body.model.trim()
+      : (typeof body?.vehicleModel === 'string' && body.vehicleModel.trim()) ? body.vehicleModel.trim()
+        : null;
+
+  const color =
+    (typeof body?.color === 'string' && body.color.trim()) ? body.color.trim()
+      : (typeof body?.vehicleColor === 'string' && body.vehicleColor.trim()) ? body.vehicleColor.trim()
+        : null;
+
+  return { licensePlate, brand, model, color };
+};
+
+const generateVehicleId = (): string => {
+  const vehicles = sqliteDB.all<{ id: string }>('SELECT id FROM vehicles ORDER BY id DESC LIMIT 1');
+  if (vehicles.length === 0) return 'VEH-001';
+  const lastId = vehicles[0].id;
+  const num = parseInt(lastId.split('-')[1]) + 1;
+  return `VEH-${String(num).padStart(3, '0')}`;
+};
+
 // GET /api/drivers - fetch all drivers
-router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
+router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
   try {
-    const drivers = sqliteDB.all<Driver>('SELECT * FROM drivers ORDER BY full_name');
+    const drivers = sqliteDB.all<any>(`
+      SELECT d.*,
+             v.license_plate,
+             v.brand,
+             v.model,
+             v.color
+      FROM drivers d
+      LEFT JOIN vehicles v ON v.id = d.current_vehicle_id
+      ORDER BY d.full_name
+    `);
     res.json(drivers);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -44,7 +93,7 @@ router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_ce
 });
 
 // GET /api/drivers/available - fetch available drivers
-router.get('/available', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
+router.get('/available', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
   try {
     const drivers = sqliteDB.all<any>(`
       SELECT d.*, 
@@ -181,18 +230,59 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/drivers - create new driver
-router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req: AuthRequest, res) => {
   try {
+    const status = normalizeStatusForDb(req.body.status) || 'AVAILABLE';
+    const vehicle = getVehicleInput(req.body);
+    let vehicleId: string | null = null;
+    if (vehicle.licensePlate) {
+      const existing = sqliteDB.get<any>('SELECT * FROM vehicles WHERE license_plate = ?', [vehicle.licensePlate]);
+      if (existing?.id) {
+        vehicleId = existing.id;
+        const updateVehicle: any = {};
+        if (vehicle.brand) updateVehicle.brand = vehicle.brand;
+        if (vehicle.model) updateVehicle.model = vehicle.model;
+        if (vehicle.color) updateVehicle.color = vehicle.color;
+        if (Object.keys(updateVehicle).length > 0) {
+          sqliteDB.update('vehicles', existing.id, updateVehicle);
+        }
+      } else {
+        vehicleId = generateVehicleId();
+        sqliteDB.insert('vehicles', {
+          id: vehicleId,
+          license_plate: vehicle.licensePlate,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          color: vehicle.color,
+          status: 'AVAILABLE',
+          mileage: 0,
+        });
+      }
+    }
+
+    const requestedUserId = req.body.user_id || req.body.userId || null;
+    if (requestedUserId) {
+      const user = sqliteDB.get<any>('SELECT * FROM users WHERE id = ?', [requestedUserId]);
+      if (!user) return res.status(400).json({ error: 'User not found' });
+      const userRole = String(user.role || '').toUpperCase();
+      if (userRole === 'ADMIN' || userRole === 'DEVELOPER') {
+        return res.status(400).json({ error: 'Invalid user role for driver' });
+      }
+      if (userRole !== 'DRIVER') {
+        sqliteDB.update('users', requestedUserId, { role: 'driver' });
+      }
+    }
+
     const newId = generateDriverId();
     const newDriver = {
       id: newId,
-      user_id: req.body.user_id || null,
-      full_name: req.body.full_name,
+      user_id: requestedUserId,
+      full_name: req.body.full_name || req.body.fullName,
       phone: req.body.phone || null,
       license_number: req.body.license_number || null,
       license_expiry: req.body.license_expiry || null,
-      status: req.body.status || 'AVAILABLE',
-      current_vehicle_id: req.body.current_vehicle_id || null,
+      status,
+      current_vehicle_id: vehicleId || req.body.current_vehicle_id || null,
       profile_image_url: req.body.profile_image_url || null
     };
 
@@ -205,15 +295,49 @@ router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
 });
 
 // PUT /api/drivers/:id - update driver
-router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), async (req, res) => {
+router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
     const updateData: any = {};
-    if (req.body.full_name) updateData.full_name = req.body.full_name;
+    if (req.body.full_name || req.body.fullName) updateData.full_name = req.body.full_name || req.body.fullName;
     if (req.body.phone) updateData.phone = req.body.phone;
-    if (req.body.status) updateData.status = req.body.status;
+    const status = normalizeStatusForDb(req.body.status);
+    if (status) updateData.status = status;
     if (req.body.license_number) updateData.license_number = req.body.license_number;
     if (req.body.current_vehicle_id !== undefined) updateData.current_vehicle_id = req.body.current_vehicle_id;
+
+    const vehicle = getVehicleInput(req.body);
+    if (vehicle.licensePlate) {
+      const existing = sqliteDB.get<any>('SELECT * FROM vehicles WHERE license_plate = ?', [vehicle.licensePlate]);
+      if (existing?.id) {
+        updateData.current_vehicle_id = existing.id;
+        const updateVehicle: any = {};
+        if (vehicle.brand) updateVehicle.brand = vehicle.brand;
+        if (vehicle.model) updateVehicle.model = vehicle.model;
+        if (vehicle.color) updateVehicle.color = vehicle.color;
+        if (Object.keys(updateVehicle).length > 0) {
+          sqliteDB.update('vehicles', existing.id, updateVehicle);
+        }
+      } else {
+        const normalizedRole = String(req.user?.role || '').toUpperCase();
+        const canCreateVehicle = normalizedRole === 'DEVELOPER' || normalizedRole === 'ADMIN';
+        if (!canCreateVehicle) {
+          // no-op: only admin/developer can create new vehicles via driver update
+        } else {
+        const vehicleId = generateVehicleId();
+        sqliteDB.insert('vehicles', {
+          id: vehicleId,
+          license_plate: vehicle.licensePlate,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          color: vehicle.color,
+          status: 'AVAILABLE',
+          mileage: 0,
+        });
+        updateData.current_vehicle_id = vehicleId;
+        }
+      }
+    }
 
     sqliteDB.update('drivers', id, updateData);
     const updated = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [id]);

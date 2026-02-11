@@ -12,7 +12,6 @@ export enum UserRole {
     ADMIN = 'admin',
     OFFICER = 'OFFICER',
     RADIO_CENTER = 'radio_center',
-    RADIO = 'radio',
     DRIVER = 'driver',
     COMMUNITY = 'community',
     EXECUTIVE = 'EXECUTIVE'
@@ -25,7 +24,6 @@ const ROLE_HIERARCHY: Record<string, number> = {
     [UserRole.EXECUTIVE]: 80,
     [UserRole.OFFICER]: 70,
     [UserRole.RADIO_CENTER]: 60,
-    [UserRole.RADIO]: 50,
     [UserRole.DRIVER]: 40,
     [UserRole.COMMUNITY]: 30
 };
@@ -42,7 +40,6 @@ function normalizeRole(role: string): string {
         'ADMIN': UserRole.ADMIN,
         'OFFICER': UserRole.OFFICER,
         'RADIO_CENTER': UserRole.RADIO_CENTER,
-        'RADIO': UserRole.RADIO,
         'DRIVER': UserRole.DRIVER,
         'COMMUNITY': UserRole.COMMUNITY,
         'EXECUTIVE': UserRole.EXECUTIVE,

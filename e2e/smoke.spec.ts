@@ -2,7 +2,8 @@ import { test, expect, request as globalRequest, Page } from '@playwright/test';
 
 // Base URLs (prefer Playwright baseURL via page.goto; keep API_BASE explicit for request context)
 const FRONTEND_URL = process.env.BASE_URL || 'http://localhost:5173';
-const API_BASE = process.env.API_URL || `${FRONTEND_URL}/api`;
+const rawApiBase = process.env.API_URL || `${FRONTEND_URL}/api`;
+const API_BASE = rawApiBase.endsWith('/api') ? rawApiBase : `${rawApiBase.replace(/\/$/, '')}/api`;
 
 // Admin test credentials (match mock/quick login)
 const ADMIN = { email: 'admin@wecare.ems', password: 'password123' };
@@ -10,8 +11,7 @@ const COMMUNITY = { email: 'community1@wecare.dev', password: 'password123' };
 const OFFICER = { email: 'officer1@wecare.dev', password: 'password123' };
 const DRIVER = { email: 'driver1@wecare.dev', password: 'password123' };
 const EXECUTIVE = { email: 'executive1@wecare.dev', password: 'password123' };
-const RADIO = { email: 'office1@wecare.dev', password: 'password123' };
-const RADIO_CENTER = { email: 'office1@wecare.dev', password: 'password123' };
+const RADIO_CENTER = { email: 'radio_center@wecare.dev', password: 'password123' };
 
 // Helper: login via API and return token
 async function apiLogin(request: typeof globalRequest, email: string, password: string): Promise<string> {
@@ -136,28 +136,16 @@ test('ui: executive user sees executive nav on dashboard', async ({ page }) => {
   await expect(page.locator('[data-testid="sidebar-nav-financial_report"]')).toBeVisible();
 });
 
-// Smoke: RADIO role dashboard renders with role-specific nav
-test('ui: radio user sees radio nav on dashboard', async ({ page }) => {
-  await uiLogin(page, RADIO.email, RADIO.password);
-  await expect(page.locator('[data-testid="sidebar-root"]')).toBeVisible();
-  await expect(page.locator('[data-testid="topheader-root"]')).toBeVisible();
-  // Radio-specific nav items (stable)
-  await expect(page.locator('[data-testid="sidebar-nav-dashboard"]')).toBeVisible();
-  await expect(page.locator('[data-testid="sidebar-nav-map_command"]')).toBeVisible();
-  await expect(page.locator('[data-testid="sidebar-nav-rides"]')).toBeVisible();
-  await expect(page.locator('[data-testid="sidebar-nav-drivers"]')).toBeVisible();
-});
-
 // Smoke: RADIO_CENTER role dashboard renders with role-specific nav
-// Note: Some environments configure office1@wecare.dev as radio (not radio_center).
-// To keep smoke test stable, assert common nav between radio and radio_center.
 test('ui: radio_center user sees radio_center nav on dashboard', async ({ page }) => {
   await uiLogin(page, RADIO_CENTER.email, RADIO_CENTER.password);
   await expect(page.locator('[data-testid="sidebar-root"]')).toBeVisible();
   await expect(page.locator('[data-testid="topheader-root"]')).toBeVisible();
-  // Common nav items
+  // Radio center nav items
   await expect(page.locator('[data-testid="sidebar-nav-dashboard"]')).toBeVisible();
   await expect(page.locator('[data-testid="sidebar-nav-map_command"]')).toBeVisible();
   await expect(page.locator('[data-testid="sidebar-nav-rides"]')).toBeVisible();
   await expect(page.locator('[data-testid="sidebar-nav-drivers"]')).toBeVisible();
+  await expect(page.locator('[data-testid="sidebar-nav-patients"]')).toBeVisible();
+  await expect(page.locator('[data-testid="sidebar-nav-reports"]')).toBeVisible();
 });

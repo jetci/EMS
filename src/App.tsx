@@ -28,7 +28,14 @@ const App: React.FC = () => {
             const userData = localStorage.getItem('wecare_user');
             if (token && userData) {
                 const parsed = JSON.parse(userData);
-                setUser(parsed as User);
+                const storedRole = String((parsed as any)?.role || '').trim();
+                if (storedRole === 'radio') {
+                    const upgraded = { ...(parsed as any), role: UserRole.RADIO_CENTER };
+                    localStorage.setItem('wecare_user', JSON.stringify(upgraded));
+                    setUser(upgraded as User);
+                } else {
+                    setUser(parsed as User);
+                }
             }
         } catch { }
     }, []);
@@ -41,19 +48,20 @@ const App: React.FC = () => {
             console.log('✅ Login API success:', { user: loggedInUser?.email, role: loggedInUser?.role, fullResponse: loggedInUser });
 
             // Map role to UserRole enum
+            const rawRole = String(loggedInUser?.role || '').trim();
+            const normalizedRole = rawRole.toUpperCase();
             const roleMapping: Record<string, User['role']> = {
-                'admin': UserRole.ADMIN,
-                'DEVELOPER': UserRole.DEVELOPER,
-                'driver': UserRole.DRIVER,
-                'community': UserRole.COMMUNITY,
-                'radio': UserRole.RADIO,
-                'radio_center': UserRole.RADIO_CENTER,
-                'OFFICER': UserRole.OFFICER,
-                'EXECUTIVE': UserRole.EXECUTIVE,
+                ADMIN: UserRole.ADMIN,
+                DEVELOPER: UserRole.DEVELOPER,
+                DRIVER: UserRole.DRIVER,
+                COMMUNITY: UserRole.COMMUNITY,
+                RADIO_CENTER: UserRole.RADIO_CENTER,
+                OFFICER: UserRole.OFFICER,
+                EXECUTIVE: UserRole.EXECUTIVE,
             };
 
-            const userRole = roleMapping[loggedInUser?.role] || UserRole.COMMUNITY;
-            console.log('🔄 Role mapping:', { original: loggedInUser?.role, mapped: userRole });
+            const userRole = normalizedRole === 'RADIO' ? UserRole.RADIO_CENTER : (roleMapping[normalizedRole] || UserRole.COMMUNITY);
+            console.log('🔄 Role mapping:', { original: rawRole, normalized: normalizedRole, mapped: userRole });
 
             const mappedUser: User = {
                 id: loggedInUser?.id,
@@ -92,7 +100,7 @@ const App: React.FC = () => {
         const testCreds: Record<string, { email: string; pass: string }> = {
             ADMIN: { email: 'admin@wecare.ems', pass: 'password123' },
             DEVELOPER: { email: 'dev@wecare.ems', pass: 'password123' },
-            RADIO: { email: 'office1@wecare.dev', pass: 'password123' },
+            RADIO_CENTER: { email: 'radio_center@wecare.dev', pass: 'password123' },
             OFFICER: { email: 'officer1@wecare.dev', pass: 'password123' },
             DRIVER: { email: 'driver1@wecare.dev', pass: 'password123' },
             COMMUNITY: { email: 'community1@wecare.dev', pass: 'password123' },

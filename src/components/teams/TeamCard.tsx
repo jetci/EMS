@@ -13,9 +13,11 @@ interface TeamCardProps {
     staffNames: string[];
     onEdit: () => void;
     onDelete: () => void;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, driverName, driverProfileImageUrl, staffNames, onEdit, onDelete }) => {
+const TeamCard: React.FC<TeamCardProps> = ({ team, driverName, driverProfileImageUrl, staffNames, onEdit, onDelete, canEdit = true, canDelete = true }) => {
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col transition-all hover:shadow-md hover:border-blue-300">
             <div className="p-4 border-b">
@@ -49,12 +51,16 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, driverName, driverProfileImag
                 </div>
             </div>
             <div className="p-3 bg-gray-50 border-t flex justify-end items-center space-x-2">
-                <button onClick={onEdit} className="p-2 rounded-full text-gray-500 hover:bg-blue-100 hover:text-blue-700" title="แก้ไข">
-                    <EditIcon className="w-5 h-5" />
-                </button>
-                 <button onClick={onDelete} className="p-2 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-700" title="ลบ">
-                    <TrashIcon className="w-5 h-5" />
-                </button>
+                {canEdit && (
+                    <button onClick={onEdit} className="p-2 rounded-full text-gray-500 hover:bg-blue-100 hover:text-blue-700" title="แก้ไข">
+                        <EditIcon className="w-5 h-5" />
+                    </button>
+                )}
+                {canDelete && (
+                    <button onClick={onDelete} className="p-2 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-700" title="ลบ">
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                )}
             </div>
         </div>
     );
