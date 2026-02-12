@@ -17,43 +17,61 @@ interface TeamCardProps {
 
 const TeamCard: React.FC<TeamCardProps> = ({ team, driverName, driverProfileImageUrl, staffNames, onEdit, onDelete }) => {
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col transition-all hover:shadow-md hover:border-blue-300">
-            <div className="p-4 border-b">
-                <h3 className="text-lg font-bold text-gray-800">{team.name}</h3>
-            </div>
-            <div className="p-4 space-y-4 flex-grow text-sm">
+        <div className="group bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col transition-all duration-300 hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 relative overflow-hidden">
+            <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400 opacity-60 group-hover:opacity-100 transition-opacity"></div>
+
+            <div className="p-5">
+                <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xl font-bold text-gray-800 tracking-tight group-hover:text-blue-700 transition-colors">{team.name}</h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 uppercase tracking-wide">Active</span>
+                </div>
+
                 {/* Driver Section */}
-                <div className="flex items-center gap-4">
-                    <img 
-                        src={driverProfileImageUrl || defaultProfileImage} 
-                        alt={driverName} 
-                        className="w-16 h-16 rounded-full object-cover border-2 border-blue-200"
-                    />
+                <div className="flex items-center gap-4 mb-6 bg-blue-50/50 p-3 rounded-lg border border-blue-50">
+                    <div className="relative">
+                        <img
+                            src={driverProfileImageUrl || defaultProfileImage}
+                            alt={driverName}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm"
+                        />
+                        <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-1 rounded-full shadow-sm" title="พนักงานขับรถ">
+                            <SteeringWheelIcon className="w-3 h-3" />
+                        </div>
+                    </div>
                     <div>
-                        <p className="text-xs text-gray-500 flex items-center gap-1.5"><SteeringWheelIcon className="w-4 h-4 text-blue-600" /> คนขับ</p>
-                        <p className="font-semibold text-gray-800 text-base">{driverName}</p>
+                        <p className="text-[10px] uppercase font-bold text-blue-500 tracking-wider mb-0.5">Driver</p>
+                        <p className="font-bold text-gray-800 text-base">{driverName}</p>
                     </div>
                 </div>
 
-                 {/* Staff Section */}
-                 <div className="flex items-start">
-                    <div className="w-16 flex justify-center flex-shrink-0">
-                        <UserIcon className="w-6 h-6 mr-3 text-green-600 mt-1" />
+                {/* Staff Section */}
+                <div>
+                    <div className="flex items-center mb-2">
+                        <UserIcon className="w-4 h-4 mr-2 text-emerald-600" />
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Medical Team ({staffNames.length})</span>
                     </div>
-                    <div className="ml-4">
-                        <p className="text-xs text-gray-500">เจ้าหน้าที่ ({staffNames.length})</p>
-                        <ul className="list-disc list-inside space-y-0.5 mt-1">
-                            {staffNames.map((name, index) => <li key={index} className="text-gray-700">{name}</li>)}
-                        </ul>
+                    <div className="flex flex-wrap gap-2">
+                        {staffNames.length > 0 ? (
+                            staffNames.map((name, index) => (
+                                <span key={index} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                    {name}
+                                </span>
+                            ))
+                        ) : (
+                            <span className="text-sm text-gray-400 italic pl-1">- ไม่มีเจ้าหน้าที่ -</span>
+                        )}
                     </div>
                 </div>
             </div>
-            <div className="p-3 bg-gray-50 border-t flex justify-end items-center space-x-2">
-                <button onClick={onEdit} className="p-2 rounded-full text-gray-500 hover:bg-blue-100 hover:text-blue-700" title="แก้ไข">
-                    <EditIcon className="w-5 h-5" />
+
+            <div className="mt-auto px-5 py-3 bg-gray-50/80 border-t border-gray-100 flex justify-end items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                <button onClick={onEdit} className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all text-xs font-medium flex items-center gap-1">
+                    <EditIcon className="w-4 h-4" />
+                    <span>แก้ไข</span>
                 </button>
-                 <button onClick={onDelete} className="p-2 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-700" title="ลบ">
-                    <TrashIcon className="w-5 h-5" />
+                <button onClick={onDelete} className="p-2 rounded-lg text-gray-500 hover:bg-white hover:text-red-600 hover:shadow-sm transition-all text-xs font-medium flex items-center gap-1">
+                    <TrashIcon className="w-4 h-4" />
+                    <span>ลบ</span>
                 </button>
             </div>
         </div>

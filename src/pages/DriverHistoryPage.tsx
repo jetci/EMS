@@ -10,7 +10,9 @@ import HistoryIcon from '../components/icons/HistoryIcon';
 import CalendarCheckIcon from '../components/icons/CalendarCheckIcon';
 import ModernDatePicker from '../components/ui/ModernDatePicker';
 import XCircleIcon from '../components/icons/XCircleIcon';
+import AlertCircleIcon from '../components/icons/AlertCircleIcon';
 import { driversAPI } from '../services/api';
+import { formatDateTimeToThai } from '../utils/dateUtils';
 
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter);
@@ -25,6 +27,8 @@ const DriverHistoryPage: React.FC = () => {
         endDate: '',
         status: 'All'
     });
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+    const [isOffline, setIsOffline] = useState<boolean>(false);
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -42,12 +46,29 @@ const DriverHistoryPage: React.FC = () => {
                     destination: r.destination || r.dropoffLocation || '',
                     appointmentTime: r.appointment_time || r.appointmentTime || new Date().toISOString(),
                     status: (r.status as RideStatus) || RideStatus.COMPLETED,
+                    village: r.village || '',
+                    landmark: r.landmark || '',
+                    caregiverPhone: r.caregiver_phone || ''
                 }));
                 setRides(mapped);
+                setLastUpdated(new Date().toISOString());
+                setIsOffline(false);
+                localStorage.setItem('wecare_driver_history_cache', JSON.stringify({
+                    rides: mapped,
+                    timestamp: new Date().toISOString()
+                }));
             } catch (e: any) {
-                console.error('Failed to load driver history:', e);
-                setError(e.message || 'ไม่สามารถโหลดประวัติได้');
-                setRides([]);
+                console.warn('Failed to load driver history, checking cache:', e);
+                const cached = localStorage.getItem('wecare_driver_history_cache');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    setRides(parsed.rides);
+                    setLastUpdated(parsed.timestamp);
+                    setIsOffline(true);
+                } else {
+                    setError(e.message || 'ไม่สามารถโหลดประวัติได้');
+                    setRides([]);
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -97,7 +118,24 @@ const DriverHistoryPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold text-gray-800">ประวัติการเดินทาง</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold text-gray-800">ประวัติการเดินทาง</h1>
+                {lastUpdated && (
+                    <span className="text-xs text-gray-400">อัปเดตล่าสุด: {formatDateTimeToThai(lastUpdated)}</span>
+                )}
+            </div>
+
+            {isOffline && (
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 flex items-center justify-between shadow-sm rounded-r-lg">
+                    <div className="flex items-center gap-3">
+                        <AlertCircleIcon className="w-5 h-5 text-amber-600" />
+                        <div>
+                            <p className="text-sm font-bold text-amber-800">โหมดออฟไลน์</p>
+                            <p className="text-xs text-amber-700">กำลังแสดงข้อมูลที่บันทึกไว้ในเครื่อง</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <div className="p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
@@ -133,7 +171,7 @@ const DriverHistoryPage: React.FC = () => {
                     <div className="flex items-end">
                         <button onClick={resetFilters} className="w-full flex items-center justify-center gap-2 text-sm text-gray-700 hover:text-red-700 font-medium py-2 px-4 rounded-lg bg-gray-100 hover:bg-red-50 transition-colors">
                             <XCircleIcon className="w-5 h-5" />
-                            <span>ล้างตัวกรอง</span>
+                            <span>รีเซ็ตตัวกรอง</span>
                         </button>
                     </div>
                 </div>

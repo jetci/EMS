@@ -16,10 +16,11 @@ interface EditDriverModalProps {
 
 const emptyDriver: Driver = {
   id: `DRV-${Math.floor(Math.random() * 1000)}`,
-  fullName: '',
+  firstName: '',
+  lastName: '',
   phone: '',
   licensePlate: '',
-  status: DriverStatus.OFFLINE,
+  status: DriverStatus.OFF_DUTY,
   profileImageUrl: '',
   email: '',
   address: '',
@@ -30,6 +31,9 @@ const emptyDriver: Driver = {
   vehicleType: '',
   totalTrips: 0,
   avgReviewScore: 0,
+  licenseNumber: '',
+  licenseExpiry: '',
+  vehicleYear: ''
 };
 
 // ... (keep imports and interface)
@@ -58,9 +62,14 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
     : [];
 
   const handleSelectMember = (member: User) => {
+    const nameParts = (member.name || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
     setFormData(prev => ({
       ...prev,
-      fullName: member.name,
+      firstName,
+      lastName,
       email: member.email,
       phone: member.phone || '',
       profileImageUrl: member.profileImageUrl
@@ -167,7 +176,7 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
                     )}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-bold text-gray-900">{formData.fullName}</h4>
+                    <h4 className="font-bold text-gray-900">{`${formData.firstName} ${formData.lastName}`}</h4>
                     <p className="text-sm text-gray-600">{formData.email}</p>
                     <p className="text-sm text-gray-600">{formData.phone}</p>
                   </div>
@@ -179,7 +188,8 @@ const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, onSa
                 </div>
 
                 {/* Hidden inputs for form submission */}
-                <input type="hidden" name="fullName" value={formData.fullName} />
+                <input type="hidden" name="firstName" value={formData.firstName} />
+                <input type="hidden" name="lastName" value={formData.lastName} />
                 <input type="hidden" name="email" value={formData.email} />
                 <input type="hidden" name="phone" value={formData.phone} />
 

@@ -1,5 +1,5 @@
-import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -28,6 +28,20 @@ interface ExecutiveMapProps {
     locations: PatientLocation[];
 }
 
+// Component to handle bounds
+const SetBounds: React.FC<{ locations: { lat: number; lng: number }[] }> = ({ locations }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        if (locations.length > 0) {
+            const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }, [locations, map]);
+
+    return null;
+};
+
 const ExecutiveMap: React.FC<ExecutiveMapProps> = ({ locations }) => {
     // Default center (Fang, Chiang Mai)
     const center: [number, number] = [19.9213, 99.2131];
@@ -44,6 +58,7 @@ const ExecutiveMap: React.FC<ExecutiveMapProps> = ({ locations }) => {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <SetBounds locations={locations} />
                 {locations.map((loc) => (
                     <CircleMarker
                         key={loc.id}

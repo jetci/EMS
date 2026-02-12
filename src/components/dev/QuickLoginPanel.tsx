@@ -5,13 +5,13 @@ interface QuickLoginPanelProps {
 }
 
 const testUsers = {
-  ADMIN: { email: 'admin@wecare.dev', pass: 'password' },
-  DEVELOPER: { email: 'jetci.jm@gmail.com', pass: 'devpass123' },
-  RADIO: { email: 'office1@wecare.dev', pass: 'password' },
-  OFFICER: { email: 'officer1@wecare.dev', pass: 'password' },
-  DRIVER: { email: 'driver1@wecare.dev', pass: 'password' },
-  COMMUNITY: { email: 'community1@wecare.dev', pass: 'password' },
-  EXECUTIVE: { email: 'executive1@wecare.dev', pass: 'password' },
+  ADMIN: { email: 'admin@wecare.ems', pass: 'password123' },
+  DEVELOPER: { email: 'dev@wecare.ems', pass: 'password123' },
+  RADIO: { email: 'office1@wecare.dev', pass: 'password123' },
+  OFFICER: { email: 'officer1@wecare.dev', pass: 'password123' },
+  DRIVER: { email: 'driver1@wecare.dev', pass: 'password123' },
+  COMMUNITY: { email: 'community1@wecare.dev', pass: 'password123' },
+  EXECUTIVE: { email: 'executive1@wecare.dev', pass: 'password123' },
 };
 
 const QuickLoginPanel: React.FC<QuickLoginPanelProps> = ({ onQuickLogin }) => {

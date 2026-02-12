@@ -9,8 +9,10 @@ CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('DEVELOPER', 'admin', 'OFFICER', 'radio', 'radio_center', 'driver', 'community', 'EXECUTIVE')),
+    role TEXT NOT NULL CHECK(role IN ('DEVELOPER', 'ADMIN', 'OFFICER', 'RADIO', 'RADIO_CENTER', 'DRIVER', 'COMMUNITY', 'EXECUTIVE')),
     full_name TEXT NOT NULL,
+    phone TEXT,
+    profile_image_url TEXT,
     date_created TEXT NOT NULL,
     status TEXT DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -351,3 +353,9 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 -- News
 CREATE INDEX IF NOT EXISTS idx_news_published_date ON news(published_date);
 CREATE INDEX IF NOT EXISTS idx_news_is_published ON news(is_published);
+
+-- Additional Performance Optimizations
+CREATE INDEX IF NOT EXISTS idx_drivers_phone ON drivers(phone);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_rides_status_time ON rides(status, appointment_time);
+CREATE INDEX IF NOT EXISTS idx_patients_national_id ON patients(national_id);

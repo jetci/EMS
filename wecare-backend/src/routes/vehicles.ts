@@ -51,13 +51,13 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/vehicles
-router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req, res) => {
   try {
     const newId = generateVehicleId();
     const newVehicle = {
       id: newId,
-      license_plate: req.body.license_plate,
-      vehicle_type_id: req.body.vehicle_type_id || null,
+      license_plate: req.body.licensePlate || req.body.license_plate,
+      vehicle_type_id: req.body.vehicleTypeId || req.body.vehicle_type_id || null,
       brand: req.body.brand || null,
       model: req.body.model || null,
       year: req.body.year || null,
@@ -65,8 +65,8 @@ router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
       capacity: req.body.capacity || null,
       status: req.body.status || 'AVAILABLE',
       mileage: req.body.mileage || 0,
-      last_maintenance_date: req.body.last_maintenance_date || null,
-      next_maintenance_date: req.body.next_maintenance_date || null
+      last_maintenance_date: req.body.lastMaintenanceDate || req.body.last_maintenance_date || null,
+      next_maintenance_date: req.body.nextMaintenanceDate || req.body.next_maintenance_date || null
     };
     sqliteDB.insert('vehicles', newVehicle);
     const created = sqliteDB.get<Vehicle>('SELECT * FROM vehicles WHERE id = ?', [newId]);
@@ -96,7 +96,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, r
 });
 
 // DELETE /api/vehicles/:id
-router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.delete('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req, res) => {
   try {
     const result = sqliteDB.delete('vehicles', req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Vehicle not found' });

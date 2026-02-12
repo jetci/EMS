@@ -7,6 +7,7 @@ import { checkDuplicateRide } from '../middleware/idempotency';
 import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { transformResponse } from '../utils/caseConverter';
 import rateLimit from 'express-rate-limit';
+import logger from '../utils/logger';
 
 // Rate limiter for assign driver (prevent abuse)
 const assignDriverLimiter = rateLimit({
@@ -186,8 +187,16 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
 });
 
 // POST /api/rides - create new ride
-router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
+router.post('/', (req: AuthRequest, res, next) => {
+  if (req.user?.role?.toUpperCase() === 'EXECUTIVE') {
+    return res.status(403).json({ error: 'Access denied: Executive User is Read-Only' });
+  }
+  next();
+}, checkDuplicateRide, async (req: AuthRequest, res) => {
   try {
+    if (req.user?.role === 'EXECUTIVE') {
+      return res.status(403).json({ error: 'Access denied: Executive User is Read-Only' });
+    }
     const {
       patient_id, patient_name, appointment_time, pickup_location,
       destination, special_needs, caregiver_count, contact_phone, trip_type,
@@ -231,7 +240,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
       created_by: req.user?.id || null
     };
 
-    console.log('Creating ride with data:', newRide);
+    logger.debug('Creating ride', { newRide });
     sqliteDB.insert('rides', newRide);
 
     // Audit Log
@@ -266,8 +275,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
 
     res.status(201).json(camelCaseRide);
   } catch (err: any) {
-    console.error('Error creating ride:', err);
-    console.error('Request body:', req.body);
+    logger.error('Error creating ride', { error: err.message, body: req.body, stack: err.stack });
     res.status(500).json({ error: err.message, details: err.stack });
   }
 });
@@ -277,6 +285,9 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { status, driver_id, driver_name, ...otherUpdates } = req.body;
   try {
+    if (req.user?.role === 'EXECUTIVE') {
+      return res.status(403).json({ error: 'Access denied: Executive User is Read-Only' });
+    }
     const existing = sqliteDB.get<Ride>('SELECT * FROM rides WHERE id = ?', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Ride not found' });
@@ -361,7 +372,27 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
         updateData.driver_name = driver_name;
       }
 
-      sqliteDB.update('rides', id, updateData);
+      // TRANSACTION: If completing a ride, verify and update driver stats atomically
+      if (status === 'COMPLETED' && existing.status !== 'COMPLETED') {
+        sqliteDB.transaction(() => {
+          sqliteDB.update('rides', id, updateData);
+
+          // Update driver performance metrics
+          if (existing.driver_id) {
+            const driver = sqliteDB.db.prepare('SELECT * FROM drivers WHERE id = ?').get(existing.driver_id) as any;
+            if (driver) {
+              sqliteDB.update('drivers', driver.id, {
+                total_trips: (driver.total_trips || 0) + 1,
+                trips_this_month: (driver.trips_this_month || 0) + 1,
+                status: 'AVAILABLE' // Set back to available after completion
+              });
+              logger.info('Driver stats updated on ride completion', { driverId: driver.id, rideId: id });
+            }
+          }
+        });
+      } else {
+        sqliteDB.update('rides', id, updateData);
+      }
     }
 
     // Audit Log
@@ -416,17 +447,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
             descriptions[eventType]
           );
 
-          // Update driver performance metrics if COMPLETED
-          if (status === 'COMPLETED' && existing.driver_id) {
-            const driver = sqliteDB.get<any>('SELECT * FROM drivers WHERE id = ?', [existing.driver_id]);
-            if (driver) {
-              sqliteDB.update('drivers', driver.id, {
-                total_trips: (driver.total_trips || 0) + 1,
-                trips_this_month: (driver.trips_this_month || 0) + 1,
-                status: 'AVAILABLE' // Set back to available after completion
-              });
-            }
-          }
+          // Note: Driver performance metrics update moved to transaction block above for consistency
         }
       }
     }
@@ -451,6 +472,9 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 router.delete('/:id', async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
+    if (req.user?.role === 'EXECUTIVE') {
+      return res.status(403).json({ error: 'Access denied: Executive User is Read-Only' });
+    }
     const existing = sqliteDB.get<Ride>('SELECT * FROM rides WHERE id = ?', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Ride not found' });

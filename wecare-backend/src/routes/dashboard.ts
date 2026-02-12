@@ -96,7 +96,14 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
         SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completedRides,
         AVG(CASE WHEN distance_km IS NOT NULL THEN distance_km ELSE 0 END) as avgDistance,
         (SELECT COUNT(*) FROM patients) as totalPatients,
-        (SELECT COUNT(*) FROM drivers) as totalDrivers
+        (SELECT COUNT(*) FROM drivers) as totalDrivers,
+        AVG(
+            CASE 
+                WHEN pickup_time IS NOT NULL AND appointment_time IS NOT NULL 
+                THEN (julianday(pickup_time) - julianday(appointment_time)) * 1440 
+                ELSE NULL 
+            END
+        ) as avgResponseTime
       FROM rides
       ${dateFilter}
     `, params);
@@ -104,6 +111,7 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     const efficiency = stats.totalRides > 0 ? Math.round((stats.completedRides / stats.totalRides) * 100) : 0;
     stats.efficiency = efficiency;
     stats.avgDistance = Math.round(stats.avgDistance || 0);
+    stats.avgResponseTime = Math.round(stats.avgResponseTime || 0);
 
     // Patient Locations
     const patientLocations = sqliteDB.all<any>(`
@@ -115,10 +123,20 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
         patient_types as type
       FROM patients
       WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-    `).map(p => ({
-      ...p,
-      type: p.type ? JSON.parse(p.type)[0] || 'ทั่วไป' : 'ทั่วไป'
-    }));
+    `).map(p => {
+      let type = 'ทั่วไป';
+      try {
+        if (p.type) {
+          const parsed = JSON.parse(p.type);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            type = parsed[0];
+          }
+        }
+      } catch (e) {
+        // console.warn('Failed to parse patient type for ID:', p.id);
+      }
+      return { ...p, type };
+    });
 
     res.json({
       monthlyRideData,

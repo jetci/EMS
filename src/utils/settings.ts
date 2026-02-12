@@ -1,4 +1,4 @@
-import { SystemSettings } from '../types';
+import { SystemSettings } from '../app-types';
 
 const DEFAULTS: SystemSettings = {
     appName: 'WeCare Platform',

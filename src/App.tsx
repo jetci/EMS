@@ -13,6 +13,7 @@ import { User, UserRole } from './types';
 import PublicNewsListingPage from './pages/PublicNewsListingPage';
 import PublicSingleNewsPage from './pages/PublicSingleNewsPage';
 import { authAPI } from './services/api';
+import { setSentryUser, clearSentryUser } from './config/sentry';
 
 type PublicView = 'landing' | 'login' | 'register' | 'about' | 'contact' | 'news' | 'news_single';
 
@@ -42,12 +43,12 @@ const App: React.FC = () => {
 
             // Map role to UserRole enum
             const roleMapping: Record<string, User['role']> = {
-                'admin': UserRole.ADMIN,
+                'ADMIN': UserRole.ADMIN,
                 'DEVELOPER': UserRole.DEVELOPER,
-                'driver': UserRole.DRIVER,
-                'community': UserRole.COMMUNITY,
-                'radio': UserRole.RADIO,
-                'radio_center': UserRole.RADIO_CENTER,
+                'DRIVER': UserRole.DRIVER,
+                'COMMUNITY': UserRole.COMMUNITY,
+                'RADIO': UserRole.RADIO,
+                'RADIO_CENTER': UserRole.RADIO_CENTER,
                 'OFFICER': UserRole.OFFICER,
                 'EXECUTIVE': UserRole.EXECUTIVE,
             };
@@ -60,6 +61,8 @@ const App: React.FC = () => {
                 name: loggedInUser?.full_name || loggedInUser?.name || email,
                 email: loggedInUser?.email || email,
                 role: userRole,
+                phone: loggedInUser?.phone,
+                profileImageUrl: loggedInUser?.profile_image_url || loggedInUser?.profileImageUrl,
             };
 
             try {
@@ -72,6 +75,14 @@ const App: React.FC = () => {
 
             setUser(mappedUser);
             console.log('✅ User state updated, login successful');
+            
+            // Set Sentry user context
+            setSentryUser({
+                id: mappedUser.id,
+                email: mappedUser.email,
+                role: mappedUser.role,
+            });
+            
             return true;
         } catch (e) {
             console.error('❌ Login error:', e);
@@ -84,11 +95,16 @@ const App: React.FC = () => {
         localStorage.removeItem('jwt');
         localStorage.removeItem('wecare_token');
         localStorage.removeItem('wecare_user');
+        
         // Clear CSRF token
         try {
             const { clearCsrfToken } = require('./services/api');
             clearCsrfToken();
         } catch { }
+        
+        // Clear Sentry user context
+        clearSentryUser();
+        
         navigate('/');
     };
 

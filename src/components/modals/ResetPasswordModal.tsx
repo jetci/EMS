@@ -74,7 +74,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({ isOpen, onClose
                 <form onSubmit={handleSubmit}>
                     <div className="p-6 space-y-4">
                         <div>
-                            <label htmlFor="reset-password" class="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
+                            <label htmlFor="reset-password" className="block text-sm font-medium text-gray-700">รหัสผ่านใหม่</label>
                             <div className="relative mt-1">
                                 <input
                                     type={showPassword ? "text" : "password"}
@@ -102,7 +102,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({ isOpen, onClose
                         </div>
 
                         <div>
-                            <label htmlFor="reset-confirm-password" class="block text-sm font-medium text-gray-700">ยืนยันรหัสผ่านใหม่</label>
+                            <label htmlFor="reset-confirm-password" className="block text-sm font-medium text-gray-700">ยืนยันรหัสผ่านใหม่</label>
                             <input
                                 type={showPassword ? "text" : "password"}
                                 id="reset-confirm-password"

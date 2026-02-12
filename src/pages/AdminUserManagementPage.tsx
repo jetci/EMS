@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ManagedUser, User, UserStatus } from '../types';
+import { ManagedUser, User, UserStatus } from '../app-types';
 import UserPlusIcon from '../components/icons/UserPlusIcon';
 import SearchIcon from '../components/icons/SearchIcon';
 import EditIcon from '../components/icons/EditIcon';
@@ -11,6 +11,7 @@ import RoleBadge from '../components/ui/RoleBadge';
 import UserStatusBadge from '../components/ui/UserStatusBadge';
 import EditUserModal from '../components/modals/EditUserModal';
 import ResetPasswordModal from '../components/modals/ResetPasswordModal';
+import ConfirmationModal from '../components/modals/ConfirmationModal';
 import { formatDateToThai } from '../utils/dateUtils';
 import { defaultProfileImage } from '../assets/defaultProfile';
 import { apiRequest } from '../services/api';
@@ -32,7 +33,18 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
     // Modals state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isConfirmationModalOpen, setIsConfirmationModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<ManagedUser | null>(null);
+    const [confirmationConfig, setConfirmationConfig] = useState({
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
+
+    const confirmAction = () => {
+        confirmationConfig.onConfirm();
+        setIsConfirmationModalOpen(false);
+    };
 
     useEffect(() => {
         loadUsers();
@@ -119,23 +131,28 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
         }
     };
 
-    const handleToggleStatus = async (user: ManagedUser) => {
+    const handleToggleStatus = (user: ManagedUser) => {
         const newStatus = user.status === 'Active' ? 'Inactive' : 'Active';
         const action = newStatus === 'Inactive' ? 'ระงับการใช้งาน' : 'เปิดใช้งาน';
 
-        // Improved confirmation message
-        if (!window.confirm(`ยืนยันการ${action}บัญชีผู้ใช้:\n\n${user.fullName}\n(${user.email})`)) return;
-
-        try {
-            await apiRequest(`/users/${user.id}`, {
-                method: 'PUT',
-                body: JSON.stringify({ status: newStatus })
-            });
-            await loadUsers();
-        } catch (err: any) {
-            console.error('Failed to update status:', err);
-            alert('ไม่สามารถเปลี่ยนสถานะได้');
-        }
+        setConfirmationConfig({
+            title: `ยืนยันการ${action}`,
+            message: `ยืนยันการ${action}บัญชีผู้ใช้: ${user.fullName} (${user.email})`,
+            onConfirm: async () => {
+                try {
+                    await apiRequest(`/users/${user.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    await loadUsers();
+                    alert(`✅ ${action}สำเร็จ`);
+                } catch (err: any) {
+                    console.error('Failed to update status:', err);
+                    alert('ไม่สามารถเปลี่ยนสถานะได้');
+                }
+            }
+        });
+        setIsConfirmationModalOpen(true);
     };
 
     const handleResetPasswordRequest = (user: ManagedUser) => {
@@ -282,6 +299,14 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                 onClose={() => setIsResetModalOpen(false)}
                 onConfirm={handleConfirmResetPassword}
                 user={selectedUser}
+            />
+
+            <ConfirmationModal
+                isOpen={isConfirmationModalOpen}
+                onClose={() => setIsConfirmationModalOpen(false)}
+                onConfirm={confirmAction}
+                title={confirmationConfig.title}
+                message={confirmationConfig.message}
             />
         </div>
     );

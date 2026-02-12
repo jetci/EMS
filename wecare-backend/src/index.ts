@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 
-// CRITICAL: Load environment variables BEFORE any other imports
 // This ensures JWT_SECRET is available when routes are imported
 dotenv.config();
+// Console log is fine here as logger might not be ready or we want immediate output
 console.log('🚀 Starting WeCare Backend initialization...');
 
 import express from 'express';
@@ -12,12 +12,15 @@ import cookieParser from 'cookie-parser';
 import http from 'http';
 import path from 'path';
 import { Server as SocketIOServer } from 'socket.io';
+import logger from './utils/logger';
 import authRoutes from './routes/auth';
 import patientRoutes from './routes/patients';
+import patientJsonRoutes from './routes/patients-json';
 import driverRoutes from './routes/drivers';
 import rideRoutes from './routes/rides';
 import userRoutes from './routes/users';
 import teamRoutes from './routes/teams';
+import schedulesRouter from './routes/schedules';
 import vehicleRoutes from './routes/vehicles';
 import vehicleTypeRoutes from './routes/vehicle-types';
 import newsRoutes from './routes/news';
@@ -34,6 +37,7 @@ import systemRoutes from './routes/system';
 import healthRoutes from './routes/health';
 import backupRoutes from './routes/backup';
 import lockoutRoutes from './routes/lockout';
+import developerRoutes from './routes/developer';
 import { authenticateToken } from './middleware/auth';
 import { preventSQLInjection } from './middleware/sqlInjectionPrevention';
 import { csrfTokenMiddleware, getCsrfToken } from './middleware/csrfProtection';
@@ -47,12 +51,14 @@ import backupService from './services/backupService';
 const requiredEnvVars = ['JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
+  // Use console.error for fatal startup errors
   console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
   console.error('   Please set them in your .env file');
   process.exit(1);
 }
 
 const app = express();
+// Server restart trigger
 const PORT = process.env.PORT || 3001;
 
 // Security Middleware
@@ -70,14 +76,14 @@ if (process.env.NODE_ENV === 'production') {
     const isSecure = req.secure || req.get('x-forwarded-proto') === 'https';
 
     if (!isSecure) {
-      console.log(`🔒 Redirecting HTTP to HTTPS: ${req.url}`);
+      logger.info(`Redirecting HTTP to HTTPS: ${req.url}`);
       return res.redirect(301, `https://${req.headers.host}${req.url}`);
     }
 
     next();
   });
 
-  console.log('🔒 HTTPS enforcement enabled (production mode)');
+  logger.info('HTTPS enforcement enabled (production mode)');
 }
 
 // Debug Middleware
@@ -294,7 +300,7 @@ app.use((req, res, next) => {
 app.get('/api/csrf-token', getCsrfToken);
 
 // Health check endpoint (no rate limit)
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+// app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // Routes
 app.get('/', (req, res) => res.send('EMS WeCare Backend is running!'));
@@ -323,7 +329,14 @@ app.use('/api', (req, res, next) => {
 // PROTECTED ROUTES WITH ROLE-BASED ACCESS CONTROL
 // ============================================
 
+
 // Patient routes - accessible by multiple roles
+// JSON routes (higher priority - must be before FormData routes)
+app.use('/api/patients',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.COMMUNITY, UserRole.EXECUTIVE]),
+  patientJsonRoutes
+);
 app.use('/api/patients',
   authenticateToken,
   requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.COMMUNITY, UserRole.EXECUTIVE]),
@@ -372,6 +385,9 @@ app.use('/api/teams',
   requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
   teamRoutes
 );
+
+// Schedule management
+app.use('/api/schedules', schedulesRouter);
 
 // Vehicle management - admin, developer, officer
 app.use('/api/vehicles',
@@ -428,6 +444,13 @@ app.use('/api/executive/reports',
   authenticateToken,
   requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.EXECUTIVE]),
   reportsRoutes
+);
+
+// Developer Tools
+app.use('/api/developer',
+  authenticateToken,
+  requireRole([UserRole.DEVELOPER]),
+  developerRoutes
 );
 
 // Office routes - officer and radio center
@@ -492,7 +515,7 @@ app.use(globalErrorHandler);
 const httpServer = http.createServer(app);
 
 // Initialize Socket.IO with CORS
-const io = new SocketIOServer(httpServer, {
+export const io = new SocketIOServer(httpServer, {
   cors: {
     origin: process.env.NODE_ENV === 'production'
       ? process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim())
@@ -524,7 +547,7 @@ locationNamespace.use((socket, next) => {
 
     // Attach user info to socket
     (socket as any).user = {
-      id: decoded.userId,
+      id: decoded.id || decoded.userId, // Support both formats (userId was legacy?)
       email: decoded.email,
       role: decoded.role
     };
@@ -533,10 +556,10 @@ locationNamespace.use((socket, next) => {
     socket.join(`user:${decoded.userId}`);
     socket.join(`role:${decoded.role}`);
 
-    console.log(`✅ WebSocket authenticated: ${decoded.email} (${decoded.role})`);
+    logger.info(`WebSocket authenticated: ${decoded.email} (${decoded.role})`);
     next();
   } catch (error) {
-    console.warn('⚠️ WebSocket connection rejected: Invalid token');
+    logger.warn('WebSocket connection rejected: Invalid token');
     return next(new Error('Invalid token'));
   }
 });
@@ -566,7 +589,7 @@ locationNamespace.on('connection', (socket) => {
       lat < -90 || lat > 90 ||
       lng < -180 || lng > 180
     ) {
-      console.warn(`⚠️ Invalid coordinates from ${user.email}: lat=${data.lat}, lng=${data.lng}`);
+      logger.warn(`Invalid coordinates from ${user.email}: lat=${data.lat}, lng=${data.lng}`);
       socket.emit('error', { message: 'Invalid coordinates' });
       return;
     }
@@ -618,12 +641,11 @@ const startServer = async () => {
       console.log('');
 
       // Start automatic backup scheduler
-      console.log('🔄 Initializing automatic backup system...');
+      logger.info('Initializing automatic backup system...');
       backupService.startAutomaticBackups();
-      console.log('');
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error('Failed to start server', { error });
     process.exit(1);
   }
 };

@@ -4,7 +4,7 @@
 // 2) Window runtime base configured in index.tsx: window.__BASE_PATH__ + '/api-proxy' (dev proxy)
 // 3) Default: http://localhost:3001/api (direct to backend)
 
-import { PaginatedResponse, PaginationParams, buildPaginationQuery } from '../types/pagination';
+import { PaginatedResponse, PaginationParams, buildPaginationQuery } from '../types-dir/pagination';
 
 const getApiBaseUrl = (): string => {
   const viteEnv = (import.meta as any).env?.VITE_API_BASE_URL;
@@ -168,9 +168,9 @@ export const patientsAPI = {
   },
   getPatientById: (id: string) => apiRequest(`/patients/${id}`),
   createPatient: (data: any) =>
-    apiRequest('/patients', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/patients/json', { method: 'POST', body: JSON.stringify(data) }),
   updatePatient: (id: string, data: any) =>
-    apiRequest(`/patients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    apiRequest(`/patients/json/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deletePatient: (id: string) =>
     apiRequest(`/patients/${id}`, { method: 'DELETE' }),
 };
@@ -225,4 +225,22 @@ export const teamsAPI = {
     apiRequest(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteTeam: (id: string) =>
     apiRequest(`/teams/${id}`, { method: 'DELETE' }),
+};
+
+// --- Schedules API ---
+export const schedulesAPI = {
+  getSchedules: (month: string, teamId?: string) => {
+    let url = `/schedules?month=${month}`;
+    if (teamId) url += `&teamId=${teamId}`;
+    return apiRequest(url);
+  },
+  saveSchedule: (data: { teamId: string; date: string; status: string; vehicleId?: string; shiftType?: string }) =>
+    apiRequest('/schedules', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSchedule: (teamId: string, date: string) =>
+    apiRequest('/schedules', { method: 'DELETE', body: JSON.stringify({ teamId, date }) }),
+};
+
+// --- System API ---
+export const systemAPI = {
+  getHealth: () => apiRequest('/health'),
 };

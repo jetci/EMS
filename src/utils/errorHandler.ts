@@ -5,6 +5,8 @@
  * with user-friendly error messages and proper logging
  */
 
+import { captureException as sentryCaptureException, addBreadcrumb } from '../config/sentry';
+
 export interface ErrorContext {
     component: string;
     action: string;
@@ -99,6 +101,13 @@ export function handleError(
 ): AppError {
     // Log error for debugging
     console.error(`[${context.component}] ${context.action} failed:`, error);
+
+    // Add breadcrumb for Sentry
+    addBreadcrumb(
+        `${context.action} failed`,
+        context.component,
+        { error: error?.message || 'Unknown error' }
+    );
 
     // Already an AppError
     if (error instanceof AppError) {
@@ -209,12 +218,22 @@ export function handleError(
     // Default: use error message or unknown
     const message = error.message || ERROR_MESSAGES[ERROR_CODES.UNKNOWN];
 
-    return new AppError(
+    const appError = new AppError(
         message,
         ERROR_CODES.UNKNOWN,
         context,
         error
     );
+
+    // Send to Sentry for unknown errors
+    sentryCaptureException(appError, {
+        component: context.component,
+        action: context.action,
+        userId: context.userId,
+        originalError: error,
+    });
+
+    return appError;
 }
 
 /**

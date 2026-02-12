@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import sqliteDB from '../db/sqliteDB';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 const router = Router();
 
@@ -15,8 +18,19 @@ router.get('/health', (req: Request, res: Response) => {
         const dbHealth = sqliteDB.healthCheck();
         const dbStats = sqliteDB.getStats();
 
-        const health = {
-            status: dbHealth.healthy ? 'healthy' : 'unhealthy',
+        // Check filesystem health
+        const uploadDir = path.join(__dirname, '../../uploads/profiles');
+        let uploadsWritable = false;
+        try {
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            fs.accessSync(uploadDir, fs.constants.W_OK);
+            uploadsWritable = true;
+        } catch (e) { }
+
+        const health: any = {
+            status: dbHealth.healthy && uploadsWritable ? 'healthy' : 'unhealthy',
             timestamp: new Date().toISOString(),
             uptime: process.uptime(),
             environment: process.env.NODE_ENV || 'development',
@@ -25,6 +39,10 @@ router.get('/health', (req: Request, res: Response) => {
                 message: dbHealth.message,
                 stats: dbHealth.details,
                 connection: dbStats
+            },
+            filesystem: {
+                uploadsWritable,
+                uploadPath: uploadDir
             },
             memory: {
                 rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
@@ -38,6 +56,15 @@ router.get('/health', (req: Request, res: Response) => {
                 platform: process.platform
             }
         };
+
+        // Attempt to get disk space (optional, platform specific)
+        if (process.platform === 'win32') {
+            try {
+                const output = execSync('powershell "Get-PSDrive C | Select-Object Free, Size | ConvertTo-Json"', { encoding: 'utf8' });
+                health.diskSpace = JSON.parse(output);
+            } catch (e) { }
+        }
+
 
         const statusCode = dbHealth.healthy ? 200 : 503;
         res.status(statusCode).json(health);

@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { initSentry } from './config/sentry';
+
+// Initialize Sentry before anything else
+initSentry();
 
 /**
  * ตรวจจับ base path อัตโนมัติ

@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import logger from '../utils/logger';
 
 // SQLite Database helper for EMS WeCare
 // Replaces JSON-based storage with proper relational database
@@ -55,14 +56,15 @@ db.pragma('temp_store = MEMORY');
 db.pragma('page_size = 4096');
 
 // Auto-vacuum: INCREMENTAL (prevents database file from growing indefinitely)
+// Auto-vacuum: INCREMENTAL (prevents database file from growing indefinitely)
 db.pragma('auto_vacuum = INCREMENTAL');
 
-console.log('✅ SQLite database connection initialized with performance optimizations');
-console.log('   - WAL mode: Enabled (concurrent reads)');
-console.log('   - Busy timeout: 5000ms');
-console.log('   - Cache size: 10MB');
-console.log('   - Memory-mapped I/O: 30MB');
-console.log('');
+logger.info('SQLite database connection initialized', {
+    walMode: 'Enabled',
+    busyTimeout: 5000,
+    cacheSize: '10MB',
+    mmap: '30MB'
+});
 
 import { hashPassword } from '../utils/password';
 
@@ -71,9 +73,9 @@ export const initializeSchema = () => {
     try {
         const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
         db.exec(schema);
-        console.log('✅ SQLite database schema initialized successfully');
+        logger.info('SQLite database schema initialized successfully');
     } catch (error) {
-        console.error('❌ Error initializing database schema:', error);
+        logger.error('Error initializing database schema', { error });
         throw error;
     }
 };
@@ -93,7 +95,7 @@ export const seedData = async () => {
                 id: 'USR-ADMIN',
                 email: 'admin@wecare.ems',
                 password: hashedPassword,
-                role: 'admin',
+                role: 'ADMIN',
                 full_name: 'System Administrator',
                 date_created: new Date().toISOString(),
                 status: 'Active'
@@ -115,7 +117,7 @@ export const seedData = async () => {
                 id: 'USR-RADIO',
                 email: 'office1@wecare.dev',
                 password: hashedPassword,
-                role: 'radio',
+                role: 'RADIO',
                 full_name: 'Radio Center Operator',
                 date_created: new Date().toISOString(),
                 status: 'Active'
@@ -137,7 +139,7 @@ export const seedData = async () => {
                 id: 'USR-DRIVER',
                 email: 'driver1@wecare.dev',
                 password: hashedPassword,
-                role: 'driver',
+                role: 'DRIVER',
                 full_name: 'Ambulance Driver',
                 date_created: new Date().toISOString(),
                 status: 'Active'
@@ -148,7 +150,7 @@ export const seedData = async () => {
                 id: 'USR-COMMUNITY',
                 email: 'community1@wecare.dev',
                 password: hashedPassword,
-                role: 'community',
+                role: 'COMMUNITY',
                 full_name: 'Community Volunteer',
                 date_created: new Date().toISOString(),
                 status: 'Active'
@@ -221,12 +223,12 @@ export const seedData = async () => {
 // Run initialization function (to be called from index.ts)
 export const initializeDatabase = async () => {
     try {
-        console.log('🔄 Initializing Database...');
+        logger.info('Initializing Database...');
         initializeSchema();
         await seedData();
-        console.log('✅ Database initialization completed');
+        logger.info('Database initialization completed');
     } catch (error) {
-        console.error('❌ Database initialization failed:', error);
+        logger.error('Database initialization failed', { error });
         throw error;
     }
 };
@@ -240,6 +242,7 @@ const ALLOWED_TABLES = [
     'vehicles',
     'vehicle_types',
     'teams',
+    'team_schedules',
     'news',
     'audit_logs',
     'system_settings',

@@ -111,8 +111,13 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable 
               <MapPinIcon className="w-5 h-5 text-green-500 mt-1 flex-shrink-0" />
               <div>
                 <p className="text-gray-500 text-xs">สถานที่รับ</p>
-                <p className="text-gray-700">{pickupLocation}</p>
-                {village && <p className="text-xs text-gray-500 mt-1">{village}</p>}
+                <p className="text-gray-700 font-medium">{pickupLocation}</p>
+                {(village || landmark) && (
+                  <div className="bg-blue-50 border border-blue-100 rounded px-2 py-1 mt-1">
+                    {village && <p className="text-[10px] font-bold text-blue-700 uppercase leading-none">หมู่บ้าน: {village}</p>}
+                    {landmark && <p className="text-[10px] text-blue-600 mt-0.5">จุดสังเกต: {landmark}</p>}
+                  </div>
+                )}
               </div>
             </div>
             <button
@@ -129,7 +134,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable 
               <MapPinIcon className="w-5 h-5 text-red-500 mt-1 flex-shrink-0" />
               <div>
                 <p className="text-gray-500 text-xs">สถานที่ส่ง</p>
-                <p className="text-gray-700">{destination}</p>
+                <p className="text-gray-700 font-medium">{destination}</p>
               </div>
             </div>
             <button
@@ -141,12 +146,25 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable 
               <span>นำทาง</span>
             </button>
           </div>
-          <div className="flex items-center space-x-3">
-            <ClockIcon className="w-5 h-5 text-gray-500" />
-            <div>
-              <p className="text-gray-500 text-xs">เวลานัดหมาย</p>
-              <p className="font-semibold text-[#005A9C]">{formatDateTimeToThai(appointmentTime)}</p>
+
+          <div className="flex items-center justify-between bg-blue-50/50 p-2 rounded-lg border border-blue-100/50">
+            <div className="flex items-center space-x-3">
+              <ClockIcon className="w-5 h-5 text-blue-600" />
+              <div>
+                <p className="text-gray-500 text-xs">เวลานัดหมาย</p>
+                <p className="font-bold text-blue-800">{formatDateTimeToThai(appointmentTime)}</p>
+              </div>
             </div>
+
+            {(patientPhone || caregiverPhone) && (
+              <a
+                href={`tel:${patientPhone || caregiverPhone}`}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-green-700 shadow-lg active:scale-95 transition-all"
+              >
+                <PhoneIcon className="w-4 h-4" />
+                <span>โทรติดต่อ</span>
+              </a>
+            )}
           </div>
         </div>
       </div>

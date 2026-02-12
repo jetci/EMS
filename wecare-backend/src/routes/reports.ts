@@ -1,6 +1,6 @@
 import express from 'express';
 import { sqliteDB } from '../db/sqliteDB';
-import { authenticateToken, requireRole } from '../middleware/auth';
+import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -139,8 +139,32 @@ router.get('/patients', authenticateToken, async (req, res) => {
     }
 });
 
+import { auditService } from '../services/auditService';
+
+// Helper to mask PII
+const maskPII = (data: any[]) => {
+    return data.map(item => {
+        const masked = { ...item };
+
+        // Mask National ID (Show last 4 digits)
+        if (masked.national_id && typeof masked.national_id === 'string' && masked.national_id.length > 4) {
+            masked.national_id = '*************' + masked.national_id.slice(-4);
+        }
+
+        // Mask Phone Numbers (Show first 3 and last 4)
+        const phoneFields = ['phone', 'contact_phone', 'patient_phone', 'caregiver_phone', 'mobile'];
+        phoneFields.forEach(field => {
+            if (masked[field] && typeof masked[field] === 'string' && masked[field].length > 7) {
+                masked[field] = masked[field].slice(0, 3) + '-XXXX-' + masked[field].slice(-4);
+            }
+        });
+
+        return masked;
+    });
+};
+
 // GET /api/reports/export
-router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEVELOPER']), async (req, res) => {
+router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEVELOPER']), async (req: AuthRequest, res) => {
     try {
         const { type, format, startDate, endDate } = req.query;
 
@@ -170,15 +194,29 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
             filename = `summary_report_${new Date().toISOString().split('T')[0]}`;
         }
 
+        // Apply Data Masking
+        const maskedData = maskPII(data);
+
+        // Audit Logging
+        if (req.user) {
+            auditService.log(
+                req.user.email || 'unknown',
+                req.user.role || 'unknown',
+                'EXPORT_REPORT',
+                'N/A', // No specific resource ID
+                { type, format, recordCount: data.length, constraints: { startDate, endDate } }
+            );
+        }
+
         if (format === 'csv') {
-            if (data.length === 0) {
+            if (maskedData.length === 0) {
                 return res.status(404).json({ error: 'No data found for the selected period' });
             }
 
-            const headers = Object.keys(data[0]);
+            const headers = Object.keys(maskedData[0]);
             const csvRows = [
                 headers.join(','),
-                ...data.map(row => headers.map(fieldName => {
+                ...maskedData.map(row => headers.map(fieldName => {
                     const val = row[fieldName];
                     return JSON.stringify(val === null || val === undefined ? '' : val);
                 }).join(','))
@@ -193,6 +231,7 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
         res.status(400).json({ error: 'Unsupported format. Please use CSV.' });
 
     } catch (err: any) {
+        console.error('Export Error:', err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -1,5 +1,6 @@
 import { sqliteDB } from '../db/sqliteDB';
 import crypto from 'crypto';
+import logger from '../utils/logger';
 
 export interface AuditLog {
     id: string;
@@ -68,7 +69,7 @@ const getLastLog = (): AuditLog | null => {
             sequenceNumber: log.sequence_number
         };
     } catch (error) {
-        console.error('Error getting last log:', error);
+        logger.error('Error getting last log', { error });
         return null;
     }
 };
@@ -153,7 +154,7 @@ export const auditService = {
             lastLogCache = { hash, sequenceNumber };
 
         } catch (error) {
-            console.error('Failed to write audit log:', error);
+            logger.error('Failed to write audit log', { error });
         }
     },
 

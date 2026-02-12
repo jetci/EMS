@@ -1,0 +1,12 @@
+[
+  {
+    "id": "DRV-001",
+    "user_id": "USR-DRV-001",
+    "full_name": "Test Driver",
+    "status": "ON_DUTY",
+    "phone": "0812345678",
+    "license_number": "LIC-001",
+    "current_lat": 13.7563,
+    "current_lng": 100.5018
+  }
+]

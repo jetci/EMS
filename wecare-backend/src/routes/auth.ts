@@ -8,6 +8,8 @@ import { hashPassword, verifyPassword, validatePasswordStrength } from '../utils
 import { auditService } from '../services/auditService';
 import accountLockoutService from '../services/accountLockoutService';
 import { loginSchema, registerSchema, validateRequest } from '../middleware/joiValidation';
+import { uploadLimiter } from '../middleware/rateLimiter';
+import logger from '../utils/logger';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -114,14 +116,9 @@ router.post('/auth/login', async (req, res) => {
     }
 
     // Verify password using bcrypt
-    console.log('🔐 Login attempt:', {
-      email,
-      providedPassword: password,
-      storedHash: user.password.substring(0, 20) + '...',
-      hashStartsWith: user.password.substring(0, 4)
-    });
+    logger.debug('Login attempt', { email });
     const isPasswordValid = await verifyPassword(password, user.password);
-    console.log('✅ Password valid:', isPasswordValid);
+    logger.debug('Password valid:', isPasswordValid ? 'Yes' : 'No');
     if (!isPasswordValid) {
       // Record failed attempt
       accountLockoutService.recordFailedAttempt(email);
@@ -181,7 +178,7 @@ router.post('/auth/login', async (req, res) => {
 
     res.json({ user: responseUser, token });
   } catch (err: any) {
-    console.error('Login error:', err);
+    logger.error('Login error', { error: err?.message, stack: err?.stack });
     res.status(500).json({ error: err?.message || 'Internal server error' });
   }
 });
@@ -276,7 +273,7 @@ router.post('/auth/register', async (req, res) => {
     const { password: _omit, ...userWithoutPassword } = newUser;
     res.status(201).json({ user: userWithoutPassword, token });
   } catch (err: any) {
-    console.error('Registration error:', err);
+    logger.error('Registration error', { error: err?.message });
     res.status(500).json({ error: err?.message || 'Internal server error' });
   }
 });
@@ -357,7 +354,7 @@ router.get('/auth/me', async (req, res) => {
 });
 
 // PUT /auth/profile - Update current user profile
-router.put('/auth/profile', async (req, res) => {
+router.put('/auth/profile', uploadLimiter, async (req, res) => {
   console.log('🔵 PUT /auth/profile called - UPDATED VERSION');
   console.log('📋 Request method:', req.method);
   console.log('📋 Request path:', req.path);
@@ -399,6 +396,23 @@ router.put('/auth/profile', async (req, res) => {
 
     try {
       sqliteDB.update('users', decoded.id, updateData);
+
+      // Sync with drivers table if user is a driver
+      const user = sqliteDB.get<User>('SELECT role FROM users WHERE id = ?', [decoded.id]);
+      if (user?.role?.toLowerCase() === 'driver') {
+        const driverUpdate: any = {};
+        if (updateData.full_name) driverUpdate.full_name = updateData.full_name;
+        if (updateData.phone) driverUpdate.phone = updateData.phone;
+        if (updateData.profile_image_url !== undefined) driverUpdate.profile_image_url = updateData.profile_image_url;
+
+        if (Object.keys(driverUpdate).length > 0) {
+          sqliteDB.db.prepare('UPDATE drivers SET ' +
+            Object.keys(driverUpdate).map(k => `${k} = ?`).join(', ') +
+            ', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
+          ).run(...Object.values(driverUpdate), decoded.id);
+          console.log('✅ Driver table synced');
+        }
+      }
     } catch (dbError: any) {
       console.error('❌ Database update error:', dbError);
       if (dbError.code === 'SQLITE_CONSTRAINT') {
@@ -415,6 +429,11 @@ router.put('/auth/profile', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     console.log('✅ User retrieved from DB');
+
+    // Audit log
+    auditService.log(updated.email, updated.role, 'PROFILE_UPDATE', updated.id, {
+      updatedFields: Object.keys(updateData)
+    });
 
     // Convert snake_case to camelCase for frontend
     const { password: _omit, full_name, profile_image_url, date_created, ...rest } = updated;
@@ -434,7 +453,7 @@ router.put('/auth/profile', async (req, res) => {
 });
 
 // POST /auth/upload-profile-image - Upload profile image
-router.post('/auth/upload-profile-image', upload.single('profile_image'), async (req, res) => {
+router.post('/auth/upload-profile-image', uploadLimiter, upload.single('profile_image'), async (req, res) => {
   try {
     // Verify token
     const authHeader = req.headers.authorization;
@@ -447,6 +466,26 @@ router.post('/auth/upload-profile-image', upload.single('profile_image'), async 
 
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Advanced Magic Byte Validation
+    const buffer = fs.readFileSync(req.file.path);
+    const magic = buffer.toString('hex', 0, 4).toUpperCase();
+    let isValid = false;
+
+    // JPEG: FFD8
+    // PNG: 89504E47
+    // WEBP: 52494646 (RIFF) ... 57454250 (WEBP)
+    if (magic.startsWith('FFD8')) isValid = true;
+    else if (magic === '89504E47') isValid = true;
+    else if (magic === '52494646') {
+      const webpCheck = buffer.toString('hex', 8, 12).toUpperCase();
+      if (webpCheck === '57454250') isValid = true;
+    }
+
+    if (!isValid) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'File content is not a valid image (JPEG, PNG, WEBP)' });
     }
 
     // Get user
@@ -474,6 +513,13 @@ router.post('/auth/upload-profile-image', upload.single('profile_image'), async 
     sqliteDB.update('users', decoded.id, {
       profile_image_url: imageUrl
     });
+
+    // Sync with drivers table if user is a driver
+    if (user.role.toLowerCase() === 'driver') {
+      sqliteDB.db.prepare('UPDATE drivers SET profile_image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?')
+        .run(imageUrl, decoded.id);
+      console.log('✅ Driver table image synced');
+    }
 
     // Audit log
     auditService.log(user.email, user.role, 'PROFILE_IMAGE_UPLOAD', decoded.id);

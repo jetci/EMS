@@ -93,14 +93,38 @@ router.get('/my-profile', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driverId]);
+    let driver = sqliteDB.get<any>(`
+      SELECT d.*, u.full_name as user_full_name, u.email, 
+             v.license_plate, v.brand as vehicle_brand, v.model as vehicle_model, 
+             v.color as vehicle_color, v.year as vehicle_year, vt.name as vehicle_type
+      FROM drivers d
+      JOIN users u ON d.user_id = u.id
+      LEFT JOIN vehicles v ON d.current_vehicle_id = v.id
+      LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id
+      WHERE d.id = ?
+    `, [driverId]);
+
     if (!driver && userId) {
-      driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+      driver = sqliteDB.get<any>(`
+        SELECT d.*, u.full_name as user_full_name, u.email, 
+               v.license_plate, v.brand as vehicle_brand, v.model as vehicle_model, 
+               v.color as vehicle_color, v.year as vehicle_year, vt.name as vehicle_type
+        FROM drivers d
+        JOIN users u ON d.user_id = u.id
+        LEFT JOIN vehicles v ON d.current_vehicle_id = v.id
+        LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id
+        WHERE d.user_id = ?
+      `, [userId]);
     }
 
     if (!driver) {
       return res.status(404).json({ error: 'Driver profile not found' });
     }
+
+    // Split name for frontend
+    const nameParts = (driver.user_full_name || '').split(' ');
+    driver.first_name = nameParts[0] || '';
+    driver.last_name = nameParts.slice(1).join(' ') || '';
 
     res.json(driver);
   } catch (err: any) {
@@ -114,24 +138,71 @@ router.put('/my-profile', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driverId]);
+    let driver = sqliteDB.get<any>(`
+      SELECT d.*, u.full_name as user_full_name, u.id as user_actual_id
+      FROM drivers d
+      JOIN users u ON d.user_id = u.id
+      WHERE d.id = ?
+    `, [driverId]);
+
     if (!driver && userId) {
-      driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+      driver = sqliteDB.get<any>(`
+        SELECT d.*, u.full_name as user_full_name, u.id as user_actual_id
+        FROM drivers d
+        JOIN users u ON d.user_id = u.id
+        WHERE d.user_id = ?
+      `, [userId]);
     }
 
     if (!driver) {
       return res.status(404).json({ error: 'Driver profile not found' });
     }
 
-    const { full_name, phone, license_number, status } = req.body;
+    const { first_name, last_name, phone, license_number, license_expiry, address, status } = req.body;
+
+    // Update Users table if name changed
+    if (first_name !== undefined || last_name !== undefined) {
+      const nameParts = (driver.user_full_name || '').split(' ');
+      const currentFirstName = nameParts[0] || '';
+      const currentLastName = nameParts.slice(1).join(' ') || '';
+
+      const newFirstName = first_name !== undefined ? first_name : currentFirstName;
+      const newLastName = last_name !== undefined ? last_name : currentLastName;
+      const newFullName = `${newFirstName} ${newLastName}`.trim();
+
+      sqliteDB.update('users', driver.user_actual_id, { full_name: newFullName });
+
+      // Also update full_name in drivers table for consistency
+      sqliteDB.update('drivers', driver.id, { full_name: newFullName });
+    }
+
     const updateData: any = {};
-    if (full_name) updateData.full_name = full_name;
-    if (phone) updateData.phone = phone;
-    if (license_number) updateData.license_number = license_number;
-    if (status) updateData.status = status;
+    if (phone !== undefined) updateData.phone = phone;
+    if (license_number !== undefined) updateData.license_number = license_number;
+    if (license_expiry !== undefined) updateData.license_expiry = license_expiry;
+    if (address !== undefined) updateData.address = address;
+    if (status !== undefined) updateData.status = status;
 
     sqliteDB.update('drivers', driver.id, updateData);
-    const updated = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driver.id]);
+
+    // Return updated profile with joins
+    const updated = sqliteDB.get<any>(`
+      SELECT d.*, u.full_name as user_full_name, u.email, 
+             v.license_plate, v.brand as vehicle_brand, v.model as vehicle_model, 
+             v.color as vehicle_color, v.year as vehicle_year, vt.name as vehicle_type
+      FROM drivers d
+      JOIN users u ON d.user_id = u.id
+      LEFT JOIN vehicles v ON d.current_vehicle_id = v.id
+      LEFT JOIN vehicle_types vt ON v.vehicle_type_id = vt.id
+      WHERE d.id = ?
+    `, [driver.id]);
+
+    if (updated) {
+      const parts = (updated.user_full_name || '').split(' ');
+      updated.first_name = parts[0] || '';
+      updated.last_name = parts.slice(1).join(' ') || '';
+    }
+
     res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -181,7 +252,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/drivers - create new driver
-router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE']), async (req, res) => {
   try {
     const newId = generateDriverId();
     const newDriver = {
@@ -227,7 +298,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio
 });
 
 // DELETE /api/drivers/:id - delete driver
-router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.delete('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   const { id } = req.params;
   try {
     const result = sqliteDB.delete('drivers', id);

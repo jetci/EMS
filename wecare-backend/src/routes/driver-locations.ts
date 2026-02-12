@@ -19,18 +19,16 @@ export interface DriverLocation {
 }
 
 // GET /api/driver-locations - Get all active driver locations
-router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center']), (req, res) => {
+router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE']), (req, res) => {
     try {
         const rows = sqliteDB.all<any>(`
             SELECT 
                 d.id, 
                 d.full_name, 
                 d.status, 
-                d.license_plate, 
-                d.vehicle_type,
                 l.latitude, 
                 l.longitude, 
-                l.last_updated
+                l.timestamp as last_updated
             FROM drivers d
             LEFT JOIN driver_locations l ON d.id = l.driver_id
             WHERE d.status != 'INACTIVE'
@@ -148,11 +146,9 @@ router.get('/:driverId', authenticateToken, (req, res) => {
                 d.id, 
                 d.full_name, 
                 d.status, 
-                d.license_plate, 
-                d.vehicle_type,
                 l.latitude, 
                 l.longitude, 
-                l.last_updated
+                l.timestamp as last_updated
             FROM drivers d
             LEFT JOIN driver_locations l ON d.id = l.driver_id
             WHERE d.id = ?

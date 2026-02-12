@@ -1,0 +1,14 @@
+[
+  {
+    "driverId": "USR-003",
+    "latitude": 19.9123,
+    "longitude": 99.2123,
+    "lastUpdated": "2025-12-31T09:25:58.641Z"
+  },
+  {
+    "driverId": "DRV-001",
+    "latitude": 19.9123,
+    "longitude": 99.2123,
+    "lastUpdated": "2025-12-31T09:32:29.531Z"
+  }
+]

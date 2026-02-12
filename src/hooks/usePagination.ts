@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { PaginationState, PaginationMeta, createInitialPaginationState, metaToState } from '../types/pagination';
+import { PaginationState, PaginationMeta, createInitialPaginationState, metaToState } from '../types-dir/pagination';
 
 interface UsePaginationReturn {
     pagination: PaginationState;

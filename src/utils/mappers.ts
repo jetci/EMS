@@ -1,4 +1,4 @@
-import { DBPatient, DBRide, Patient, Ride, RideStatus } from '../../types';
+import { DBPatient, DBRide, Patient, Ride, RideStatus } from '../app-types';
 
 export const mapPatientFromDB = (dbPatient: DBPatient): Patient => {
     return {
@@ -44,12 +44,12 @@ export const mapPatientFromDB = (dbPatient: DBPatient): Patient => {
         // Metadata
         registeredDate: dbPatient.registered_date || new Date().toISOString(),
         registeredBy: dbPatient.created_by || '',
-        keyInfo: [], // Derived field
+        keyInfo: '', // Derived field
         createdAt: dbPatient.created_at,
         updatedAt: dbPatient.updated_at,
 
         // Attachments (Need separate fetch or join)
-        attachments: []
+        attachments: [] as any
     };
 };
 

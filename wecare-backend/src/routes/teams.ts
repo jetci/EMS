@@ -52,7 +52,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/teams
-router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE']), async (req, res) => {
   try {
     const newId = generateTeamId();
     const newTeam = {
@@ -91,7 +91,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, r
 });
 
 // DELETE /api/teams/:id
-router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.delete('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio', 'radio_center', 'EXECUTIVE']), async (req, res) => {
   try {
     const result = sqliteDB.delete('teams', req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Team not found' });

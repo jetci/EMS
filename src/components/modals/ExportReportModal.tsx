@@ -5,9 +5,11 @@ import DownloadIcon from '../icons/DownloadIcon';
 interface ExportReportModalProps {
     isOpen: boolean;
     onClose: () => void;
+    startDate?: string;
+    endDate?: string;
 }
 
-const ExportReportModal: React.FC<ExportReportModalProps> = ({ isOpen, onClose }) => {
+const ExportReportModal: React.FC<ExportReportModalProps> = ({ isOpen, onClose, startDate, endDate }) => {
     const [reportType, setReportType] = useState('summary');
     const [fileFormat, setFileFormat] = useState('csv'); // Default to CSV as it's supported
 
@@ -17,7 +19,9 @@ const ExportReportModal: React.FC<ExportReportModalProps> = ({ isOpen, onClose }
         try {
             const token = localStorage.getItem('token');
             const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-            const url = `${baseUrl}/executive/reports/export?type=${reportType}&format=${fileFormat}`;
+            let url = `${baseUrl}/executive/reports/export?type=${reportType}&format=${fileFormat}`;
+            if (startDate) url += `&startDate=${startDate}`;
+            if (endDate) url += `&endDate=${endDate}`;
 
             const response = await fetch(url, {
                 headers: {

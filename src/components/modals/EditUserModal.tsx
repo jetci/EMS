@@ -126,9 +126,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onSave, 
     'radio_center',
     'EXECUTIVE'
   ].filter(role => {
-    // Only verify specific email can add 'DEVELOPER'
+    // Only allow DEVELOPER role to assign 'DEVELOPER' role
     if (role === 'DEVELOPER') {
-      return currentUser?.email === 'jetci.jm@gmail.com';
+      return currentUser?.role === 'DEVELOPER';
     }
     return true;
   }) as User['role'][];

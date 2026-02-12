@@ -1,0 +1,94 @@
+import os
+import sys
+# DON'T CHANGE THIS !!!
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from flask import Flask, send_from_directory, Response
+from flask_cors import CORS
+import mimetypes
+from src.models.ems_models import db
+from src.routes.auth import auth_bp
+from src.routes.community import community_bp
+from src.routes.driver import driver_bp
+from src.routes.office import office_bp
+from src.routes.news import news_bp
+from src.routes.user import user_bp
+from dotenv import load_dotenv
+
+# Load environment variables
+env_file = '.env.production' if os.getenv('FLASK_ENV') == 'production' else '.env'
+load_dotenv(os.path.join(os.path.dirname(__file__), env_file))
+
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
+
+# Enable CORS for all routes
+CORS(app)
+
+# Configure MIME types for TypeScript and JavaScript modules
+@app.after_request
+def after_request(response):
+    # Set correct MIME types for module scripts
+    if response.headers.get('Content-Type') == 'application/octet-stream':
+        if hasattr(response, 'direct_passthrough') and response.direct_passthrough:
+            # This is a file response, check the path
+            path = getattr(response, '_file_path', '')
+            if path.endswith(('.tsx', '.ts', '.jsx', '.js')):
+                response.headers['Content-Type'] = 'application/javascript'
+    return response
+
+# Register blueprints
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(community_bp, url_prefix='/api/community')
+app.register_blueprint(driver_bp, url_prefix='/api/driver')
+app.register_blueprint(office_bp, url_prefix='/api/office')
+app.register_blueprint(news_bp, url_prefix='/api/news')
+app.register_blueprint(user_bp, url_prefix='/api')
+
+# Database configuration
+db_type = os.getenv('DATABASE_TYPE', 'sqlite')
+if db_type == 'mysql':
+    db_host = os.getenv('DATABASE_HOST', 'localhost')
+    db_port = os.getenv('DATABASE_PORT', '3306')
+    db_name = os.getenv('DATABASE_NAME', 'wecare')
+    db_user = os.getenv('DATABASE_USER', 'root')
+    db_pass = os.getenv('DATABASE_PASSWORD', '')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+with app.app_context():
+    db.create_all()
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    static_folder_path = app.static_folder
+    if static_folder_path is None:
+        return "Static folder not configured", 404
+
+    # Try to serve from React build (dist folder) first
+    dist_path = os.path.join(static_folder_path, 'dist')
+    
+    if path != "":
+        # Check if file exists in dist folder
+        dist_file_path = os.path.join(dist_path, path)
+        if os.path.exists(dist_file_path):
+            return send_from_directory(dist_path, path)
+        
+        # Check if file exists in static folder
+        static_file_path = os.path.join(static_folder_path, path)
+        if os.path.exists(static_file_path):
+            return send_from_directory(static_folder_path, path)
+    
+    # Serve index.html from dist folder (React build)
+    dist_index_path = os.path.join(dist_path, 'index.html')
+    if os.path.exists(dist_index_path):
+        return send_from_directory(dist_path, 'index.html')
+    else:
+        return "React build not found. Please run 'npm run build' in static folder.", 404
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

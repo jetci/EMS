@@ -6,6 +6,7 @@ import { TeamShiftStatus, Team, TeamScheduleEntry } from '../../types';
 import ChevronLeftIcon from '../icons/ChevronLeftIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import AssignTeamShiftModal from './AssignTeamShiftModal';
+import { schedulesAPI } from '../../services/api';
 
 // Configure dayjs
 dayjs.extend(buddhistEra);
@@ -31,6 +32,41 @@ const TeamShiftCalendar: React.FC<TeamShiftCalendarProps> = ({ teams, vehicles }
     const [schedule, setSchedule] = useState<Record<string, TeamScheduleEntry>>({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCell, setSelectedCell] = useState<{ team: { id: string; name: string; }, date: dayjs.Dayjs; } | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch schedules when month changes
+    React.useEffect(() => {
+        const fetchSchedules = async () => {
+            try {
+                setLoading(true);
+                const monthStr = currentMonth.format('YYYY-MM');
+                const data = await schedulesAPI.getSchedules(monthStr);
+
+                // Transform list to map for easier lookup
+                const scheduleMap: Record<string, TeamScheduleEntry> = {};
+                if (Array.isArray(data)) {
+                    data.forEach((entry: any) => {
+                        const key = `${entry.teamId}-${dayjs(entry.date).format('YYYY-MM-DD')}`;
+                        scheduleMap[key] = {
+                            id: entry.id,
+                            teamId: entry.teamId,
+                            vehicleId: entry.vehicleId,
+                            date: entry.date,
+                            shiftType: entry.shiftType,
+                            status: entry.status as TeamShiftStatus
+                        };
+                    });
+                }
+                setSchedule(scheduleMap);
+            } catch (error) {
+                console.error('Failed to fetch schedules:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSchedules();
+    }, [currentMonth]);
 
     const vehicleMap = useMemo(() => {
         return new Map(vehicles.map(v => [v.id, v]));
@@ -41,17 +77,45 @@ const TeamShiftCalendar: React.FC<TeamShiftCalendarProps> = ({ teams, vehicles }
         setIsModalOpen(true);
     };
 
-    const handleSaveShift = (teamId: string, date: dayjs.Dayjs, entry: TeamScheduleEntry | null) => {
-        const key = `${teamId}-${date.format('YYYY-MM-DD')}`;
-        setSchedule(prev => {
-            const newSchedule = { ...prev };
+    const handleSaveShift = async (teamId: string, date: dayjs.Dayjs, entry: TeamScheduleEntry | null) => {
+        const dateStr = date.format('YYYY-MM-DD');
+        const key = `${teamId}-${dateStr}`;
+
+        try {
             if (entry && entry.status) {
-                newSchedule[key] = entry;
+                // Save/Update
+                await schedulesAPI.saveSchedule({
+                    teamId,
+                    date: dateStr,
+                    status: entry.status,
+                    vehicleId: entry.vehicleId,
+                    shiftType: entry.shiftType
+                });
+
+                // Update local state smoothly
+                setSchedule(prev => ({
+                    ...prev,
+                    [key]: {
+                        ...entry,
+                        teamId,
+                        date: dateStr
+                    }
+                }));
             } else {
-                delete newSchedule[key];
+                // Delete/Clear
+                await schedulesAPI.deleteSchedule(teamId, dateStr);
+
+                setSchedule(prev => {
+                    const newSchedule = { ...prev };
+                    delete newSchedule[key];
+                    return newSchedule;
+                });
             }
-            return newSchedule;
-        });
+        } catch (error) {
+            console.error('Failed to save schedule:', error);
+            alert('บันทึกข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+        }
+
         setIsModalOpen(false);
     };
 

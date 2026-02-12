@@ -136,6 +136,31 @@ const ManageTeamsPage: React.FC = () => {
         return teams.filter(team => team.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [teams, searchTerm]);
 
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#005A9C]"></div>
+                <p className="mt-4 text-gray-600 font-medium">กำลังโหลดข้อมูลทีม...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+                <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                <h3 className="text-xl font-bold text-red-800 mb-2">เกิดข้อผิดพลาด</h3>
+                <p className="text-red-600 mb-6">{error}</p>
+                <button
+                    onClick={loadAllData}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                    ลองใหม่อีกครั้ง
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div>
             {/* Page Header */}
@@ -187,13 +212,26 @@ const ManageTeamsPage: React.FC = () => {
             </div>
 
             {filteredTeams.length === 0 && (
-                <div className="text-center py-10 px-4 col-span-full">
-                    <h3 className="text-xl font-bold text-[#005A9C]">
-                        {searchTerm ? 'ไม่พบทีมที่ตรงกับคำค้นหา' : 'ยังไม่มีทีมที่สร้างไว้'}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-16 text-center">
+                    <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <PlusCircleIcon className="w-10 h-10 text-[#005A9C] opacity-40" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">
+                        {searchTerm ? 'ไม่พบทีมที่ตรงกับคำค้นหา' : 'ยังไม่มีชุดเวรในระบบ'}
                     </h3>
-                    <p className="text-gray-500 mt-2">
-                        {searchTerm ? 'ลองใช้คำค้นหาอื่น' : 'คลิก "สร้างทีมใหม่" เพื่อเริ่มต้น'}
+                    <p className="text-gray-500 max-w-sm mx-auto mb-8">
+                        {searchTerm
+                            ? `ไม่พบผลลัพธ์สำหรับ "${searchTerm}" โปรดลองเปลี่ยนคำค้นหาใหม่`
+                            : 'เริ่มต้นการทำงานโดยการสร้างชุดเวรชุดแรกเพื่อบริหารจัดการบุคลากรและการออกเหตุ'}
                     </p>
+                    {!searchTerm && (
+                        <button
+                            onClick={handleOpenCreateModal}
+                            className="bg-[#005A9C] text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/20 hover:bg-blue-800 transition-all hover:-translate-y-1"
+                        >
+                            สร้างทีมแรกของคุณ
+                        </button>
+                    )}
                 </div>
             )}
 

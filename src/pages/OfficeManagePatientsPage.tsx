@@ -310,41 +310,62 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
             </div>
 
             {/* Data Table */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-600">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
-                            <tr>
-                                <th className="px-4 py-3 font-semibold">Patient ID</th>
-                                <th className="px-4 py-3 font-semibold">ชื่อ-นามสกุล</th>
-                                <th className="px-4 py-3 font-semibold">ข้อมูลสำคัญ</th>
-                                <th className="px-4 py-3 font-semibold">ลงทะเบียนโดย</th>
-                                <th className="px-4 py-3 font-semibold">วันที่ลงทะเบียน</th>
-                                <th className="px-4 py-3 font-semibold text-center">ดำเนินการ</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {paginatedPatients.map(patient => (
-                                <tr key={patient.id} className="hover:bg-gray-50/50">
-                                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{patient.id}</td>
-                                    <td className="px-4 py-3 font-medium text-gray-900">{patient.fullName}<div className="text-xs text-gray-500 font-normal">อายุ {patient.age} ปี</div></td>
-                                    <td className="px-4 py-3">{patient.keyInfo}</td>
-                                    <td className="px-4 py-3">{patient.registeredBy}</td>
-                                    <td className="px-4 py-3 whitespace-nowrap">{formatDateToThai(patient.registeredDate)}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => handleOpenEditModal(patient)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดู/แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleDeletePatient(patient.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => setActiveView && setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full text-gray-400 hover:text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => showToast('Feature: Print Card coming soon')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="พิมพ์บัตรข้อมูล"><PrintIcon className="w-5 h-5" /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {paginatedPatients.length === 0 && !loadingRemote ? (
+                <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-200">
+                    <UsersIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">ไม่พบข้อมูลผู้ป่วย</h3>
+                    <p className="text-gray-500 mb-4">
+                        {searchTerm || filters.village !== 'All' || filters.registeredBy !== 'All'
+                            ? 'ลองปรับเปลี่ยนตัวกรองหรือคำค้นหา'
+                            : 'เริ่มต้นโดยการลงทะเบียนผู้ป่วยใหม่'}
+                    </p>
+                    {!searchTerm && filters.village === 'All' && (
+                        <button
+                            onClick={() => setActiveView && setActiveView('register_patient')}
+                            className="inline-flex items-center px-4 py-2 bg-[var(--wecare-blue)] text-white rounded-lg hover:bg-blue-700"
+                        >
+                            <UserPlusIcon className="w-5 h-5 mr-2" />
+                            ลงทะเบียนผู้ป่วยใหม่
+                        </button>
+                    )}
                 </div>
-            </div>
+            ) : (
+                <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-600">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
+                                <tr>
+                                    <th className="px-4 py-3 font-semibold">Patient ID</th>
+                                    <th className="px-4 py-3 font-semibold">ชื่อ-นามสกุล</th>
+                                    <th className="px-4 py-3 font-semibold">ข้อมูลสำคัญ</th>
+                                    <th className="px-4 py-3 font-semibold">ลงทะเบียนโดย</th>
+                                    <th className="px-4 py-3 font-semibold">วันที่ลงทะเบียน</th>
+                                    <th className="px-4 py-3 font-semibold text-center">ดำเนินการ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {paginatedPatients.map(patient => (
+                                    <tr key={patient.id} className="hover:bg-gray-50/50">
+                                        <td className="px-4 py-3 font-mono text-xs text-gray-500">{patient.id}</td>
+                                        <td className="px-4 py-3 font-medium text-gray-900">{patient.fullName}<div className="text-xs text-gray-500 font-normal">อายุ {patient.age} ปี</div></td>
+                                        <td className="px-4 py-3">{patient.keyInfo}</td>
+                                        <td className="px-4 py-3">{patient.registeredBy}</td>
+                                        <td className="px-4 py-3 whitespace-nowrap">{formatDateToThai(patient.registeredDate)}</td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center justify-center space-x-3">
+                                                <button onClick={() => handleOpenEditModal(patient)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดู/แก้ไข"><EditIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => handleDeletePatient(patient.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => setActiveView && setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full text-gray-400 hover:text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => showToast('Feature: Print Card coming soon')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="พิมพ์บัตรข้อมูล"><PrintIcon className="w-5 h-5" /></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Pagination */}
             <div className="flex justify-between items-center mt-4">

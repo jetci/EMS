@@ -1,0 +1,30 @@
+[
+  {
+    "id": "SHAPE-001",
+    "type": "marker",
+    "name": "บ้านนายดี",
+    "description": "",
+    "coordinates": {
+      "lat": 19.935214720229382,
+      "lng": 99.22410570217122
+    },
+    "properties": {},
+    "createdBy": "USR-002",
+    "createdAt": "2026-01-01T13:39:06.251Z",
+    "updatedAt": "2026-01-02T12:10:24.150Z"
+  },
+  {
+    "id": "SHAPE-002",
+    "type": "marker",
+    "name": "New marker",
+    "description": "",
+    "coordinates": {
+      "lat": 19.935724424312045,
+      "lng": 99.23420469953237
+    },
+    "properties": {},
+    "createdBy": "USR-002",
+    "createdAt": "2026-01-01T13:39:30.850Z",
+    "updatedAt": "2026-01-01T13:39:30.850Z"
+  }
+]

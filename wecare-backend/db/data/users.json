@@ -1,0 +1,59 @@
+[
+    {
+        "id": "USR-000",
+        "fullName": "System Developer",
+        "password": "$2b$10$WNhMgDtRiEmAEZ7pe76TkuJO3urqQHJCzTRZtU0OwIkYhFsyb4QRe",
+        "email": "jetci.jm@gmail.com",
+        "role": "DEVELOPER",
+        "status": "Active"
+    },
+    {
+        "id": "USR-001",
+        "fullName": "Admin User",
+        "password": "$2b$10$4EOv2Y/8ItXRhyt7ZOcLUuU8s1G4HvhK5rhSm6EyDOKHpz1Dcwro2",
+        "email": "admin@wecare.dev",
+        "role": "admin",
+        "status": "Active"
+    },
+    {
+        "id": "USR-002",
+        "fullName": "Radio Center Staff",
+        "password": "$2b$10$cwdCyAdgzuyj0P/C8H/DZuGz8kSRPX5UENSwHh15275/L7svY2PAq",
+        "email": "office1@wecare.dev",
+        "role": "radio_center",
+        "status": "Active"
+    },
+    {
+        "id": "USR-003",
+        "fullName": "Driver One",
+        "password": "$2b$10$qms1yT7RYOoWixuFsmgMWeY/Zwq3B/dV4N6B28ITb07mox1evNmFm",
+        "email": "driver1@wecare.dev",
+        "role": "driver",
+        "status": "Active"
+    },
+    {
+        "id": "USR-004",
+        "fullName": "Community Test",
+        "phone": "0888888888",
+        "password": "$2b$10$Gr3o.ltHKOqdJn5wKSmsZuxLHyVFft/AE1ENR9jtK9ksr55UeOcGa",
+        "email": "community1@wecare.dev",
+        "role": "community",
+        "status": "Active"
+    },
+    {
+        "id": "USR-005",
+        "fullName": "Officer Staff",
+        "password": "$2b$10$cyTlxV6bBdYOqqFj81NlY.uefA.o4UcZzWp7nWNlKX8ik0jKpQBCO",
+        "email": "officer1@wecare.dev",
+        "role": "OFFICER",
+        "status": "Active"
+    },
+    {
+        "id": "USR-006",
+        "fullName": "Executive Manager",
+        "password": "$2b$10$GFPh.8dj9bw.TXttdlxOTeYtdPKpmxrbRVAvLrU59NUha55x.QZGm",
+        "email": "executive1@wecare.dev",
+        "role": "EXECUTIVE",
+        "status": "Active"
+    }
+]

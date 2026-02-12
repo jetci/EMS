@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import sqliteDB from '../db/sqliteDB';
+import { auditService } from './auditService';
 
 const copyFile = promisify(fs.copyFile);
 const readdir = promisify(fs.readdir);
@@ -69,6 +70,19 @@ export async function createBackup(): Promise<{ success: boolean; filename?: str
 
         console.log(`✅ Backup created successfully: ${backupFilename} (${sizeInMB}MB)`);
 
+        // Log to audit trails
+        auditService.log(
+            'SYSTEM',
+            'SYSTEM',
+            'SYSTEM_BACKUP',
+            backupFilename,
+            {
+                size: stats.size,
+                path: backupPath,
+                timestamp: new Date().toISOString()
+            }
+        );
+
         // Cleanup old backups
         await cleanupOldBackups();
 
@@ -80,6 +94,18 @@ export async function createBackup(): Promise<{ success: boolean; filename?: str
         };
     } catch (error) {
         console.error('❌ Backup failed:', error);
+
+        auditService.log(
+            'SYSTEM',
+            'SYSTEM',
+            'SYSTEM_BACKUP_FAILED',
+            undefined,
+            {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                timestamp: new Date().toISOString()
+            }
+        );
+
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error'

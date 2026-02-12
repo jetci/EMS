@@ -1,0 +1,18 @@
+[
+  {
+    "id": "VEH-001",
+    "licensePlate": "กข-1234",
+    "type": "รถตู้",
+    "capacity": 8,
+    "status": "Available",
+    "driver": null
+  },
+  {
+    "id": "VEH-002",
+    "licensePlate": "กค-5678",
+    "type": "รถกระบะ",
+    "capacity": 4,
+    "status": "In Use",
+    "driver": "Driver One"
+  }
+]

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TopHeader from './TopHeader';
-import { User, AuthenticatedView, DriverView, CommunityView, OfficerView, AdminView, Notification, ExecutiveView } from '../../types';
+import { User, AuthenticatedView, DriverView, CommunityView, OfficerView, AdminView, Notification, ExecutiveView, UserRole } from '../../types';
 import CommunityDashboard from '../../pages/CommunityDashboard';
 import ManagePatientsPage from '../../pages/ManagePatientsPage';
 import ManageRidesPage from '../../pages/ManageRidesPage';
@@ -37,6 +37,7 @@ import SystemLogsPage from '../../pages/SystemLogsPage';
 import MapCommandPage from '../../pages/MapCommandPage';
 // ⚠️ TEMPORARY: Test page for UnifiedRadioDashboard (will be removed after testing)
 import TestUnifiedRadioPage from '../../pages/TestUnifiedRadioPage';
+import DesignSystemPage from '../../pages/DesignSystemPage';
 
 import { initializeSocket, disconnectSocket, onNotification } from '../../services/socketService';
 
@@ -48,14 +49,14 @@ interface AuthenticatedLayoutProps {
 
 const getInitialView = (role: User['role']): AuthenticatedView => {
   switch (role) {
-    case 'driver': return 'today_jobs';
-    case 'community': return 'dashboard';
-    case 'radio': return 'dashboard';
-    case 'radio_center': return 'dashboard';
-    case 'OFFICER': return 'dashboard';
-    case 'admin': return 'dashboard';
-    case 'EXECUTIVE': return 'executive_dashboard';
-    case 'DEVELOPER': return 'dashboard';
+    case UserRole.DRIVER: return 'today_jobs';
+    case UserRole.COMMUNITY: return 'dashboard';
+    case UserRole.RADIO: return 'dashboard';
+    case UserRole.RADIO_CENTER: return 'dashboard';
+    case UserRole.OFFICER: return 'dashboard';
+    case UserRole.ADMIN: return 'dashboard';
+    case UserRole.EXECUTIVE: return 'executive_dashboard';
+    case UserRole.DEVELOPER: return 'dashboard';
     default: return 'dashboard';
   }
 }
@@ -118,14 +119,14 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
 
   const renderContent = () => {
     switch (user.role) {
-      case 'driver':
+      case UserRole.DRIVER:
         switch (activeView as DriverView) {
           case 'today_jobs': return <DriverTodayJobsPage />;
           case 'history': return <DriverHistoryPage />;
           case 'profile': return <DriverProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <DriverTodayJobsPage />;
         }
-      case 'community':
+      case UserRole.COMMUNITY:
         switch (activeView as CommunityView) {
           case 'dashboard': return <CommunityDashboard setActiveView={handleSetView} />;
           case 'patients': return <ManagePatientsPage setActiveView={handleSetView} />;
@@ -140,11 +141,12 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
             return <ManagePatientsPage setActiveView={handleSetView} />; // Fallback
           default: return <CommunityDashboard setActiveView={handleSetView} />;
         }
-      case 'OFFICER':
+      case UserRole.OFFICER:
         switch (activeView as OfficerView) {
           case 'dashboard': return <OfficeDashboard setActiveView={handleSetView} />;
           case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
           case 'rides': return <OfficeManageRidesPage setActiveView={handleSetView} />;
+          case 'request_ride': return <CommunityRequestRidePage setActiveView={handleSetView} addNotification={addNotification} />;
           case 'patients': return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'register_patient': return <CommunityRegisterPatientPage setActiveView={handleSetView} />;
           case 'drivers': return <OfficeManageDriversPage />;
@@ -157,7 +159,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <OfficeDashboard setActiveView={handleSetView} />;
         }
-      case 'radio':
+      case UserRole.RADIO:
         switch (activeView as OfficerView) {
           case 'dashboard': return <RadioDashboard setActiveView={handleSetView} />;
           case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
@@ -174,7 +176,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <RadioDashboard setActiveView={handleSetView} />;
         }
-      case 'radio_center':
+      case UserRole.RADIO_CENTER:
         switch (activeView as OfficerView) {
           case 'dashboard': return <RadioCenterDashboard setActiveView={handleSetView} />;
           case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
@@ -191,20 +193,34 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <RadioCenterDashboard setActiveView={handleSetView} />;
         }
-      case 'EXECUTIVE':
+      case UserRole.EXECUTIVE:
         switch (activeView as ExecutiveView) {
           case 'executive_dashboard': return <ExecutiveDashboardPage />;
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
           default: return <ExecutiveDashboardPage />;
         }
-      case 'DEVELOPER':
+      case UserRole.DEVELOPER:
         switch (activeView as AdminView) {
           case 'dashboard': return <DeveloperDashboardPage setActiveView={handleSetView} />;
           case 'logs': return <SystemLogsPage />;
           case 'test_map': return <TestMapPage />;
           case 'test_unified_radio' as any: return <TestUnifiedRadioPage />; // ⚠️ TEMPORARY TEST
+          case 'profile': return <CommunityProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />;
+
+          case 'design_system': return <DesignSystemPage />;
+          case 'users': return <AdminUserManagementPage currentUser={user} />;
+          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_schedules': return <ManageSchedulePage />;
+          case 'manage_vehicles': return <ManageVehiclesPage />;
+          case 'manage_vehicle_types': return <ManageVehicleTypesPage />;
+          case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
+          case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
+          case 'reports': return <OfficeReportsPage />;
+          case 'settings': return <AdminSystemSettingsPage currentUser={user} />;
+
           default: return <DeveloperDashboardPage setActiveView={handleSetView} />;
         }
-      case 'admin':
+      case UserRole.ADMIN:
         switch (activeView as AdminView) {
           case 'dashboard': return <AdminDashboardPage setActiveView={handleSetView} />;
           case 'users': return <AdminUserManagementPage currentUser={user} />;
@@ -228,7 +244,7 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
     }
   };
 
-  const isMobileNavVisible = user.role === 'driver' || user.role === 'community';
+  const isMobileNavVisible = user.role === UserRole.DRIVER || user.role === UserRole.COMMUNITY;
 
   return (
     <div className="flex h-screen bg-[var(--bg-main)]">

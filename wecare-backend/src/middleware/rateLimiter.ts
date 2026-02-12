@@ -120,7 +120,7 @@ export const createLimiter = rateLimit({
 // Rate limiter for file upload endpoints (strictest)
 export const uploadLimiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 20, // 20 uploads per 5 minutes
+    max: isProduction ? 20 : 100, // 20 uploads per 5 minutes in prod, 100 in dev
     message: {
         error: 'Too many file uploads, please try again later',
         retryAfter: '5 minutes'

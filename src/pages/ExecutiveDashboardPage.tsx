@@ -11,17 +11,7 @@ import ExportReportModal from '../components/modals/ExportReportModal';
 import { apiRequest } from '../services/api';
 import ExecutiveMap from '../components/executive/ExecutiveMap';
 
-const StatCard: React.FC<{ icon: React.FC<React.SVGProps<SVGSVGElement>>; label: string; value: string; }> = ({ icon: Icon, label, value }) => (
-    <div className="bg-white p-4 rounded-lg shadow-sm border flex items-center gap-4">
-        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-            <Icon className="w-6 h-6 text-blue-600" />
-        </div>
-        <div>
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="text-2xl font-bold text-gray-800">{value}</p>
-        </div>
-    </div>
-);
+import StatCard from '../components/dashboard/StatCard';
 
 const ExecutiveDashboardPage: React.FC = () => {
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -30,7 +20,7 @@ const ExecutiveDashboardPage: React.FC = () => {
         patientDistributionData: [],
         topTripTypesData: [],
         patientLocations: [],
-        stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0 }
+        stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0, avgResponseTime: 0 }
     });
     const [loading, setLoading] = useState(true);
     const [filterDate, setFilterDate] = useState('year');
@@ -39,18 +29,34 @@ const ExecutiveDashboardPage: React.FC = () => {
         loadDashboardData();
     }, [filterDate]);
 
+    const getDateRange = () => {
+        let startDate = '';
+        const endDate = new Date().toISOString().split('T')[0];
+
+        if (filterDate === 'month') {
+            const start = new Date();
+            start.setDate(1);
+            startDate = start.toISOString().split('T')[0];
+        } else if (filterDate === 'quarter') {
+            const start = new Date();
+            start.setMonth(start.getMonth() - 3);
+            startDate = start.toISOString().split('T')[0];
+        } else if (filterDate === 'year') {
+            const start = new Date();
+            start.setMonth(0, 1); // Jan 1st
+            startDate = start.toISOString().split('T')[0];
+        }
+
+        return { startDate, endDate };
+    };
+
     const loadDashboardData = async () => {
         try {
             setLoading(true);
+            const { startDate, endDate } = getDateRange();
             let url = '/dashboard/executive';
-            if (filterDate === 'month') {
-                const start = new Date();
-                start.setDate(1);
-                url += `?startDate=${start.toISOString().split('T')[0]}`;
-            } else if (filterDate === 'quarter') {
-                const start = new Date();
-                start.setMonth(start.getMonth() - 3);
-                url += `?startDate=${start.toISOString().split('T')[0]}`;
+            if (startDate) {
+                url += `?startDate=${startDate}&endDate=${endDate}`;
             }
 
             const data = await apiRequest(url);
@@ -59,7 +65,7 @@ const ExecutiveDashboardPage: React.FC = () => {
                 patientDistributionData: [],
                 topTripTypesData: [],
                 patientLocations: [],
-                stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0 }
+                stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0, avgResponseTime: 0 }
             });
         } catch (err) {
             console.error('Failed to load dashboard data:', err);
@@ -98,10 +104,10 @@ const ExecutiveDashboardPage: React.FC = () => {
 
             {/* KPI Widget */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard icon={RidesIcon} label="จำนวนเที่ยววิ่งทั้งหมด" value={dashboardData.stats.totalRides.toLocaleString()} />
-                <StatCard icon={UsersIcon} label="จำนวนผู้ป่วยที่ใซ้บริการ" value={dashboardData.stats.totalPatients.toLocaleString()} />
-                <StatCard icon={RouteIcon} label="ระยะทางเฉลี่ยต่อเที่ยว" value={`${dashboardData.stats.avgDistance} กม.`} />
-                <StatCard icon={EfficiencyIcon} label="ประสิทธิภาพการดำเนินงาน" value={`${dashboardData.stats.efficiency}%`} />
+                <StatCard icon={RidesIcon} title="จำนวนเที่ยววิ่งทั้งหมด" value={dashboardData.stats.totalRides.toLocaleString()} variant="info" />
+                <StatCard icon={UsersIcon} title="จำนวนผู้ป่วยที่ใซ้บริการ" value={dashboardData.stats.totalPatients.toLocaleString()} variant="success" />
+                <StatCard icon={RouteIcon} title="เวลาตอบสนองเฉลี่ย" value={`${dashboardData.stats.avgResponseTime} นาที`} variant="warning" />
+                <StatCard icon={EfficiencyIcon} title="ประสิทธิภาพการดำเนินงาน" value={`${dashboardData.stats.efficiency}%`} variant="default" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -186,6 +192,8 @@ const ExecutiveDashboardPage: React.FC = () => {
             <ExportReportModal
                 isOpen={isExportModalOpen}
                 onClose={() => setIsExportModalOpen(false)}
+                startDate={getDateRange().startDate}
+                endDate={getDateRange().endDate}
             />
         </div>
     );

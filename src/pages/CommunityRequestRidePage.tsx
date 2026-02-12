@@ -56,6 +56,9 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         address?: string;
         lat?: string;
         lng?: string;
+        village?: string;
+        landmark?: string;
+        caregiverPhone?: string;
     }>>([]);
     const [loadingPatients, setLoadingPatients] = useState<boolean>(false);
 
@@ -114,7 +117,10 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                         phone: p.contactPhone || p.contact_phone || p.phone || p.key_info?.contact_phone || '',
                         address: addressParts.length > 0 ? addressParts.join(' ') : (p.address || ''),
                         lat: p.latitude || p.lat,
-                        lng: p.longitude || p.lng
+                        lng: p.longitude || p.lng,
+                        village: village || '',
+                        landmark: p.landmark || '',
+                        caregiverPhone: p.caregiverPhone || p.caregiver_phone || ''
                     };
                 });
                 setPatients(mapped);
@@ -240,7 +246,10 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             special_needs: specialNeeds,
             caregiver_count: formData.caregiverCount === '' ? 0 : formData.caregiverCount,
             contact_phone: formData.contactPhone,
-            trip_type: formData.tripType, // Added trip_type
+            trip_type: formData.tripType,
+            village: selectedPatient?.village || '',
+            landmark: selectedPatient?.landmark || '',
+            caregiver_phone: selectedPatient?.caregiverPhone || '',
         } as any;
 
         setIsSubmitting(true);

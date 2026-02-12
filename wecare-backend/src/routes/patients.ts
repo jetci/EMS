@@ -393,7 +393,6 @@ router.post('/', checkDuplicatePatient, upload.fields([{ name: 'profileImage', m
 
     const newPatient = {
       id: newId,
-      title: req.body.title || null, // ✅ FIX: Add title
       full_name: req.body.fullName,
       national_id: req.body.nationalId || null,
       dob: req.body.dob || null,
@@ -424,9 +423,10 @@ router.post('/', checkDuplicatePatient, upload.fields([{ name: 'profileImage', m
       longitude: req.body.longitude || null,
 
       // Emergency Contact
-      emergency_contact_name: req.body.emergencyContactName || null,
-      emergency_contact_phone: req.body.emergencyContactPhone || null,
-      emergency_contact_relation: req.body.emergencyContactRelation || null,
+      // Emergency Contact
+      // emergency_contact_name: req.body.emergencyContactName || null,
+      // emergency_contact_phone: req.body.emergencyContactPhone || null,
+      // emergency_contact_relation: req.body.emergencyContactRelation || null,
 
       // Medical info (stringify arrays)
       patient_types: JSON.stringify(patientTypes),

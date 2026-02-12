@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { AuthenticatedView, User } from '../../types';
+import { AuthenticatedView, User, UserRole } from '../../types';
 import XIcon from '../icons/XIcon';
 import DashboardIcon from '../icons/DashboardIcon';
 import UsersIcon from '../icons/UsersIcon';
@@ -18,6 +17,7 @@ import TruckIcon from '../icons/TruckIcon';
 import TagIcon from '../icons/TagIcon';
 import DocumentReportIcon from '../icons/DocumentReportIcon';
 import MapIcon from '../icons/MapIcon';
+import SparklesIcon from '../icons/SparklesIcon';
 
 interface SidebarProps {
   user: User;
@@ -28,19 +28,21 @@ interface SidebarProps {
   onClose: () => void;
 }
 const getNavItems = (role: User['role']) => {
-  switch (role) {
-    case 'driver':
+  const normalizedRole = role?.toUpperCase();
+
+  switch (normalizedRole) {
+    case UserRole.DRIVER:
       return [
         { id: 'today_jobs', label: 'งานของฉัน', icon: DashboardIcon },
         { id: 'history', label: 'ประวัติการเดินทาง', icon: HistoryIcon },
       ];
-    case 'community':
+    case UserRole.COMMUNITY:
       return [
         { id: 'dashboard', label: 'หน้าหลัก', icon: DashboardIcon },
         { id: 'patients', label: 'จัดการผู้ป่วย', icon: UsersIcon },
         { id: 'rides', label: 'จัดการการเดินทาง', icon: RidesIcon },
       ];
-    case 'OFFICER':
+    case UserRole.OFFICER:
       return [
         { id: 'dashboard', label: 'ภาพรวมบริหาร', icon: DashboardIcon },
         { id: 'patients', label: 'จัดการผู้ป่วย', icon: UsersIcon },
@@ -53,7 +55,7 @@ const getNavItems = (role: User['role']) => {
         { id: 'reports', label: 'ศูนย์กลางรายงาน', icon: DocumentReportIcon },
         { id: 'map_command', label: 'แผนที่ (Monitor)', icon: MapIcon },
       ];
-    case 'radio_center':
+    case UserRole.RADIO_CENTER:
       return [
         { id: 'dashboard', label: 'ศูนย์สั่งการ', icon: DashboardIcon },
         { id: 'map_command', label: 'แผนที่สั่งการ', icon: MapIcon },
@@ -62,19 +64,30 @@ const getNavItems = (role: User['role']) => {
         { id: 'patients', label: 'ข้อมูลผู้ป่วย', icon: UsersIcon },
         { id: 'reports', label: 'รายงานประจำวัน', icon: DocumentReportIcon },
       ];
-    case 'radio':
+    case UserRole.RADIO:
       return [
         { id: 'dashboard', label: 'หน้าปฏิบัติการ', icon: DashboardIcon },
         { id: 'map_command', label: 'แผนที่', icon: MapIcon },
         { id: 'rides', label: 'รายการงาน', icon: RidesIcon },
         { id: 'drivers', label: 'ตรวจสอบคนขับ', icon: SteeringWheelIcon },
       ];
-    case 'EXECUTIVE':
+    case UserRole.EXECUTIVE:
       return [
         { id: 'executive_dashboard', label: 'ภาพรวมโครงการ', icon: DashboardIcon },
       ];
-    case 'DEVELOPER':
-    case 'admin':
+    case UserRole.DEVELOPER:
+      return [
+        { id: 'dashboard', label: 'ภาพรวมระบบ', icon: DashboardIcon },
+        { id: 'users', label: 'จัดการบัญชีผู้ใช้', icon: UsersIcon },
+        { id: 'manage_vehicles', label: 'จัดการยานพาหนะ', icon: TruckIcon },
+        { id: 'manage_vehicle_types', label: 'จัดการประเภทรถ', icon: TagIcon },
+        { id: 'news', label: 'จัดการข่าวสาร', icon: NewspaperIcon },
+        { id: 'reports', label: 'ศูนย์กลางรายงาน', icon: DocumentReportIcon },
+        { id: 'logs', label: 'บันทึกการใช้งาน', icon: FileTextIcon },
+        { id: 'settings', label: 'ตั้งค่าระบบ', icon: SettingsIcon },
+        { id: 'design_system', label: 'ระบบการออกแบบ UX/UI', icon: SparklesIcon },
+      ];
+    case UserRole.ADMIN:
       return [
         { id: 'dashboard', label: 'ภาพรวมระบบ', icon: DashboardIcon },
         { id: 'users', label: 'จัดการบัญชีผู้ใช้', icon: UsersIcon },

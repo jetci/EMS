@@ -218,65 +218,90 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
 
             {/* Data Table */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-600">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
-                            <tr>
-                                <th className="px-4 py-3 font-semibold">Ride ID</th>
-                                <th className="px-4 py-3 font-semibold">ชื่อผู้ป่วย</th>
-                                <th className="px-4 py-3 font-semibold">ประเภท/ความต้องการ</th>
-                                <th className="px-4 py-3 font-semibold">คนขับ</th>
-                                <th className="px-4 py-3 font-semibold">เวลานัดหมาย</th>
-                                <th className="px-4 py-3 font-semibold">สถานะ</th>
-                                <th className="px-4 py-3 font-semibold text-center">ดำเนินการ</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                            {paginatedRides.map(ride => {
-                                const canEdit = ride.status === RideStatus.PENDING || ride.status === RideStatus.ASSIGNED;
-                                const canCancel = ride.status === RideStatus.PENDING || ride.status === RideStatus.ASSIGNED;
-                                return (
-                                    <tr key={ride.id} className="hover:bg-gray-50/50">
-                                        <td className="px-4 py-3 font-mono text-xs text-gray-500">{ride.id}</td>
-                                        <td className="px-4 py-3 font-medium text-gray-900">{ride.patientName}
-                                            <div className="text-xs text-gray-500 font-normal">{ride.village}</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <span>{ride.tripType}</span>
-                                                {ride.specialNeeds?.includes('ต้องการวีลแชร์') && (
-                                                    <span title="ต้องการวีลแชร์">
-                                                        <WheelchairIcon className="w-5 h-5 text-blue-600" />
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">{ride.driverName || 'N/A'}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
-                                        <td className="px-4 py-3"><StatusBadge status={ride.status} /></td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center justify-center space-x-2">
-                                                <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
-                                                {ride.status === RideStatus.PENDING && (
-                                                    <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="จ่ายงาน"><UserCheckIcon className="w-5 h-5" /></button>
-                                                )}
-                                                {(ride.status === RideStatus.ASSIGNED || ride.status === RideStatus.IN_PROGRESS) && (
-                                                    <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-yellow-600" title="เปลี่ยนคนขับ"><UserSwitchIcon className="w-5 h-5" /></button>
-                                                )}
-                                                {canEdit && (
-                                                    <button onClick={() => showToast('Feature: Edit Ride is coming soon. Please use Assign Driver for updates.')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                                )}
-                                                {canCancel && (
-                                                    <button onClick={() => handleCancelRide(ride.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ยกเลิก"><TrashIcon className="w-5 h-5" /></button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                {loading && (
+                    <div className="text-center py-12">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                        <p className="mt-2 text-gray-600">กำลังโหลดข้อมูล...</p>
+                    </div>
+                )}
+
+                {error && !loading && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4">
+                        <p className="text-red-800">❌ {error}</p>
+                        <button
+                            onClick={loadRides}
+                            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                        >
+                            ลองใหม่อีกครั้ง
+                        </button>
+                    </div>
+                )}
+
+                {!loading && !error && paginatedRides.length === 0 && (
+                    <div className="text-center py-12">
+                        <p className="text-gray-500 text-lg">ไม่พบข้อมูลการเดินทาง</p>
+                        <p className="text-gray-400 text-sm mt-1">ลองปรับเปลี่ยนตัวกรองหรือสร้างคำขอใหม่</p>
+                    </div>
+                )}
+
+                {!loading && !error && paginatedRides.length > 0 && (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-600">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50/75">
+                                <tr>
+                                    <th className="px-4 py-3 font-semibold">Ride ID</th>
+                                    <th className="px-4 py-3 font-semibold">ชื่อผู้ป่วย</th>
+                                    <th className="px-4 py-3 font-semibold">ประเภท/ความต้องการ</th>
+                                    <th className="px-4 py-3 font-semibold">คนขับ</th>
+                                    <th className="px-4 py-3 font-semibold">เวลานัดหมาย</th>
+                                    <th className="px-4 py-3 font-semibold">สถานะ</th>
+                                    <th className="px-4 py-3 font-semibold text-center">ดำเนินการ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {paginatedRides.map(ride => {
+                                    const canEdit = ride.status === RideStatus.PENDING || ride.status === RideStatus.ASSIGNED;
+                                    const canCancel = ride.status === RideStatus.PENDING || ride.status === RideStatus.ASSIGNED;
+                                    return (
+                                        <tr key={ride.id} className="hover:bg-gray-50/50">
+                                            <td className="px-4 py-3 font-mono text-xs text-gray-500">{ride.id}</td>
+                                            <td className="px-4 py-3 font-medium text-gray-900">{ride.patientName}
+                                                <div className="text-xs text-gray-500 font-normal">{ride.village}</div>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span>{ride.tripType}</span>
+                                                    {ride.specialNeeds?.includes('ต้องการวีลแชร์') && (
+                                                        <span title="ต้องการวีลแชร์">
+                                                            <WheelchairIcon className="w-5 h-5 text-blue-600" />
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3">{ride.driverName || 'N/A'}</td>
+                                            <td className="px-4 py-3 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
+                                            <td className="px-4 py-3"><StatusBadge status={ride.status} /></td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
+                                                    {ride.status === RideStatus.PENDING && (
+                                                        <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="จ่ายงาน"><UserCheckIcon className="w-5 h-5" /></button>
+                                                    )}
+                                                    {(ride.status === RideStatus.ASSIGNED || ride.status === RideStatus.IN_PROGRESS) && (
+                                                        <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-yellow-600" title="เปลี่ยนคนขับ"><UserSwitchIcon className="w-5 h-5" /></button>
+                                                    )}
+                                                    {canCancel && (
+                                                        <button onClick={() => handleCancelRide(ride.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ยกเลิก"><TrashIcon className="w-5 h-5" /></button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
             {/* Pagination */}
             <div className="flex justify-between items-center mt-4">

@@ -1,0 +1,536 @@
+[
+  {
+    "id": "EVT-001",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T08:29:07.097Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "สร้างคำขอเดินทางสำหรับ Timeline Test Patient",
+    "details": {
+      "patient_name": "Timeline Test Patient",
+      "destination": "Test Hospital",
+      "trip_type": "Regular Appointment"
+    }
+  },
+  {
+    "id": "EVT-002",
+    "rideId": "RIDE-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2025-12-31T08:29:07.114Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "จ่ายงานให้ Test Driver",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "Test Driver"
+    }
+  },
+  {
+    "id": "EVT-003",
+    "rideId": "RIDE-001",
+    "eventType": "EN_ROUTE",
+    "timestamp": "2025-12-31T08:29:07.128Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "คนขับกำลังเดินทางไปรับผู้ป่วย",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "EN_ROUTE_TO_PICKUP"
+    }
+  },
+  {
+    "id": "EVT-004",
+    "rideId": "RIDE-001",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T08:29:07.144Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "EN_ROUTE_TO_PICKUP",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-005",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T08:35:18.247Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "สร้างคำขอเดินทางสำหรับ Timeline Test Patient",
+    "details": {
+      "patient_name": "Timeline Test Patient",
+      "destination": "Test Hospital",
+      "trip_type": "Regular Appointment"
+    }
+  },
+  {
+    "id": "EVT-006",
+    "rideId": "RIDE-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2025-12-31T08:35:18.266Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "จ่ายงานให้ Test Driver",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "Test Driver"
+    }
+  },
+  {
+    "id": "EVT-007",
+    "rideId": "RIDE-001",
+    "eventType": "EN_ROUTE",
+    "timestamp": "2025-12-31T08:35:18.282Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "คนขับกำลังเดินทางไปรับผู้ป่วย",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "EN_ROUTE_TO_PICKUP"
+    }
+  },
+  {
+    "id": "EVT-008",
+    "rideId": "RIDE-001",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T08:35:18.300Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "EN_ROUTE_TO_PICKUP",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-009",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T08:40:34.586Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "สร้างคำขอเดินทางสำหรับ Driver Test Patient",
+    "details": {
+      "patient_name": "Driver Test Patient",
+      "destination": "Test Hospital"
+    }
+  },
+  {
+    "id": "EVT-010",
+    "rideId": "RIDE-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2025-12-31T08:40:34.604Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "จ่ายงานให้ Test Driver",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "Test Driver"
+    }
+  },
+  {
+    "id": "EVT-011",
+    "rideId": "RIDE-001",
+    "eventType": "EN_ROUTE",
+    "timestamp": "2025-12-31T08:40:34.624Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "คนขับกำลังเดินทางไปรับผู้ป่วย",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "EN_ROUTE_TO_PICKUP"
+    }
+  },
+  {
+    "id": "EVT-012",
+    "rideId": "RIDE-001",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T08:40:34.640Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "EN_ROUTE_TO_PICKUP",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-013",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T08:42:01.472Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "สร้างคำขอเดินทางสำหรับ Audit Test Patient",
+    "details": {
+      "patient_name": "Audit Test Patient",
+      "destination": "Test Hospital"
+    }
+  },
+  {
+    "id": "EVT-014",
+    "rideId": "RIDE-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2025-12-31T08:42:01.491Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "จ่ายงานให้ Test Driver",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "Test Driver"
+    }
+  },
+  {
+    "id": "EVT-015",
+    "rideId": "RIDE-001",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T08:42:01.511Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-016",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T08:43:19.363Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "สร้างคำขอเดินทางสำหรับ Driver Test Patient",
+    "details": {
+      "patient_name": "Driver Test Patient",
+      "destination": "Test Hospital"
+    }
+  },
+  {
+    "id": "EVT-017",
+    "rideId": "RIDE-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2025-12-31T08:43:19.387Z",
+    "userId": "USR-005",
+    "userName": "officer1@wecare.dev",
+    "userRole": "OFFICER",
+    "description": "จ่ายงานให้ Test Driver",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "Test Driver"
+    }
+  },
+  {
+    "id": "EVT-018",
+    "rideId": "RIDE-001",
+    "eventType": "EN_ROUTE",
+    "timestamp": "2025-12-31T08:43:19.405Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "คนขับกำลังเดินทางไปรับผู้ป่วย",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "EN_ROUTE_TO_PICKUP"
+    }
+  },
+  {
+    "id": "EVT-019",
+    "rideId": "RIDE-001",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T08:43:19.422Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "EN_ROUTE_TO_PICKUP",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-020",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T08:45:32.732Z",
+    "userId": "USR-004",
+    "userName": "community1@wecare.dev",
+    "userRole": "community",
+    "description": "สร้างคำขอเดินทางสำหรับ Community Test Patient",
+    "details": {
+      "patient_name": "Community Test Patient",
+      "destination": "Test Hospital",
+      "trip_type": "Regular Appointment"
+    }
+  },
+  {
+    "id": "EVT-021",
+    "rideId": "RIDE-001",
+    "eventType": "CANCELLED",
+    "timestamp": "2025-12-31T08:45:32.754Z",
+    "userId": "USR-004",
+    "userName": "community1@wecare.dev",
+    "userRole": "community",
+    "description": "ยกเลิกการเดินทาง",
+    "details": {
+      "previous_status": "PENDING",
+      "new_status": "CANCELLED"
+    }
+  },
+  {
+    "id": "EVT-022",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:05:18.654Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Test Patient",
+    "details": {
+      "patient_name": "Test Patient"
+    }
+  },
+  {
+    "id": "EVT-023",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:06:50.335Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Test Patient",
+    "details": {
+      "patient_name": "Test Patient"
+    }
+  },
+  {
+    "id": "EVT-024",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:07:12.680Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Test Patient",
+    "details": {
+      "patient_name": "Test Patient"
+    }
+  },
+  {
+    "id": "EVT-025",
+    "rideId": "RIDE-002",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:07:46.102Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Test Patient",
+    "details": {
+      "patient_name": "Test Patient"
+    }
+  },
+  {
+    "id": "EVT-026",
+    "rideId": "RIDE-002",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:16:17.829Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Test Patient",
+    "details": {
+      "patient_name": "Test Patient"
+    }
+  },
+  {
+    "id": "EVT-027",
+    "rideId": "RIDE-002",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:51:51.774Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Test Patient",
+    "details": {
+      "patient_name": "Test Patient",
+      "destination": "Hospital"
+    }
+  },
+  {
+    "id": "EVT-028",
+    "rideId": "RIDE-002",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T09:51:51.803Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-029",
+    "rideId": "RIDE-003",
+    "eventType": "CREATED",
+    "timestamp": "2025-12-31T09:51:51.842Z",
+    "userId": "USR-001",
+    "userName": "admin@wecare.dev",
+    "userRole": "admin",
+    "description": "สร้างคำขอเดินทางสำหรับ Other Patient",
+    "details": {
+      "patient_name": "Other Patient"
+    }
+  },
+  {
+    "id": "EVT-030",
+    "rideId": "RIDE-003",
+    "eventType": "COMPLETED",
+    "timestamp": "2025-12-31T09:51:51.862Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "เสร็จสิ้นการเดินทาง",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "COMPLETED"
+    }
+  },
+  {
+    "id": "EVT-031",
+    "rideId": "RIDE-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2026-01-02T08:54:55.758Z",
+    "userId": "USER-F08NJRVX5",
+    "userName": "radio@wecare.dev",
+    "userRole": "radio",
+    "description": "จ่ายงานให้ สมศักดิ์ ขยันยิ่ง",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "สมศักดิ์ ขยันยิ่ง"
+    }
+  },
+  {
+    "id": "EVT-032",
+    "rideId": "RIDE-TEST-1767352812039",
+    "eventType": "EN_ROUTE",
+    "timestamp": "2026-01-02T11:28:09.166Z",
+    "userId": "USR-003",
+    "userName": "driver1@wecare.dev",
+    "userRole": "driver",
+    "description": "คนขับกำลังเดินทางไปรับผู้ป่วย",
+    "details": {
+      "previous_status": "ASSIGNED",
+      "new_status": "EN_ROUTE_TO_PICKUP"
+    }
+  },
+  {
+    "id": "EVT-033",
+    "rideId": "RIDE-NaN",
+    "eventType": "CREATED",
+    "timestamp": "2026-01-02T11:42:38.416Z",
+    "userId": "USR-004",
+    "userName": "community1@wecare.dev",
+    "userRole": "community",
+    "description": "สร้างคำขอเดินทางสำหรับ Grandma Test",
+    "details": {
+      "patient_name": "Grandma Test",
+      "destination": "Fang Hospital",
+      "trip_type": "General Appointment"
+    }
+  },
+  {
+    "id": "EVT-034",
+    "rideId": "RIDE-TEST-001",
+    "eventType": "ASSIGNED",
+    "timestamp": "2026-01-04T17:56:22.666Z",
+    "userId": "USR-RADIO",
+    "userName": "office1@wecare.dev",
+    "userRole": "radio",
+    "description": "จ่ายงานให้ Test Driver",
+    "details": {
+      "driver_id": "DRV-001",
+      "driver_name": "Test Driver"
+    }
+  },
+  {
+    "id": "EVT-035",
+    "rideId": "RIDE-NaN",
+    "eventType": "CREATED",
+    "timestamp": "2026-01-08T17:04:28.364Z",
+    "userId": "USR-COMMUNITY",
+    "userName": "community1@wecare.dev",
+    "userRole": "community",
+    "description": "สร้างคำขอเดินทางสำหรับ บัว มากมีเงิน",
+    "details": {
+      "patient_name": "บัว มากมีเงิน",
+      "destination": "โรงพยาบาลฝาง",
+      "trip_type": "นัดหมอตามปกติ"
+    }
+  },
+  {
+    "id": "EVT-036",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2026-01-09T18:09:55.593Z",
+    "userId": "USR-COMMUNITY",
+    "userName": "community1@wecare.dev",
+    "userRole": "community",
+    "description": "สร้างคำขอเดินทางสำหรับ แป้ง ขาว",
+    "details": {
+      "patient_name": "แป้ง ขาว",
+      "destination": "โรงพยาบาลฝาง",
+      "trip_type": "รับยา"
+    }
+  },
+  {
+    "id": "EVT-037",
+    "rideId": "RIDE-001",
+    "eventType": "CREATED",
+    "timestamp": "2026-01-16T05:55:30.227Z",
+    "userId": "USR-COMMUNITY",
+    "userName": "community1@wecare.dev",
+    "userRole": "community",
+    "description": "สร้างคำขอเดินทางสำหรับ ดาดา มากมี",
+    "details": {
+      "patient_name": "ดาดา มากมี",
+      "destination": "โรงพยาบาลฝาง",
+      "trip_type": "นัดหมอตามปกติ"
+    }
+  },
+  {
+    "id": "EVT-038",
+    "rideId": "RIDE-002",
+    "eventType": "CREATED",
+    "timestamp": "2026-01-28T18:50:15.403Z",
+    "userId": "USR-004",
+    "userName": "manee@wecare.com",
+    "userRole": "community",
+    "description": "สร้างคำขอเดินทางสำหรับ ชูใจ ใจดี",
+    "details": {
+      "patient_name": "ชูใจ ใจดี",
+      "destination": "โรงพยาบาลฝาง",
+      "trip_type": "นัดหมอตามปกติ"
+    }
+  }
+]

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { PaginationMeta } from '../types/pagination';
+import { PaginationMeta } from '../types-dir/pagination';
 
 interface PaginationProps {
     pagination: PaginationMeta;
