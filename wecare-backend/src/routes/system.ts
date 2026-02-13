@@ -7,7 +7,28 @@ import backupService from '../services/backupService';
 
 const router = express.Router();
 
-// Only Admin and Developer can access system tools
+/**
+ * GET /api/settings/setup-initial-data
+ * Public route to initialize the database schema and seed users
+ * Use this ONLY for first-time setup or recovery
+ */
+router.get('/setup-initial-data', async (req, res) => {
+    try {
+        console.log('🚀 Public DB Init/Seed requested');
+        const { ensureSchema } = require('../db/postgresDB');
+        await ensureSchema();
+        res.json({
+            success: true,
+            message: 'Database initialized and test accounts seeded successfully. You can now login.',
+            testAccounts: 'admin@wecare.ems, Password: password123'
+        });
+    } catch (error: any) {
+        console.error('❌ Public DB Init Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Only Admin and Developer can access other system tools
 router.use(authenticateToken);
 router.use(requireRole(['admin', 'DEVELOPER']));
 
