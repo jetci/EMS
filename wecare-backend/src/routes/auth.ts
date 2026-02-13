@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { hashPassword, verifyPassword, validatePasswordStrength } from '../utils/password';
 import { auditService } from '../services/auditService';
 import accountLockoutService from '../services/accountLockoutService';
@@ -76,7 +76,7 @@ const getClientIp = (req: any): string => {
     // x-forwarded-for can contain multiple IPs, get the first one
     return (xForwardedFor as string).split(',')[0].trim();
   }
-  
+
   const xRealIp = req.headers['x-real-ip'];
   if (xRealIp) {
     return xRealIp as string;
@@ -113,7 +113,7 @@ router.post('/auth/login', async (req, res) => {
       });
     }
 
-    const user = sqliteDB.get<User>('SELECT * FROM users WHERE email = ?', [email]);
+    const user = await db.get<User>('SELECT * FROM users WHERE email = $1', [email]);
 
     if (!user) {
       // Record failed attempt
@@ -169,8 +169,8 @@ router.post('/auth/login', async (req, res) => {
     let driver_id: string | undefined;
     if (user.role === 'driver') {
       try {
-        const driver = sqliteDB.get<Driver>(
-          'SELECT id FROM drivers WHERE user_id = ?',
+        const driver = await db.get<Driver>(
+          'SELECT id FROM drivers WHERE user_id = $1',
           [user.id]
         );
         if (driver) {
@@ -258,13 +258,13 @@ router.post('/auth/register', async (req, res) => {
     }
 
     // Check if email already exists
-    const existing = sqliteDB.get<User>('SELECT id FROM users WHERE email = ?', [email]);
+    const existing = await db.get<User>('SELECT id FROM users WHERE email = $1', [email]);
     if (existing) {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
     // Generate new ID
-    const users = sqliteDB.all<{ id: string }>('SELECT id FROM users ORDER BY id DESC LIMIT 1');
+    const users = await db.all<{ id: string }>('SELECT id FROM users ORDER BY id DESC LIMIT 1');
     let newId = 'USR-001';
     if (users.length > 0) {
       const lastId = users[0].id;
@@ -285,7 +285,7 @@ router.post('/auth/register', async (req, res) => {
       status: 'Active'
     };
 
-    sqliteDB.insert('users', newUser);
+    await db.insert('users', newUser);
 
     // Audit log
     auditService.log(email, newUser.role, 'REGISTER', newId);
@@ -320,7 +320,7 @@ router.post('/auth/change-password', async (req, res) => {
   }
 
   try {
-    const user = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [userId]);
+    const user = await db.get<User>('SELECT * FROM users WHERE id = $1', [userId]);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -336,7 +336,7 @@ router.post('/auth/change-password', async (req, res) => {
     // Hash new password
     const hashedNewPassword = await hashPassword(newPassword);
 
-    sqliteDB.update('users', userId, { password: hashedNewPassword });
+    await db.update('users', userId, { password: hashedNewPassword });
 
     // Audit log
     auditService.log(user.email, user.role, 'CHANGE_PASSWORD', userId, undefined, clientIp);
@@ -360,7 +360,7 @@ router.get('/auth/me', async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string };
-    const user = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [decoded.id]);
+    const user = await db.get<User>('SELECT * FROM users WHERE id = $1', [decoded.id]);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -422,10 +422,10 @@ router.put('/auth/profile', async (req, res) => {
     console.log('💾 Update data:', Object.keys(updateData));
 
     try {
-      sqliteDB.update('users', decoded.id, updateData);
+      await db.update('users', decoded.id, updateData);
     } catch (dbError: any) {
       console.error('❌ Database update error:', dbError);
-      if (dbError.code === 'SQLITE_CONSTRAINT') {
+      if (dbError.code === '23505') { // Postgres unique_violation code
         return res.status(400).json({ error: 'Database constraint violation (e.g. duplicate phone/email)' });
       }
       throw dbError;
@@ -433,7 +433,7 @@ router.put('/auth/profile', async (req, res) => {
 
     console.log('✅ Database updated');
 
-    const updated = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [decoded.id]);
+    const updated = await db.get<User>('SELECT * FROM users WHERE id = $1', [decoded.id]);
     if (!updated) {
       console.log('❌ User not found after update');
       return res.status(404).json({ error: 'User not found' });
@@ -474,7 +474,7 @@ router.post('/auth/upload-profile-image', upload.single('profile_image'), async 
     }
 
     // Get user
-    const user = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [decoded.id]);
+    const user = await db.get<User>('SELECT * FROM users WHERE id = $1', [decoded.id]);
     if (!user) {
       // Clean up uploaded file
       fs.unlinkSync(req.file.path);
@@ -495,7 +495,7 @@ router.post('/auth/upload-profile-image', upload.single('profile_image'), async 
 
     // Update user with new image URL
     const imageUrl = `/uploads/profiles/${req.file.filename}`;
-    sqliteDB.update('users', decoded.id, {
+    await db.update('users', decoded.id, {
       profile_image_url: imageUrl
     });
 

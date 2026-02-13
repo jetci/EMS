@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { auditService } from '../services/auditService';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { hashPassword, verifyPassword, validatePasswordStrength } from '../utils/password';
@@ -29,8 +29,8 @@ const excludePassword = (user: User): Omit<User, 'password'> => {
 };
 
 // Helper to generate next user ID
-const generateUserId = (): string => {
-  const users = sqliteDB.all<User>('SELECT id FROM users WHERE id LIKE \'USR-%\'');
+const generateUserId = async (): Promise<string> => {
+  const users = await db.all<User>('SELECT id FROM users WHERE id LIKE \'USR-%\'');
   if (users.length === 0) return 'USR-001';
 
   // Extract numeric parts and find the maximum
@@ -48,7 +48,7 @@ const generateUserId = (): string => {
 router.get('/', authenticateToken, requireRole(['ADMIN', 'DEVELOPER']), async (req, res) => {
   try {
     const currentUser = (req as any).user;
-    let users = sqliteDB.all<User>('SELECT * FROM users ORDER BY date_created DESC');
+    let users = await db.all<User>('SELECT * FROM users ORDER BY date_created DESC');
 
     // Filter out DEVELOPER users if current user is admin
     if (currentUser.role === 'admin') {
@@ -64,7 +64,7 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DEVELOPER']), async (r
 // GET /api/users/staff
 router.get('/staff', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (_req, res) => {
   try {
-    const users = sqliteDB.all<User>(
+    const users = await db.all<User>(
       `SELECT id, email, role, full_name, phone, profile_image_url, date_created, status, created_at, updated_at
        FROM users
        WHERE role IN ('OFFICER', 'radio_center', 'EXECUTIVE')
@@ -79,7 +79,7 @@ router.get('/staff', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFI
 // GET /api/users/driver-candidates
 router.get('/driver-candidates', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (_req, res) => {
   try {
-    const users = sqliteDB.all<User>(
+    const users = await db.all<User>(
       `SELECT u.id, u.email, u.role, u.full_name, u.date_created, u.status, u.phone, u.profile_image_url, u.created_at, u.updated_at
        FROM users u
        LEFT JOIN drivers d ON d.user_id = u.id
@@ -97,7 +97,7 @@ router.get('/driver-candidates', authenticateToken, requireRole(['admin', 'DEVEL
 router.get('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
     const currentUser = (req as any).user;
-    const user = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    const user = await db.get<User>('SELECT * FROM users WHERE id = $1', [req.params.id]);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -125,7 +125,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitiz
     }
 
     console.log('📝 Creating new user:', { email: req.body.email, role: req.body.role });
-    const newId = generateUserId();
+    const newId = await generateUserId();
     console.log('🆔 Generated ID:', newId);
 
     // Get password (use default if not provided)
@@ -156,7 +156,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitiz
     };
 
     console.log('💾 Inserting user into database...');
-    sqliteDB.insert('users', newUser);
+    await db.insert('users', newUser);
     console.log('✅ User inserted successfully');
 
     // Audit Log
@@ -168,7 +168,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanitiz
       { email: newUser.email, role: newUser.role }
     );
 
-    const created = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [newId]);
+    const created = await db.get<User>('SELECT * FROM users WHERE id = $1', [newId]);
     console.log('✅ User created:', created?.email);
     res.status(201).json(excludePassword(created!));
   } catch (err: any) {
@@ -192,7 +192,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
     }
 
     // Check if user exists
-    const existingUser = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    const existingUser = await db.get<User>('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (!existingUser) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -214,7 +214,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
     if (updates.fullName || updates.full_name) updateData.full_name = updates.fullName || updates.full_name;
     if (updates.status) updateData.status = updates.status;
 
-    sqliteDB.update('users', req.params.id, updateData);
+    await db.update('users', req.params.id, updateData);
 
     // Audit Log with previous state for complete audit trail
     auditService.log(
@@ -233,7 +233,7 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), sanit
       }
     );
 
-    const updated = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    const updated = await db.get<User>('SELECT * FROM users WHERE id = $1', [req.params.id]);
     res.json(excludePassword(updated!));
   } catch (err: any) {
     console.error('Error updating user:', err);
@@ -257,7 +257,7 @@ router.post('/:id/reset-password', authenticateToken, requireRole(['admin', 'DEV
     }
 
     // Check if user exists
-    const user = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    const user = await db.get<User>('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -270,7 +270,7 @@ router.post('/:id/reset-password', authenticateToken, requireRole(['admin', 'DEV
     // Hash the new password
     const hashedPassword = await hashPassword(newPassword);
 
-    sqliteDB.update('users', req.params.id, { password: hashedPassword });
+    await db.update('users', req.params.id, { password: hashedPassword });
 
     // Audit Log
     auditService.log(
@@ -293,7 +293,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), as
   try {
     const currentUser = (req as any).user;
 
-    const existingUser = sqliteDB.get<User>('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    const existingUser = await db.get<User>('SELECT * FROM users WHERE id = $1', [req.params.id]);
     if (!existingUser) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -303,7 +303,7 @@ router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER']), as
       return res.status(403).json({ error: 'Access denied: Cannot delete developer accounts' });
     }
 
-    const result = sqliteDB.delete('users', req.params.id);
+    const result = await db.delete('users', req.params.id);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }

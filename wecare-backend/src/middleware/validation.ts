@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validatePasswordStrength, isCommonPassword } from '../utils/password';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 /**
  * Validation Middleware
@@ -128,7 +128,7 @@ export const checkDuplicateEmail = async (req: Request, res: Response, next: Nex
             return next();
         }
 
-        const users = sqliteDB.all<User>('SELECT * FROM users WHERE email = ?', [email]);
+        const users = await db.all<User>('SELECT * FROM users WHERE email = ?', [email]);
 
         // For updates, exclude the current user from duplicate check
         const duplicate = users.find(u => u.id !== userId);

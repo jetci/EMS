@@ -3,7 +3,7 @@
  * Handles patient CRUD operations with encryption for sensitive data
  */
 
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { encrypt, decrypt, encryptArray, decryptArray } from '../utils/encryption';
 
 export interface PatientData {
@@ -66,29 +66,29 @@ export const encryptPatientData = (data: PatientData): any => {
     blood_type: data.bloodType || null,
     rh_factor: data.rhFactor || null,
     health_coverage: data.healthCoverage || null,
-    
+
     // Address (not encrypted - not considered highly sensitive)
     id_card_house_number: data.idCardAddress?.houseNumber || null,
     id_card_village: data.idCardAddress?.village || null,
     id_card_tambon: data.idCardAddress?.tambon || null,
     id_card_amphoe: data.idCardAddress?.amphoe || null,
     id_card_changwat: data.idCardAddress?.changwat || null,
-    
+
     current_house_number: data.currentAddress?.houseNumber || null,
     current_village: data.currentAddress?.village || null,
     current_tambon: data.currentAddress?.tambon || null,
     current_amphoe: data.currentAddress?.amphoe || null,
     current_changwat: data.currentAddress?.changwat || null,
-    
+
     // Location
     landmark: data.landmark || null,
     latitude: data.latitude || null,
     longitude: data.longitude || null,
-    
+
     // Emergency Contact (phone encrypted)
     emergency_contact_name: data.emergencyContactName || null,
     emergency_contact_relation: data.emergencyContactRelation || null,
-    
+
     // Metadata
     profile_image_url: data.profileImageUrl || null,
     registered_date: new Date().toISOString().split('T')[0],
@@ -140,7 +140,7 @@ export const decryptPatientData = (dbPatient: any): any => {
     bloodType: dbPatient.blood_type,
     rhFactor: dbPatient.rh_factor,
     healthCoverage: dbPatient.health_coverage,
-    
+
     // Address
     registeredAddress: {
       houseNumber: dbPatient.id_card_house_number,
@@ -156,18 +156,18 @@ export const decryptPatientData = (dbPatient: any): any => {
       amphoe: dbPatient.current_amphoe,
       changwat: dbPatient.current_changwat,
     },
-    
+
     // Location
     landmark: dbPatient.landmark,
     latitude: dbPatient.latitude,
     longitude: dbPatient.longitude,
-    
+
     // Emergency Contact
     emergencyContact: {
       name: dbPatient.emergency_contact_name,
       relation: dbPatient.emergency_contact_relation,
     },
-    
+
     // Metadata
     profileImageUrl: dbPatient.profile_image_url,
     registeredDate: dbPatient.registered_date,
@@ -214,9 +214,9 @@ export const decryptPatientData = (dbPatient: any): any => {
 /**
  * Generate next patient ID
  */
-export const generatePatientId = (): string => {
-  const result = sqliteDB.get<{ max_id: number }>(
-    "SELECT MAX(CAST(SUBSTR(id, 5) AS INTEGER)) as max_id FROM patients WHERE id GLOB 'PAT-[0-9]*'"
+export const generatePatientId = async (): Promise<string> => {
+  const result = await db.get<{ max_id: number }>(
+    "SELECT MAX(CAST(SUBSTR(id, 5) AS INTEGER)) as max_id FROM patients WHERE id LIKE 'PAT-%'"
   );
   const nextNum = (result?.max_id || 0) + 1;
   return `PAT-${String(nextNum).padStart(3, '0')}`;
@@ -225,38 +225,38 @@ export const generatePatientId = (): string => {
 /**
  * Create new patient with encrypted data
  */
-export const createPatient = (data: PatientData): any => {
-  const id = generatePatientId();
+export const createPatient = async (data: PatientData): Promise<any> => {
+  const id = await generatePatientId();
   const encryptedData = encryptPatientData(data);
-  
+
   const patientRecord = {
     id,
     ...encryptedData,
   };
 
-  sqliteDB.insert('patients', patientRecord);
-  
+  await db.insert('patients', patientRecord);
+
   // Return decrypted data for response
-  const created = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+  const created = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
   return decryptPatientData(created);
 };
 
 /**
  * Get patient by ID with decrypted data
  */
-export const getPatientById = (id: string): any => {
-  const patient = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+export const getPatientById = async (id: string): Promise<any> => {
+  const patient = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
   return decryptPatientData(patient);
 };
 
 /**
  * Get all patients with decrypted data
  */
-export const getAllPatients = (filters: {
+export const getAllPatients = async (filters: {
   createdBy?: string;
   page?: number;
   limit?: number;
-}): { data: any[]; total: number } => {
+}): Promise<{ data: any[]; total: number }> => {
   const { createdBy, page = 1, limit = 20 } = filters;
   const offset = (page - 1) * limit;
 
@@ -264,18 +264,18 @@ export const getAllPatients = (filters: {
   const params: any[] = [];
 
   if (createdBy) {
-    whereClause += ' AND created_by = ?';
+    whereClause += ' AND created_by = $1';
     params.push(createdBy);
   }
 
   // Get total count
   const countSql = `SELECT COUNT(*) as count FROM patients ${whereClause}`;
-  const countResult = sqliteDB.get<{ count: number }>(countSql, params);
-  const total = countResult?.count || 0;
+  const countResult = await db.get<{ count: number }>(countSql, params);
+  const total = parseInt(String(countResult?.count || 0));
 
   // Get paginated data
-  const dataSql = `SELECT * FROM patients ${whereClause} ORDER BY registered_date DESC LIMIT ? OFFSET ?`;
-  const patients = sqliteDB.all<any>(dataSql, [...params, limit, offset]);
+  const dataSql = `SELECT * FROM patients ${whereClause} ORDER BY registered_date DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+  const patients = await db.all<any>(dataSql, [...params, limit, offset]);
 
   // Decrypt all patients
   const decryptedPatients = patients.map(p => decryptPatientData(p));
@@ -289,8 +289,8 @@ export const getAllPatients = (filters: {
 /**
  * Update patient with encrypted data
  */
-export const updatePatient = (id: string, data: Partial<PatientData>): any => {
-  const existing = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+export const updatePatient = async (id: string, data: Partial<PatientData>): Promise<any> => {
+  const existing = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
   if (!existing) {
     throw new Error('Patient not found');
   }
@@ -365,23 +365,23 @@ export const updatePatient = (id: string, data: Partial<PatientData>): any => {
   // Update timestamp
   updateData.updated_at = new Date().toISOString();
 
-  sqliteDB.update('patients', id, updateData);
+  await db.update('patients', id, updateData);
 
   // Return decrypted data
-  const updated = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+  const updated = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
   return decryptPatientData(updated);
 };
 
 /**
  * Delete patient
  */
-export const deletePatient = (id: string): void => {
-  const existing = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+export const deletePatient = async (id: string): Promise<void> => {
+  const existing = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
   if (!existing) {
     throw new Error('Patient not found');
   }
 
-  sqliteDB.run('UPDATE patients SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL', [id]);
+  await db.query('UPDATE patients SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL', [id]);
 };
 
 /**
@@ -389,17 +389,17 @@ export const deletePatient = (id: string): void => {
  * Note: Searching encrypted fields (national_id, phone) is not possible
  * without decrypting all records. Consider using tokenization for searchable encryption.
  */
-export const searchPatientsByName = (query: string, createdBy?: string): any[] => {
-  let sql = 'SELECT * FROM patients WHERE full_name LIKE ? AND deleted_at IS NULL';
+export const searchPatientsByName = async (query: string, createdBy?: string): Promise<any[]> => {
+  let sql = 'SELECT * FROM patients WHERE full_name ILIKE $1 AND deleted_at IS NULL';
   const params: any[] = [`%${query}%`];
 
   if (createdBy) {
-    sql += ' AND created_by = ?';
+    sql += ' AND created_by = $2';
     params.push(createdBy);
   }
 
   sql += ' ORDER BY registered_date DESC LIMIT 50';
 
-  const patients = sqliteDB.all<any>(sql, params);
+  const patients = await db.all<any>(sql, params);
   return patients.map(p => decryptPatientData(p));
 };

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import sqliteDB from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = Router();
 
@@ -9,11 +9,11 @@ const router = Router();
  * 
  * Returns system health status including database connection
  */
-router.get('/health', (req: Request, res: Response) => {
+router.get('/health', async (req: Request, res: Response) => {
     try {
         // Check database health
-        const dbHealth = sqliteDB.healthCheck();
-        const dbStats = sqliteDB.getStats();
+        const dbHealth = await db.healthCheck();
+        const dbStats = null; // db.getStats();
 
         const health = {
             status: dbHealth.healthy ? 'healthy' : 'unhealthy',
@@ -23,7 +23,7 @@ router.get('/health', (req: Request, res: Response) => {
             database: {
                 healthy: dbHealth.healthy,
                 message: dbHealth.message,
-                stats: dbHealth.details,
+                // stats: dbHealth.details,
                 connection: dbStats
             },
             memory: {
@@ -56,15 +56,15 @@ router.get('/health', (req: Request, res: Response) => {
  * 
  * Returns detailed database statistics
  */
-router.get('/health/database', (req: Request, res: Response) => {
+router.get('/health/database', async (req: Request, res: Response) => {
     try {
-        const health = sqliteDB.healthCheck();
-        const stats = sqliteDB.getStats();
+        const health = await db.healthCheck();
+        const stats = null; // db.getStats();
 
         res.json({
             healthy: health.healthy,
             message: health.message,
-            details: health.details,
+            // details: health.details,
             connection: stats,
             timestamp: new Date().toISOString()
         });
@@ -83,22 +83,14 @@ router.get('/health/database', (req: Request, res: Response) => {
  * Runs database optimization (VACUUM and ANALYZE)
  * Requires admin role
  */
-router.post('/health/optimize', (req: Request, res: Response) => {
+router.post('/health/optimize', async (req: Request, res: Response) => {
     try {
-        const success = sqliteDB.optimize();
-
-        if (success) {
-            res.json({
-                success: true,
-                message: 'Database optimized successfully',
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                message: 'Database optimization failed'
-            });
-        }
+        await db.query('VACUUM');
+        res.json({
+            success: true,
+            message: 'Database optimized successfully',
+            timestamp: new Date().toISOString()
+        });
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -114,23 +106,12 @@ router.post('/health/optimize', (req: Request, res: Response) => {
  * Triggers WAL checkpoint
  * Requires admin role
  */
-router.post('/health/checkpoint', (req: Request, res: Response) => {
-    try {
-        const mode = (req.body.mode || 'PASSIVE') as 'PASSIVE' | 'FULL' | 'RESTART' | 'TRUNCATE';
-        const result = sqliteDB.checkpoint(mode);
-
-        res.json({
-            success: true,
-            mode,
-            result,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
-        });
-    }
+router.post('/health/checkpoint', async (req: Request, res: Response) => {
+    res.json({
+        success: true,
+        message: 'Checkpoint not applicable for PostgreSQL',
+        timestamp: new Date().toISOString()
+    });
 });
 
 export default router;

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 export interface AuthUser {
   id: string;
@@ -46,7 +46,7 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
 
     // Load user metadata from SQLite if needed (email/role)
     try {
-      const user = sqliteDB.get<any>('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = await db.get<any>('SELECT * FROM users WHERE id = ?', [userId]);
       if (user) {
         decoded.email = decoded.email || user.email;
         decoded.role = decoded.role || user.role;
@@ -60,11 +60,11 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     if (!decoded.driver_id) {
       try {
         // Try to find driver by user_id first
-        let driver = sqliteDB.get<any>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+        let driver = await db.get<any>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
 
         // If not found and email available, try by email
         if (!driver && decoded.email) {
-          driver = sqliteDB.get<any>('SELECT * FROM drivers WHERE email = ?', [decoded.email]);
+          driver = await db.get<any>('SELECT * FROM drivers WHERE email = ?', [decoded.email]);
         }
 
         if (driver) {

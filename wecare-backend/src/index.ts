@@ -520,7 +520,7 @@ socketService.initialize(httpServer);
 const startServer = async () => {
   try {
     // Initialize Database first
-    const { initializeDatabase } = require('./db/sqliteDB');
+    const { initializeDatabase } = require('./db/postgresDB');
     await initializeDatabase();
 
     httpServer.listen(PORT, () => {

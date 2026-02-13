@@ -5,7 +5,8 @@ import request from 'supertest';
 import express from 'express';
 import authRoutes from '../../src/routes/auth';
 import patientRoutes from '../../src/routes/patients';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
+import { db } from '../../src/db';
+import { initializeDatabase } from '../../src/db/postgresDB';
 
 // Create test app mounting only necessary routes
 const app = express();
@@ -40,13 +41,10 @@ describe('Patients API Integration Tests', () => {
     await initializeDatabase();
   });
 
-  afterAll(() => {
-    // Ensure database connection is closed to prevent open handles
-    try {
-      sqliteDB.close();
-    } catch (err) {
-      // ignore
-    }
+  afterAll(async () => {
+    // Database connection closed in tests/setup.ts generally, 
+    // but if we need local cleanup we can do it here.
+    // await db.close(); 
   });
 
   describe('POST /api/patients', () => {
@@ -202,7 +200,7 @@ describe('Patients API Integration Tests', () => {
       expect(createdPatientId).toBeTruthy();
 
       // Fetch current patient to capture existing values
-      const before = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [createdPatientId]);
+      const before = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [createdPatientId]);
       expect(before).toBeDefined();
 
       // Perform partial update: only change title
@@ -224,9 +222,9 @@ describe('Patients API Integration Tests', () => {
       });
 
       // Ensure JSON fields remain intact if unspecified
-      const after = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [createdPatientId]);
-      expect(after.patient_types).toBe(before.patient_types);
-      expect(after.allergies).toBe(before.allergies);
+      const after = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [createdPatientId]);
+      expect(after.patient_types).toEqual(before.patient_types);
+      expect(after.allergies).toEqual(before.allergies);
     });
   });
 
@@ -242,7 +240,7 @@ describe('Patients API Integration Tests', () => {
       expect(delRes.status).toBe(204);
 
       // Verify in DB that patient is soft-deleted (deleted_at is set)
-      const dbCheck = sqliteDB.get<any>('SELECT deleted_at FROM patients WHERE id = ?', [createdPatientId]);
+      const dbCheck = await db.get<any>('SELECT deleted_at FROM patients WHERE id = $1', [createdPatientId]);
       expect(dbCheck).toBeDefined();
       expect(dbCheck.deleted_at).toBeDefined();
 

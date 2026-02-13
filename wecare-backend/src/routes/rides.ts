@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { optionalAuth, AuthRequest, authenticateToken, requireRole } from '../middleware/auth';
 import { auditService } from '../services/auditService';
 import { logRideEvent } from './ride-events';
@@ -57,8 +57,8 @@ interface Ride {
 }
 
 // Helper to generate ride ID
-const generateRideId = (): string => {
-  const rides = sqliteDB.all<{ id: string }>('SELECT id FROM rides ORDER BY id DESC LIMIT 1');
+const generateRideId = async (): Promise<string> => {
+  const rides = await db.all<{ id: string }>('SELECT id FROM rides ORDER BY id DESC LIMIT 1');
 
   // If no rides exist, start with RIDE-001
   if (rides.length === 0) return 'RIDE-001';
@@ -102,7 +102,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Filter by created_by if user is community role
     if (role === 'COMMUNITY' && req.user?.id) {
-      whereClause = 'WHERE r.created_by = ?';
+      whereClause = 'WHERE r.created_by = $1';
       params.push(req.user.id);
     } else if (
       role !== 'ADMIN' &&
@@ -123,10 +123,16 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       LEFT JOIN patients p ON r.patient_id = p.id
       ${whereClause}
     `;
-    const countResult = sqliteDB.get<{ count: number }>(countSql, params);
+    const countResult = await db.get<{ count: number }>(countSql, params);
     const total = countResult?.count || 0;
 
     // Get paginated data
+    // Prepare params for limit/offset
+    // If whereClause used $1, next params are $2, $3
+    const startIdx = params.length + 1;
+    const limitParam = `$${startIdx}`;
+    const offsetParam = `$${startIdx + 1}`;
+
     const dataSql = `
       SELECT
         r.*,
@@ -140,9 +146,9 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
       LEFT JOIN patients p ON r.patient_id = p.id
       ${whereClause}
       ORDER BY r.appointment_time DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${limitParam} OFFSET ${offsetParam}
     `;
-    const rides = sqliteDB.all<any>(dataSql, [...params, limit, offset]);
+    const rides = await db.all<any>(dataSql, [...params, limit, offset]);
 
     // Transform to camelCase and parse JSON fields
     const transformedRides = rides.map(r => {
@@ -169,7 +175,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
-    const ride = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [id]);
+    const ride = await db.get<any>('SELECT * FROM rides WHERE id = $1', [id]);
     if (!ride) {
       return res.status(404).json({ error: 'Ride not found' });
     }
@@ -205,7 +211,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
       village, landmark, caregiver_phone
     } = req.body;
 
-    const newId = generateRideId();
+    const newId = await generateRideId();
 
     const newRide = {
       id: newId,
@@ -243,7 +249,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
     };
 
     console.log('Creating ride with data:', newRide);
-    sqliteDB.insert('rides', newRide);
+    await db.insert('rides', newRide);
 
     // Audit Log
     if (req.user) {
@@ -256,7 +262,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
       );
 
       // Ride Event Timeline
-      logRideEvent(
+      await logRideEvent(
         newId,
         'CREATED',
         { id: req.user.id || '', email: req.user.email, fullName: req.user.email, role: req.user.role },
@@ -265,7 +271,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
       );
     }
 
-    const created = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [newId]);
+    const created = await db.get<any>('SELECT * FROM rides WHERE id = $1', [newId]);
 
     // ✅ FIX BUG-005: Use socket notification utility
     try {
@@ -302,7 +308,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
     const rawRole = String(req.user?.role || '').trim().toUpperCase();
     const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
 
-    const existing = sqliteDB.get<Ride>('SELECT * FROM rides WHERE id = ?', [id]);
+    const existing = await db.get<Ride>('SELECT * FROM rides WHERE id = $1', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Ride not found' });
     }
@@ -328,7 +334,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
       }
 
       // Check driver exists (outside transaction for early validation)
-      const driverRecord = sqliteDB.get<any>('SELECT * FROM drivers WHERE id = ?', [driver_id]);
+      const driverRecord = await db.get<any>('SELECT * FROM drivers WHERE id = $1', [driver_id]);
       if (!driverRecord) {
         return res.status(404).json({ error: 'Driver not found' });
       }
@@ -338,28 +344,33 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
     // Use transaction to prevent race conditions
     if (assignmentChanged) {
       try {
-        sqliteDB.transaction(() => {
+        const conflict = await db.transaction(async (client) => {
           // Check driver availability first
-          const driver = sqliteDB.db.prepare('SELECT status FROM drivers WHERE id = ?').get(driver_id) as any;
+          const driverRes = await client.query('SELECT status FROM drivers WHERE id = $1', [driver_id]);
+          const driver = driverRes.rows[0];
+
           if (driver && driver.status !== 'AVAILABLE') {
             throw new Error(`คนขับไม่ว่าง (สถานะ: ${driver.status})`);
           }
 
           // Check for conflicts within transaction
-          const conflict = sqliteDB.db.prepare(`
+          // PG: Use EXTRACT(EPOCH FROM ...) for timestamp diff
+          const conflictRes = await client.query(`
             SELECT * FROM rides 
-            WHERE driver_id = ? 
-              AND id != ? 
+            WHERE driver_id = $1 
+              AND id != $2 
               AND status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')
-              AND ABS(CAST((julianday(appointment_time) - julianday(?)) * 24 * 60 * 60 AS INTEGER)) < 3600
-          `).get(driver_id, id, existing.appointment_time);
+              AND ABS(EXTRACT(EPOCH FROM (appointment_time - $3::timestamp))) < 3600
+          `, [driver_id, id, existing.appointment_time]);
+
+          const conflict = conflictRes.rows[0];
 
           if (conflict) {
-            throw new Error(`คนขับติดงานอื่นในช่วงเวลาใกล้เคียงกัน (Ride ID: ${(conflict as any).id})`);
+            throw new Error(`คนขับติดงานอื่นในช่วงเวลาใกล้เคียงกัน (Ride ID: ${conflict.id})`);
           }
 
           // Update driver status to ON_DUTY (prevents concurrent assignments)
-          sqliteDB.db.prepare('UPDATE drivers SET status = ? WHERE id = ?').run('ON_DUTY', driver_id);
+          await client.query('UPDATE drivers SET status = $1 WHERE id = $2', ['ON_DUTY', driver_id]);
 
           // Update ride with driver assignment
           const updateData: any = {
@@ -372,7 +383,14 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
             updateData.driver_name = driver_name;
           }
 
-          sqliteDB.update('rides', id, updateData);
+          // For transaction update, we need to construct the SQL manually or use db.update logic BUT inside client
+          // Since db.update uses pool, not client. We should use client.query directly here for atomic update.
+          const keys = Object.keys(updateData);
+          const values = Object.values(updateData);
+          const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+          // Add ID as last param
+          const sql = `UPDATE rides SET ${setClause}, updated_at = NOW() WHERE id = $${keys.length + 1}`;
+          await client.query(sql, [...values, id]);
         });
       } catch (error: any) {
         return res.status(409).json({ error: error.message });
@@ -389,7 +407,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
         updateData.driver_name = driver_name;
       }
 
-      sqliteDB.update('rides', id, updateData);
+      await db.update('rides', id, updateData);
     }
 
     // Audit Log
@@ -407,7 +425,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 
       // Ride Event Timeline
       if (isAssignment) {
-        logRideEvent(
+        await logRideEvent(
           id,
           'ASSIGNED',
           { id: req.user.id || '', email: req.user.email, fullName: req.user.email, role: req.user.role },
@@ -436,7 +454,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
             'CANCELLED': 'ยกเลิกการเดินทาง'
           };
 
-          logRideEvent(
+          await logRideEvent(
             id,
             eventType,
             { id: req.user.id || '', email: req.user.email, fullName: req.user.email, role: req.user.role },
@@ -446,9 +464,9 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 
           // Update driver performance metrics if COMPLETED
           if (status === 'COMPLETED' && existing.driver_id) {
-            const driver = sqliteDB.get<any>('SELECT * FROM drivers WHERE id = ?', [existing.driver_id]);
+            const driver = await db.get<any>('SELECT * FROM drivers WHERE id = $1', [existing.driver_id]);
             if (driver) {
-              sqliteDB.update('drivers', driver.id, {
+              await db.update('drivers', driver.id, {
                 total_trips: (driver.total_trips || 0) + 1,
                 trips_this_month: (driver.trips_this_month || 0) + 1,
                 status: 'AVAILABLE' // Set back to available after completion
@@ -459,7 +477,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
       }
     }
 
-    const updated = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [id]);
+    const updated = await db.get<any>('SELECT * FROM rides WHERE id = $1', [id]);
 
     // ✅ FIX BUG-005: Use socket notification utility
     try {
@@ -502,7 +520,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     const rawRole = String(req.user?.role || '').trim().toUpperCase();
     const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
 
-    const existing = sqliteDB.get<Ride>('SELECT * FROM rides WHERE id = ?', [id]);
+    const existing = await db.get<Ride>('SELECT * FROM rides WHERE id = $1', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Ride not found' });
     }
@@ -524,7 +542,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
       );
     }
 
-    sqliteDB.delete('rides', id);
+    await db.delete('rides', id);
     res.status(204).send();
   } catch (err: any) {
     res.status(500).json({ error: err.message });

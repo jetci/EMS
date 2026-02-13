@@ -1,6 +1,9 @@
 // Test setup file
 // Runs before all tests
 
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Set test environment variables
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
@@ -42,7 +45,7 @@ declare global {
     }
 }
 
-import { initializeDatabase } from '../src/db/sqliteDB';
+import { initializeDatabase } from '../src/db/postgresDB';
 
 beforeAll(async () => {
     // Silence logs during test initialization
@@ -53,6 +56,11 @@ beforeAll(async () => {
     } finally {
         console.log = originalLog;
     }
+});
+
+afterAll(async () => {
+    const { postgresDB } = require('../src/db/postgresDB');
+    await postgresDB.close();
 });
 
 export { };

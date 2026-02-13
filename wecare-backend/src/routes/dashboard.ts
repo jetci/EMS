@@ -1,25 +1,25 @@
 import express from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = express.Router();
 
 // GET /api/dashboard/admin
 router.get('/admin', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
-    const stats = sqliteDB.get<any>(`
+    const stats = await db.get<any>(`
       SELECT 
-        (SELECT COUNT(*) FROM users) as totalUsers,
-        (SELECT COUNT(*) FROM drivers) as totalDrivers,
-        (SELECT COUNT(*) FROM patients) as totalPatients,
-        (SELECT COUNT(*) FROM rides) as totalRides,
-        (SELECT COUNT(*) FROM rides WHERE status IN ('ASSIGNED', 'IN_PROGRESS', 'PICKED_UP')) as activeRides,
-        (SELECT COUNT(*) FROM rides WHERE status = 'COMPLETED' AND DATE(appointment_time) = DATE('now')) as completedToday,
-        (SELECT COUNT(*) FROM rides WHERE status = 'PENDING') as pendingRides,
-        (SELECT COUNT(*) FROM users WHERE DATE(date_created) >= DATE('now', '-7 days')) as newUsers
+        (SELECT COUNT(*) FROM users) as "totalUsers",
+        (SELECT COUNT(*) FROM drivers) as "totalDrivers",
+        (SELECT COUNT(*) FROM patients) as "totalPatients",
+        (SELECT COUNT(*) FROM rides) as "totalRides",
+        (SELECT COUNT(*) FROM rides WHERE status IN ('ASSIGNED', 'IN_PROGRESS', 'PICKED_UP')) as "activeRides",
+        (SELECT COUNT(*) FROM rides WHERE status = 'COMPLETED' AND DATE(appointment_time) = CURRENT_DATE) as "completedToday",
+        (SELECT COUNT(*) FROM rides WHERE status = 'PENDING') as "pendingRides",
+        (SELECT COUNT(*) FROM users WHERE DATE(date_created) >= CURRENT_DATE - INTERVAL '7 days') as "newUsers"
     `);
 
-    const recentLogs = sqliteDB.all<any>(`
+    const recentLogs = await db.all<any>(`
       SELECT timestamp as time, user_email as user, user_role as role, action
       FROM audit_logs
       ORDER BY timestamp DESC
@@ -42,14 +42,14 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     if (startDate || endDate) {
       const start = startDate || '1970-01-01';
       const end = endDate || new Date().toISOString();
-      dateFilter = ' WHERE appointment_time BETWEEN ? AND ?';
+      dateFilter = ' WHERE appointment_time BETWEEN $1 AND $2';
       params.push(start, end);
     }
 
     // Monthly Ride Data
-    const monthlyData = sqliteDB.all<any>(`
+    const monthlyData = await db.all<any>(`
       SELECT 
-        strftime('%m', appointment_time) as month,
+        TO_CHAR(appointment_time, 'MM') as month,
         COUNT(*) as value
       FROM rides
       ${dateFilter}
@@ -67,7 +67,7 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     });
 
     // Patient Distribution by Village with Colors
-    const rawDistribution = sqliteDB.all<any>(`
+    const rawDistribution = await db.all<any>(`
       SELECT 
         COALESCE(current_village, 'ไม่ระบุ') as label,
         COUNT(*) as value
@@ -83,7 +83,7 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     }));
 
     // Top Trip Types
-    const topTripTypesData = sqliteDB.all<any>(`
+    const topTripTypesData = await db.all<any>(`
       SELECT 
         COALESCE(trip_type, 'ทั่วไป') as label,
         COUNT(*) as value
@@ -95,13 +95,13 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     `, params);
 
     // Stats
-    const stats = sqliteDB.get<any>(`
+    const stats = await db.get<any>(`
       SELECT 
-        COUNT(*) as totalRides,
-        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completedRides,
-        AVG(CASE WHEN distance_km IS NOT NULL THEN distance_km ELSE 0 END) as avgDistance,
-        (SELECT COUNT(*) FROM patients) as totalPatients,
-        (SELECT COUNT(*) FROM drivers) as totalDrivers
+        COUNT(*) as "totalRides",
+        SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as "completedRides",
+        AVG(CASE WHEN distance_km IS NOT NULL THEN distance_km ELSE 0 END) as "avgDistance",
+        (SELECT COUNT(*) FROM patients) as "totalPatients",
+        (SELECT COUNT(*) FROM drivers) as "totalDrivers"
       FROM rides
       ${dateFilter}
     `, params);
@@ -111,7 +111,7 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     stats.avgDistance = Math.round(stats.avgDistance || 0);
 
     // Patient Locations
-    const patientLocations = sqliteDB.all<any>(`
+    const rawPatientLocations = await db.all<any>(`
       SELECT 
         id,
         full_name as name,
@@ -121,7 +121,9 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
         patient_types as type
       FROM patients
       WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-    `).map(p => {
+    `);
+
+    const patientLocations = rawPatientLocations.map((p: any) => {
       let typeLabel = 'ทั่วไป';
       try {
         if (p.type) {

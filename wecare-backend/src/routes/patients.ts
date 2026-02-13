@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { authenticateToken, AuthRequest, requireRole } from '../middleware/auth';
 import { auditService } from '../services/auditService';
 import multer from 'multer';
@@ -132,11 +132,11 @@ interface Patient {
 }
 
 // Helper to generate patient ID
-const generatePatientId = (): string => {
+const generatePatientId = async (): Promise<string> => {
   // Get the maximum numeric ID from patients with format PAT-XXX
-  // We use CAST and SUBSTR to extract the number and ignore non-numeric IDs like PAT-NaN
-  const result = sqliteDB.get<{ max_id: number }>(
-    "SELECT MAX(CAST(SUBSTR(id, 5) AS INTEGER)) as max_id FROM patients WHERE id GLOB 'PAT-[0-9]*'"
+  // We use CAST and SUBSTRING to extract the number and ignore non-numeric IDs like PAT-NaN
+  const result = await db.get<{ max_id: number }>(
+    "SELECT MAX(CAST(SUBSTRING(id FROM 5) AS INTEGER)) as max_id FROM patients WHERE id ~ '^PAT-[0-9]+'"
   );
   const nextNum = (result?.max_id || 0) + 1;
   return `PAT-${String(nextNum).padStart(3, '0')}`;
@@ -241,7 +241,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Filter by created_by if user is community role
     if (role === 'COMMUNITY' && req.user?.id) {
-      whereClause += ' AND created_by = ?';
+      whereClause += ' AND created_by = $1';
       params.push(req.user.id);
     } else if (
       role !== 'ADMIN' &&
@@ -256,12 +256,28 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Get total count
     const countSql = `SELECT COUNT(*) as count FROM patients ${whereClause}`;
-    const countResult = sqliteDB.get<{ count: number }>(countSql, params);
+    const countResult = await db.get<{ count: number }>(countSql, params);
     const total = countResult?.count || 0;
 
     // Get paginated data
-    const dataSql = `SELECT * FROM patients ${whereClause} ORDER BY registered_date DESC LIMIT ? OFFSET ?`;
-    const patients = sqliteDB.all<any>(dataSql, [...params, limit, offset]);
+    // Note: params are re-spread, and limit/offset are added as next params ($N+1, $N+2)
+    // db.all implementation handles params array automatically if passed correctly?
+    // Actually we need to make sure params are numbered $1, $2... which simple replacement might imply query modification if we manually built string.
+    // BUT db.all helper in postgresDB implementation likely assumes placeholders?
+    // db.all signature: (sql, params).
+    // The previous implementation used sqliteDB.all(sql, [...params, limit, offset]).
+    // For Postgres we need numbered params.
+    // If whereClause was built with $1, we need to continue numbering.
+    const limitOffsetParams = [...params, limit, offset];
+
+    // We need to rebuild the SQL to use correct $N placeholders for LIMIT and OFFSET
+    // Currently whereClause uses $1 (maybe).
+    const startParamIndex = params.length + 1;
+    const limitParam = `$${startParamIndex}`;
+    const offsetParam = `$${startParamIndex + 1}`;
+
+    const dataSql = `SELECT * FROM patients ${whereClause} ORDER BY registered_date DESC LIMIT ${limitParam} OFFSET ${offsetParam}`;
+    const patients = await db.all<any>(dataSql, limitOffsetParams);
 
     // Transform using unified response mapper
     const transformedPatients = patients.map(p => mapPatientToResponse(p, []));
@@ -278,7 +294,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/:id', async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
-    const patient = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+    const patient = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (!patient) {
       return res.status(404).json({ error: 'Patient not found' });
     }
@@ -290,7 +306,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const attachments = sqliteDB.all<any>('SELECT * FROM patient_attachments WHERE patient_id = ?', [id]);
+    const attachments = await db.all<any>('SELECT * FROM patient_attachments WHERE patient_id = $1', [id]);
     const mappedPatient = mapPatientToResponse(patient, attachments);
     res.json(mappedPatient);
   } catch (err: any) {
@@ -321,7 +337,7 @@ router.post(
         }
       }
 
-      const newId = generatePatientId();
+      const newId = await generatePatientId();
 
       // Parse JSON strings from FormData with validation
       let currentAddress: any = {};
@@ -427,13 +443,13 @@ router.post(
         created_by: req.user?.id || null
       };
 
-      sqliteDB.insert('patients', newPatient);
+      await db.insert('patients', newPatient);
 
       // Handle Attachments
       if (files && files['attachments']) {
         for (const file of files['attachments']) {
           const attachmentId = crypto.randomUUID();
-          sqliteDB.insert('patient_attachments', {
+          await db.insert('patient_attachments', {
             id: attachmentId,
             patient_id: newId,
             file_name: file.originalname,
@@ -455,7 +471,7 @@ router.post(
         );
       }
 
-      const created = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [newId]);
+      const created = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [newId]);
 
       // Unified response
       const mappedPatient = mapPatientToResponse(created, []);
@@ -475,7 +491,7 @@ router.put(
   async (req: AuthRequest, res) => {
     const { id } = req.params;
     try {
-      const existing = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+      const existing = await db.get<Patient>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
       if (!existing) {
         return res.status(404).json({ error: 'Patient not found' });
       }
@@ -575,13 +591,13 @@ router.put(
         updateData.profile_image_url = req.body.profileImageUrl;
       }
 
-      sqliteDB.update('patients', id, updateData);
+      await db.update('patients', id, updateData);
 
       // Handle New Attachments
       if (files && files['attachments']) {
         for (const file of files['attachments']) {
           const attachmentId = crypto.randomUUID();
-          sqliteDB.insert('patient_attachments', {
+          await db.insert('patient_attachments', {
             id: attachmentId,
             patient_id: id,
             file_name: file.originalname,
@@ -603,7 +619,7 @@ router.put(
         );
       }
 
-      const updated = sqliteDB.get<any>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+      const updated = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
 
       // Unified response
       const mappedPatient = mapPatientToResponse(updated, []);
@@ -618,7 +634,7 @@ router.put(
 router.delete('/:id', async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
-    const existing = sqliteDB.get<Patient>('SELECT * FROM patients WHERE id = ? AND deleted_at IS NULL', [id]);
+    const existing = await db.get<Patient>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Patient not found' });
     }
@@ -643,7 +659,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     }
 
     // Soft delete patient record (do not remove files to allow restore)
-    sqliteDB.run('UPDATE patients SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL', [id]);
+    await db.query('UPDATE patients SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL', [id]);
 
     res.status(204).send();
   } catch (err: any) {

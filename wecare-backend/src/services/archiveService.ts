@@ -3,7 +3,7 @@
  * Handles archiving old data to improve performance
  */
 
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 interface ArchiveConfig {
   table: string;
@@ -39,11 +39,11 @@ const ARCHIVE_CONFIGS: ArchiveConfig[] = [
 /**
  * Create archive tables if they don't exist
  */
-export const createArchiveTables = (): void => {
+export const createArchiveTables = async (): Promise<void> => {
   console.log('📦 Creating archive tables...');
 
   // Rides archive
-  sqliteDB.exec(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS rides_archive (
       id TEXT PRIMARY KEY,
       patient_id TEXT,
@@ -67,7 +67,7 @@ export const createArchiveTables = (): void => {
   `);
 
   // Audit logs archive
-  sqliteDB.exec(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS audit_logs_archive (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_email TEXT,
@@ -83,7 +83,7 @@ export const createArchiveTables = (): void => {
   `);
 
   // Notifications archive
-  sqliteDB.exec(`
+  await db.query(`
     CREATE TABLE IF NOT EXISTS notifications_archive (
       id TEXT PRIMARY KEY,
       user_id TEXT,
@@ -102,7 +102,7 @@ export const createArchiveTables = (): void => {
 /**
  * Archive old records from a table
  */
-export const archiveTable = (config: ArchiveConfig): number => {
+export const archiveTable = async (config: ArchiveConfig): Promise<number> => {
   const { table, archiveTable, dateColumn, daysToKeep } = config;
 
   console.log(`📦 Archiving ${table} (older than ${daysToKeep} days)...`);
@@ -113,8 +113,8 @@ export const archiveTable = (config: ArchiveConfig): number => {
   const cutoffDateStr = cutoffDate.toISOString();
 
   // Get count of records to archive
-  const countResult = sqliteDB.get<{ count: number }>(
-    `SELECT COUNT(*) as count FROM ${table} WHERE ${dateColumn} < ?`,
+  const countResult = await db.get<{ count: number }>(
+    `SELECT COUNT(*) as count FROM ${table} WHERE ${dateColumn} < $1`,
     [cutoffDateStr]
   );
 
@@ -126,16 +126,16 @@ export const archiveTable = (config: ArchiveConfig): number => {
   }
 
   // Copy to archive table
-  sqliteDB.exec(`
+  await db.query(`
     INSERT INTO ${archiveTable}
-    SELECT *, CURRENT_TIMESTAMP as archived_at
+    SELECT *, NOW() as archived_at
     FROM ${table}
     WHERE ${dateColumn} < '${cutoffDateStr}'
   `);
 
   // Delete from main table
-  sqliteDB.run(
-    `DELETE FROM ${table} WHERE ${dateColumn} < ?`,
+  await db.run(
+    `DELETE FROM ${table} WHERE ${dateColumn} < $1`,
     [cutoffDateStr]
   );
 
@@ -146,14 +146,14 @@ export const archiveTable = (config: ArchiveConfig): number => {
 /**
  * Archive all configured tables
  */
-export const archiveAllTables = (): { [table: string]: number } => {
+export const archiveAllTables = async (): Promise<{ [table: string]: number }> => {
   console.log('📦 Starting archive process...\n');
 
   const results: { [table: string]: number } = {};
 
   for (const config of ARCHIVE_CONFIGS) {
     try {
-      const count = archiveTable(config);
+      const count = await archiveTable(config);
       results[config.table] = count;
     } catch (error) {
       console.error(`❌ Error archiving ${config.table}:`, error);
@@ -168,15 +168,15 @@ export const archiveAllTables = (): { [table: string]: number } => {
 /**
  * Get archive statistics
  */
-export const getArchiveStats = (): any[] => {
+export const getArchiveStats = async (): Promise<any[]> => {
   const stats = [];
 
   for (const config of ARCHIVE_CONFIGS) {
-    const mainCount = sqliteDB.get<{ count: number }>(
+    const mainCount = await db.get<{ count: number }>(
       `SELECT COUNT(*) as count FROM ${config.table}`
     );
 
-    const archiveCount = sqliteDB.get<{ count: number }>(
+    const archiveCount = await db.get<{ count: number }>(
       `SELECT COUNT(*) as count FROM ${config.archiveTable}`
     );
 
@@ -194,31 +194,30 @@ export const getArchiveStats = (): any[] => {
 /**
  * Restore records from archive
  */
-export const restoreFromArchive = (
+export const restoreFromArchive = async (
   archiveTable: string,
   mainTable: string,
   recordIds: string[]
-): number => {
+): Promise<number> => {
   console.log(`🔄 Restoring ${recordIds.length} records from ${archiveTable}...`);
 
   const placeholders = recordIds.map(() => '?').join(',');
 
   // Copy back to main table (remove archived_at column)
-  const columns = sqliteDB
-    .prepare(`PRAGMA table_info(${mainTable})`)
-    .all() as any[];
+  const columns = await db.pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = $1`, [mainTable]);
 
-  const columnNames = columns.map(c => c.name).join(', ');
+  const columnNames = columns.rows.map(c => c.column_name).filter(c => c !== 'archived_at').join(', ');
 
-  sqliteDB.exec(`
+
+  await db.query(`
     INSERT INTO ${mainTable} (${columnNames})
     SELECT ${columnNames}
     FROM ${archiveTable}
     WHERE id IN (${placeholders})
-  `);
+  `, recordIds);
 
   // Delete from archive
-  sqliteDB.run(
+  await db.run(
     `DELETE FROM ${archiveTable} WHERE id IN (${placeholders})`,
     recordIds
   );
@@ -230,7 +229,7 @@ export const restoreFromArchive = (
 /**
  * Clean up very old archive data (optional)
  */
-export const cleanupOldArchives = (daysToKeep: number = 365): number => {
+export const cleanupOldArchives = async (daysToKeep: number = 365): Promise<number> => {
   console.log(`🗑️  Cleaning up archives older than ${daysToKeep} days...`);
 
   const cutoffDate = new Date();
@@ -240,8 +239,8 @@ export const cleanupOldArchives = (daysToKeep: number = 365): number => {
   let totalDeleted = 0;
 
   for (const config of ARCHIVE_CONFIGS) {
-    const result = sqliteDB.run(
-      `DELETE FROM ${config.archiveTable} WHERE archived_at < ?`,
+    const result = await db.run(
+      `DELETE FROM ${config.archiveTable} WHERE archived_at < $1`,
       [cutoffDateStr]
     );
 

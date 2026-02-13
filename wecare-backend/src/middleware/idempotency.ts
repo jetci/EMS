@@ -5,13 +5,13 @@
 
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 /**
  * Check for duplicate patient submission
  * Prevents creating duplicate patients within 5 seconds
  */
-export const checkDuplicatePatient = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const checkDuplicatePatient = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { fullName, nationalId } = req.body;
         const userId = req.user?.id;
@@ -21,14 +21,14 @@ export const checkDuplicatePatient = (req: AuthRequest, res: Response, next: Nex
         }
 
         // Check for duplicate within last 5 seconds
-        const duplicate = sqliteDB.db.prepare(`
+        const duplicate = await db.get(`
       SELECT id, created_at FROM patients 
-      WHERE created_by = ? 
-        AND full_name = ? 
-        AND (national_id = ? OR (national_id IS NULL AND ? IS NULL))
-        AND created_at > datetime('now', '-5 seconds')
+      WHERE created_by = $1 
+        AND full_name = $2 
+        AND (national_id = $3 OR (national_id IS NULL AND $4::text IS NULL))
+        AND created_at > NOW() - INTERVAL '5 seconds'
         AND deleted_at IS NULL
-    `).get(userId, fullName, nationalId || null, nationalId || null);
+    `, [userId, fullName, nationalId || null, nationalId || null]);
 
         if (duplicate) {
             return res.status(409).json({
@@ -51,7 +51,7 @@ export const checkDuplicatePatient = (req: AuthRequest, res: Response, next: Nex
  * Check for duplicate ride request
  * Prevents creating duplicate rides within 5 seconds
  */
-export const checkDuplicateRide = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const checkDuplicateRide = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
         const { patient_id, pickup_location, destination } = req.body;
         const userId = req.user?.id;
@@ -61,14 +61,14 @@ export const checkDuplicateRide = (req: AuthRequest, res: Response, next: NextFu
         }
 
         // Check for duplicate within last 5 seconds
-        const duplicate = sqliteDB.db.prepare(`
+        const duplicate = await db.get(`
       SELECT id, created_at FROM rides 
-      WHERE created_by = ? 
-        AND patient_id = ? 
-        AND pickup_location = ?
-        AND (destination = ? OR (destination IS NULL AND ? IS NULL))
-        AND created_at > datetime('now', '-5 seconds')
-    `).get(userId, patient_id, pickup_location || '', destination || null, destination || null);
+      WHERE created_by = $1 
+        AND patient_id = $2 
+        AND pickup_location = $3
+        AND (destination = $4 OR (destination IS NULL AND $5::text IS NULL))
+        AND created_at > NOW() - INTERVAL '5 seconds'
+    `, [userId, patient_id, pickup_location || '', destination || null, destination || null]);
 
         if (duplicate) {
             return res.status(409).json({
@@ -96,7 +96,7 @@ export const checkIdempotency = (
     fields: string[],
     timeWindowSeconds: number = 5
 ) => {
-    return (req: AuthRequest, res: Response, next: NextFunction) => {
+    return async (req: AuthRequest, res: Response, next: NextFunction) => {
         try {
             const userId = req.user?.id;
 
@@ -105,21 +105,21 @@ export const checkIdempotency = (
             }
 
             // Build WHERE clause
-            const conditions = ['created_by = ?'];
+            const conditions = [`created_by = $1`];
             const params: any[] = [userId];
 
-            fields.forEach(field => {
+            fields.forEach((field, index) => {
                 const value = req.body[field];
                 if (value !== undefined) {
-                    conditions.push(`${field} = ?`);
+                    conditions.push(`${field} = $${index + 2}`);
                     params.push(value);
                 }
             });
 
-            conditions.push(`created_at > datetime('now', '-${timeWindowSeconds} seconds')`);
+            conditions.push(`created_at > NOW() - INTERVAL '${timeWindowSeconds} seconds'`);
 
             const sql = `SELECT id, created_at FROM ${table} WHERE ${conditions.join(' AND ')}`;
-            const duplicate = sqliteDB.db.prepare(sql).get(...params);
+            const duplicate = await db.get(sql, params);
 
             if (duplicate) {
                 return res.status(409).json({
@@ -142,4 +142,4 @@ export const checkIdempotency = (
 /**
  * Expose database instance for transaction support
  */
-export const db = sqliteDB.db;
+export const dbInstance = db.pool;

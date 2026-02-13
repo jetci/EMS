@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken, AuthRequest, requireRole } from '../middleware/auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = express.Router();
 
@@ -22,8 +22,8 @@ interface Driver {
 }
 
 // Helper to generate driver ID
-const generateDriverId = (): string => {
-  const drivers = sqliteDB.all<{ id: string }>('SELECT id FROM drivers ORDER BY id DESC LIMIT 1');
+const generateDriverId = async (): Promise<string> => {
+  const drivers = await db.all<{ id: string }>('SELECT id FROM drivers ORDER BY id DESC LIMIT 1');
   if (drivers.length === 0) return 'DRV-001';
   const lastId = drivers[0].id;
   const num = parseInt(lastId.split('-')[1]) + 1;
@@ -65,8 +65,8 @@ const getVehicleInput = (body: any) => {
   return { licensePlate, brand, model, color };
 };
 
-const generateVehicleId = (): string => {
-  const vehicles = sqliteDB.all<{ id: string }>('SELECT id FROM vehicles ORDER BY id DESC LIMIT 1');
+const generateVehicleId = async (): Promise<string> => {
+  const vehicles = await db.all<{ id: string }>('SELECT id FROM vehicles ORDER BY id DESC LIMIT 1');
   if (vehicles.length === 0) return 'VEH-001';
   const lastId = vehicles[0].id;
   const num = parseInt(lastId.split('-')[1]) + 1;
@@ -76,7 +76,7 @@ const generateVehicleId = (): string => {
 // GET /api/drivers - fetch all drivers
 router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
   try {
-    const drivers = sqliteDB.all<any>(`
+    const drivers = await db.all<any>(`
       SELECT d.*,
              v.license_plate,
              v.brand,
@@ -95,7 +95,7 @@ router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'E
 // GET /api/drivers/available - fetch available drivers
 router.get('/available', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'EXECUTIVE', 'driver']), async (_req, res) => {
   try {
-    const drivers = sqliteDB.all<any>(`
+    const drivers = await db.all<any>(`
       SELECT d.*, 
              dl.latitude, 
              dl.longitude, 
@@ -120,16 +120,16 @@ router.get('/my-rides', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driverId]);
+    let driver = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [driverId]);
     if (!driver && userId) {
-      driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+      driver = await db.get<Driver>('SELECT * FROM drivers WHERE user_id = $1', [userId]);
     }
 
     if (!driver) {
       return res.status(403).json({ error: 'Driver profile not found for this user' });
     }
 
-    const rides = sqliteDB.all<any>('SELECT * FROM rides WHERE driver_id = ? ORDER BY appointment_time DESC', [driver.id]);
+    const rides = await db.all<any>('SELECT * FROM rides WHERE driver_id = $1 ORDER BY appointment_time DESC', [driver.id]);
     res.json(rides);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -142,9 +142,9 @@ router.get('/my-profile', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driverId]);
+    let driver = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [driverId]);
     if (!driver && userId) {
-      driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+      driver = await db.get<Driver>('SELECT * FROM drivers WHERE user_id = $1', [userId]);
     }
 
     if (!driver) {
@@ -163,9 +163,9 @@ router.put('/my-profile', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driverId]);
+    let driver = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [driverId]);
     if (!driver && userId) {
-      driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+      driver = await db.get<Driver>('SELECT * FROM drivers WHERE user_id = $1', [userId]);
     }
 
     if (!driver) {
@@ -179,8 +179,8 @@ router.put('/my-profile', authenticateToken, async (req: AuthRequest, res) => {
     if (license_number) updateData.license_number = license_number;
     if (status) updateData.status = status;
 
-    sqliteDB.update('drivers', driver.id, updateData);
-    const updated = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driver.id]);
+    await db.update('drivers', driver.id, updateData);
+    const updated = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [driver.id]);
     res.json(updated);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -193,18 +193,18 @@ router.get('/my-history', authenticateToken, async (req: AuthRequest, res) => {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [driverId]);
+    let driver = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [driverId]);
     if (!driver && userId) {
-      driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+      driver = await db.get<Driver>('SELECT * FROM drivers WHERE user_id = $1', [userId]);
     }
 
     if (!driver) {
       return res.status(403).json({ error: 'Driver profile not found' });
     }
 
-    const rides = sqliteDB.all<any>(`
+    const rides = await db.all<any>(`
       SELECT * FROM rides 
-      WHERE driver_id = ? 
+      WHERE driver_id = $1 
         AND status IN ('COMPLETED', 'CANCELLED')
       ORDER BY appointment_time DESC
     `, [driver.id]);
@@ -219,7 +219,7 @@ router.get('/my-history', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const driver = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [id]);
+    const driver = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [id]);
     if (!driver) {
       return res.status(404).json({ error: 'Driver not found' });
     }
@@ -236,7 +236,7 @@ router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req: Aut
     const vehicle = getVehicleInput(req.body);
     let vehicleId: string | null = null;
     if (vehicle.licensePlate) {
-      const existing = sqliteDB.get<any>('SELECT * FROM vehicles WHERE license_plate = ?', [vehicle.licensePlate]);
+      const existing = await db.get<any>('SELECT * FROM vehicles WHERE license_plate = $1', [vehicle.licensePlate]);
       if (existing?.id) {
         vehicleId = existing.id;
         const updateVehicle: any = {};
@@ -244,11 +244,11 @@ router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req: Aut
         if (vehicle.model) updateVehicle.model = vehicle.model;
         if (vehicle.color) updateVehicle.color = vehicle.color;
         if (Object.keys(updateVehicle).length > 0) {
-          sqliteDB.update('vehicles', existing.id, updateVehicle);
+          await db.update('vehicles', existing.id, updateVehicle);
         }
       } else {
-        vehicleId = generateVehicleId();
-        sqliteDB.insert('vehicles', {
+        vehicleId = await generateVehicleId();
+        await db.insert('vehicles', {
           id: vehicleId,
           license_plate: vehicle.licensePlate,
           brand: vehicle.brand,
@@ -262,18 +262,18 @@ router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req: Aut
 
     const requestedUserId = req.body.user_id || req.body.userId || null;
     if (requestedUserId) {
-      const user = sqliteDB.get<any>('SELECT * FROM users WHERE id = ?', [requestedUserId]);
+      const user = await db.get<any>('SELECT * FROM users WHERE id = $1', [requestedUserId]);
       if (!user) return res.status(400).json({ error: 'User not found' });
       const userRole = String(user.role || '').toUpperCase();
       if (userRole === 'ADMIN' || userRole === 'DEVELOPER') {
         return res.status(400).json({ error: 'Invalid user role for driver' });
       }
       if (userRole !== 'DRIVER') {
-        sqliteDB.update('users', requestedUserId, { role: 'driver' });
+        await db.update('users', requestedUserId, { role: 'driver' });
       }
     }
 
-    const newId = generateDriverId();
+    const newId = await generateDriverId();
     const newDriver = {
       id: newId,
       user_id: requestedUserId,
@@ -286,8 +286,8 @@ router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req: Aut
       profile_image_url: req.body.profile_image_url || null
     };
 
-    sqliteDB.insert('drivers', newDriver);
-    const created = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [newId]);
+    await db.insert('drivers', newDriver);
+    const created = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [newId]);
     res.status(201).json(created);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -308,7 +308,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']
 
     const vehicle = getVehicleInput(req.body);
     if (vehicle.licensePlate) {
-      const existing = sqliteDB.get<any>('SELECT * FROM vehicles WHERE license_plate = ?', [vehicle.licensePlate]);
+      const existing = await db.get<any>('SELECT * FROM vehicles WHERE license_plate = $1', [vehicle.licensePlate]);
       if (existing?.id) {
         updateData.current_vehicle_id = existing.id;
         const updateVehicle: any = {};
@@ -316,7 +316,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']
         if (vehicle.model) updateVehicle.model = vehicle.model;
         if (vehicle.color) updateVehicle.color = vehicle.color;
         if (Object.keys(updateVehicle).length > 0) {
-          sqliteDB.update('vehicles', existing.id, updateVehicle);
+          await db.update('vehicles', existing.id, updateVehicle);
         }
       } else {
         const normalizedRole = String(req.user?.role || '').toUpperCase();
@@ -324,23 +324,23 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']
         if (!canCreateVehicle) {
           // no-op: only admin/developer can create new vehicles via driver update
         } else {
-        const vehicleId = generateVehicleId();
-        sqliteDB.insert('vehicles', {
-          id: vehicleId,
-          license_plate: vehicle.licensePlate,
-          brand: vehicle.brand,
-          model: vehicle.model,
-          color: vehicle.color,
-          status: 'AVAILABLE',
-          mileage: 0,
-        });
-        updateData.current_vehicle_id = vehicleId;
+          const vehicleId = await generateVehicleId();
+          await db.insert('vehicles', {
+            id: vehicleId,
+            license_plate: vehicle.licensePlate,
+            brand: vehicle.brand,
+            model: vehicle.model,
+            color: vehicle.color,
+            status: 'AVAILABLE',
+            mileage: 0,
+          });
+          updateData.current_vehicle_id = vehicleId;
         }
       }
     }
 
-    sqliteDB.update('drivers', id, updateData);
-    const updated = sqliteDB.get<Driver>('SELECT * FROM drivers WHERE id = ?', [id]);
+    await db.update('drivers', id, updateData);
+    const updated = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [id]);
     if (!updated) {
       return res.status(404).json({ error: 'Driver not found' });
     }
@@ -354,8 +354,8 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']
 router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   const { id } = req.params;
   try {
-    const result = sqliteDB.delete('drivers', id);
-    if (result.changes === 0) {
+    const result = await db.delete('drivers', id);
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Driver not found' });
     }
     res.status(204).send();

@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = express.Router();
@@ -19,9 +19,9 @@ export interface DriverLocation {
 }
 
 // GET /api/driver-locations - Get all active driver locations
-router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'driver', 'EXECUTIVE']), (req, res) => {
+router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'driver', 'EXECUTIVE']), async (req, res) => {
     try {
-        const rows = sqliteDB.all<any>(`
+        const rows = await db.all<any>(`
             SELECT 
                 d.id,
                 d.full_name,
@@ -42,7 +42,7 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER',
             WHERE d.status != 'INACTIVE'
         `);
 
-        const activeRides = sqliteDB.all<any>(`
+        const activeRides = await db.all<any>(`
             SELECT id, driver_id FROM rides 
             WHERE status IN ('ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS')
         `);
@@ -73,7 +73,7 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER',
 });
 
 // PUT /api/driver-locations/:driverId - Update driver location (from Driver App)
-router.put('/:driverId', authenticateToken, (req, res) => {
+router.put('/:driverId', authenticateToken, async (req, res) => {
     try {
         const { driverId } = req.params;
         const { latitude, longitude, status } = req.body;
@@ -104,20 +104,22 @@ router.put('/:driverId', authenticateToken, (req, res) => {
 
         // Perform UPSERT for location
         // Note: 'driver_locations' table schema must have PRIMARY KEY (driver_id)
-        sqliteDB.transaction(() => {
+        // Perform UPSERT for location
+        // Note: 'driver_locations' table schema must have PRIMARY KEY (driver_id)
+        await db.transaction(async (client) => {
             // Update Location (insert new record for history)
-            sqliteDB.prepare(`
+            await client.query(`
                 INSERT INTO driver_locations (driver_id, latitude, longitude, timestamp)
-                VALUES (?, ?, ?, ?)
-            `).run(driverId, lat, lng, lastUpdated);
+                VALUES ($1, $2, $3, $4)
+            `, [driverId, lat, lng, lastUpdated]);
 
             // Update Status if provided
             if (status) {
-                sqliteDB.prepare(`
+                await client.query(`
                     UPDATE drivers 
-                    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                `).run(status, driverId);
+                    SET status = $1, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = $2
+                `, [status, driverId]);
             }
         });
 
@@ -136,11 +138,11 @@ router.put('/:driverId', authenticateToken, (req, res) => {
 });
 
 // GET /api/driver-locations/:driverId - Get specific driver location
-router.get('/:driverId', authenticateToken, (req, res) => {
+router.get('/:driverId', authenticateToken, async (req, res) => {
     try {
         const { driverId } = req.params;
 
-        const row = sqliteDB.get<any>(`
+        const row = await db.get<any>(`
             SELECT 
                 d.id,
                 d.full_name,
@@ -158,16 +160,16 @@ router.get('/:driverId', authenticateToken, (req, res) => {
                        ROW_NUMBER() OVER (PARTITION BY driver_id ORDER BY timestamp DESC) as rn
                 FROM driver_locations
             ) l ON d.id = l.driver_id AND l.rn = 1
-            WHERE d.id = ?
+            WHERE d.id = $1
         `, [driverId]);
 
         if (!row) {
             return res.status(404).json({ error: 'Driver not found' });
         }
 
-        const activeRide = sqliteDB.get<any>(`
+        const activeRide = await db.get<any>(`
             SELECT id FROM rides 
-            WHERE driver_id = ? AND status IN ('ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS')
+            WHERE driver_id = $1 AND status IN ('ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS')
         `, [driverId]);
 
         const location: DriverLocation = {

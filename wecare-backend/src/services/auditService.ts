@@ -1,4 +1,4 @@
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import crypto from 'crypto';
 
 export interface AuditLog {
@@ -45,9 +45,9 @@ const calculateHash = (log: Omit<AuditLog, 'hash'>): string => {
 /**
  * Get the last audit log for chain continuation
  */
-const getLastLog = (): AuditLog | null => {
+const getLastLog = async (): Promise<AuditLog | null> => {
     try {
-        const log = sqliteDB.get<any>(
+        const log = await db.get<any>(
             'SELECT * FROM audit_logs ORDER BY sequence_number DESC LIMIT 1'
         );
 
@@ -62,7 +62,7 @@ const getLastLog = (): AuditLog | null => {
             action: log.action,
             targetId: log.resource_id,
             ipAddress: log.ip_address,
-            dataPayload: log.details ? JSON.parse(log.details) : undefined,
+            dataPayload: log.details,
             hash: log.hash,
             previousHash: log.previous_hash,
             sequenceNumber: log.sequence_number
@@ -76,9 +76,9 @@ const getLastLog = (): AuditLog | null => {
 /**
  * Initialize cache with last log
  */
-const initializeCache = () => {
+const initializeCache = async () => {
     if (!lastLogCache) {
-        const lastLog = getLastLog();
+        const lastLog = await getLastLog();
         if (lastLog && lastLog.hash && lastLog.sequenceNumber !== undefined) {
             lastLogCache = {
                 hash: lastLog.hash,
@@ -97,7 +97,7 @@ export const auditService = {
     /**
      * Log an action with hash chain integrity
      */
-    log: (
+    log: async (
         userEmail: string,
         userRole: string,
         action: string,
@@ -107,7 +107,7 @@ export const auditService = {
     ) => {
         try {
             // Initialize cache if needed
-            initializeCache();
+            await initializeCache();
 
             const sequenceNumber = (lastLogCache?.sequenceNumber || 0) + 1;
             const previousHash = lastLogCache?.hash || '0';
@@ -129,25 +129,25 @@ export const auditService = {
             // Calculate hash (use sequenceNumber as temp id for hash calculation)
             const hash = calculateHash({ ...logWithoutHash, id: sequenceNumber.toString() });
 
-            // Insert into SQLite (id will be auto-generated)
-            sqliteDB.db.prepare(`
+            // Insert into Postgres
+            await db.run(`
                 INSERT INTO audit_logs (
                     user_email, user_role, action, resource_id, 
                     details, ip_address, timestamp,
                     hash, previous_hash, sequence_number
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `, [
                 userEmail,
                 userRole,
                 action,
                 targetId || null,
-                dataPayload ? JSON.stringify(dataPayload) : null,
+                dataPayload || null,
                 ipAddress || null,
                 timestamp,
                 hash,
                 previousHash,
                 sequenceNumber
-            );
+            ]);
 
             // Update cache
             lastLogCache = { hash, sequenceNumber };
@@ -161,17 +161,17 @@ export const auditService = {
     /**
      * Verify integrity of entire audit log chain
      */
-    verifyIntegrity: (): {
+    verifyIntegrity: async (): Promise<{
         valid: boolean;
         totalLogs: number;
         verifiedLogs: number;
         errors: string[];
-    } => {
+    }> => {
         const errors: string[] = [];
         let verifiedLogs = 0;
 
         try {
-            const rawLogs = sqliteDB.all<any>(
+            const rawLogs = await db.all<any>(
                 'SELECT * FROM audit_logs ORDER BY sequence_number ASC'
             );
             const totalLogs = rawLogs.length;
@@ -189,10 +189,10 @@ export const auditService = {
                 action: log.action,
                 targetId: log.resource_id,
                 ipAddress: log.ip_address,
-                dataPayload: log.details ? JSON.parse(log.details) : undefined,
+                dataPayload: log.details,
                 hash: log.hash,
                 previousHash: log.previous_hash,
-                sequenceNumber: log.sequence_number
+                sequenceNumber: parseInt(log.sequence_number)
             }));
 
             // Verify each log
@@ -246,8 +246,8 @@ export const auditService = {
     /**
      * Get integrity status summary
      */
-    getIntegrityStatus: () => {
-        const result = auditService.verifyIntegrity();
+    getIntegrityStatus: async () => {
+        const result = await auditService.verifyIntegrity();
         return {
             ...result,
             integrityPercentage: result.totalLogs > 0
@@ -260,12 +260,12 @@ export const auditService = {
     /**
      * Rebuild hash chain (use with caution - only for migration)
      */
-    rebuildChain: (): { success: boolean; rebuilt: number; errors: string[] } => {
+    rebuildChain: async (): Promise<{ success: boolean; rebuilt: number; errors: string[] }> => {
         const errors: string[] = [];
         let rebuilt = 0;
 
         try {
-            const rawLogs = sqliteDB.all<any>(
+            const rawLogs = await db.all<any>(
                 'SELECT * FROM audit_logs ORDER BY timestamp ASC'
             );
 
@@ -284,7 +284,7 @@ export const auditService = {
                     action: log.action,
                     targetId: log.resource_id,
                     ipAddress: log.ip_address,
-                    dataPayload: log.details ? JSON.parse(log.details) : undefined,
+                    dataPayload: log.details,
                     previousHash,
                     sequenceNumber
                 };
@@ -293,11 +293,11 @@ export const auditService = {
                 const hash = calculateHash(updatedLog);
 
                 // Update in database
-                sqliteDB.db.prepare(`
+                await db.run(`
                     UPDATE audit_logs 
-                    SET hash = ?, previous_hash = ?, sequence_number = ?
-                    WHERE id = ?
-                `).run(hash, previousHash, sequenceNumber, log.id);
+                    SET hash = $1, previous_hash = $2, sequence_number = $3
+                    WHERE id = $4
+                `, [hash, previousHash, sequenceNumber, log.id]);
 
                 previousHash = hash;
                 rebuilt++;
@@ -305,7 +305,7 @@ export const auditService = {
 
             // Reset cache
             lastLogCache = null;
-            initializeCache();
+            await initializeCache();
 
             return { success: true, rebuilt, errors: [] };
 

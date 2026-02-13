@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = express.Router();
@@ -13,20 +13,37 @@ export interface RideEvent {
     userName: string;
     userRole: string;
     description: string;
-    details?: any; // Not persisted in SQLite currently unless added to schema
+    details?: any; // Not persisted in SQL currently unless added to schema
     location?: {
         lat: number;
         lng: number;
     };
 }
 
+// Helper function to default description
+function getDefaultDescription(eventType: string): string {
+    const descriptions: Record<string, string> = {
+        'CREATED': 'สร้างคำขอเดินทางใหม่',
+        'ASSIGNED': 'จ่ายงานให้คนขับ',
+        'EN_ROUTE': 'คนขับกำลังเดินทางไปรับผู้ป่วย',
+        'ARRIVED': 'คนขับถึงจุดรับผู้ป่วยแล้ว',
+        'IN_PROGRESS': 'กำลังเดินทางไปจุดหมาย',
+        'COMPLETED': 'เสร็จสิ้นการเดินทาง',
+        'CANCELLED': 'ยกเลิกการเดินทาง',
+        'NOTE': 'บันทึกเพิ่มเติม',
+        'LOCATION_UPDATE': 'อัปเดตตำแหน่ง'
+    };
+    return descriptions[eventType] || eventType;
+}
+
 // GET /api/ride-events/:rideId - Get all events for a specific ride
-router.get('/:rideId', authenticateToken, (req, res) => {
+router.get('/:rideId', authenticateToken, async (req, res) => {
     try {
         const { rideId } = req.params;
 
         // Join with users to get name and role
-        const rows = sqliteDB.all<any>(`
+        // Join with users to get name and role
+        const rows = await db.all<any>(`
             SELECT 
                 re.id,
                 re.ride_id,
@@ -40,7 +57,7 @@ router.get('/:rideId', authenticateToken, (req, res) => {
                 u.role as user_role
             FROM ride_events re
             LEFT JOIN users u ON re.created_by = u.id
-            WHERE re.ride_id = ?
+            WHERE re.ride_id = $1
             ORDER BY re.timestamp DESC
         `, [rideId]);
 
@@ -68,7 +85,7 @@ router.get('/:rideId', authenticateToken, (req, res) => {
 });
 
 // POST /api/ride-events - Create a new event (internal use or manual notes)
-router.post('/', authenticateToken, (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
         const { rideId, eventType, description, details, location } = req.body;
         const currentUser = (req as any).user;
@@ -82,13 +99,16 @@ router.post('/', authenticateToken, (req, res) => {
         const lng = location?.lng ? String(location.lng) : null;
         const userId = currentUser?.id;
 
-        const result = sqliteDB.prepare(`
+        const result = await db.query(`
             INSERT INTO ride_events (ride_id, event_type, timestamp, latitude, longitude, notes, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(rideId, eventType, new Date().toISOString(), lat, lng, finalDescription, userId);
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id
+        `, [rideId, eventType, new Date().toISOString(), lat, lng, finalDescription, userId]);
+
+        const newId = result.rows[0].id;
 
         const newEvent: RideEvent = {
-            id: Number(result.lastInsertRowid),
+            id: Number(newId),
             rideId,
             eventType,
             timestamp: new Date().toISOString(),
@@ -107,44 +127,31 @@ router.post('/', authenticateToken, (req, res) => {
     }
 });
 
-// Helper function for default descriptions
-function getDefaultDescription(eventType: string): string {
-    const descriptions: Record<string, string> = {
-        'CREATED': 'สร้างคำขอเดินทางใหม่',
-        'ASSIGNED': 'จ่ายงานให้คนขับ',
-        'EN_ROUTE': 'คนขับกำลังเดินทางไปรับผู้ป่วย',
-        'ARRIVED': 'คนขับถึงจุดรับผู้ป่วยแล้ว',
-        'IN_PROGRESS': 'กำลังเดินทางไปจุดหมาย',
-        'COMPLETED': 'เสร็จสิ้นการเดินทาง',
-        'CANCELLED': 'ยกเลิกการเดินทาง',
-        'NOTE': 'บันทึกเพิ่มเติม',
-        'LOCATION_UPDATE': 'อัปเดตตำแหน่ง'
-    };
-    return descriptions[eventType] || eventType;
-}
-
 // Utility function to log ride events (to be called from other routes)
-export function logRideEvent(
+export async function logRideEvent(
     rideId: string,
     eventType: RideEvent['eventType'],
     user: { id: string; email?: string; fullName?: string; role?: string },
     details?: any,
     description?: string,
     location?: { lat: number; lng: number }
-): RideEvent {
+): Promise<RideEvent> {
 
     const finalDescription = description || getDefaultDescription(eventType);
     const lat = location?.lat ? String(location.lat) : null;
     const lng = location?.lng ? String(location.lng) : null;
 
     try {
-        const result = sqliteDB.prepare(`
+        const result = await db.query(`
             INSERT INTO ride_events (ride_id, event_type, timestamp, latitude, longitude, notes, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(rideId, eventType, new Date().toISOString(), lat, lng, finalDescription, user.id);
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id
+        `, [rideId, eventType, new Date().toISOString(), lat, lng, finalDescription, user.id]);
+
+        const newId = result.rows[0].id;
 
         return {
-            id: Number(result.lastInsertRowid),
+            id: Number(newId),
             rideId,
             eventType,
             timestamp: new Date().toISOString(),
@@ -157,9 +164,7 @@ export function logRideEvent(
         };
     } catch (error) {
         console.error('Failed to log ride event:', error);
-        // Return a temporary object even if DB fail, to prevent crashing main flow? 
-        // Or throw? Usually logging failure shouldn't crash auth logic, but usually we want to know.
-        // For now logging error and returning mock to allow continuation.
+        // Return a temporary object
         return {
             id: 0,
             rideId,

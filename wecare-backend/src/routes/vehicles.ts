@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = express.Router();
 
@@ -19,8 +19,8 @@ interface Vehicle {
   next_maintenance_date?: string;
 }
 
-const generateVehicleId = (): string => {
-  const vehicles = sqliteDB.all<{ id: string }>('SELECT id FROM vehicles ORDER BY id DESC LIMIT 1');
+const generateVehicleId = async (): Promise<string> => {
+  const vehicles = await db.all<{ id: string }>('SELECT id FROM vehicles ORDER BY id DESC LIMIT 1');
   if (vehicles.length === 0) return 'VEH-001';
   const lastId = vehicles[0].id;
   const num = parseInt(lastId.split('-')[1]) + 1;
@@ -32,7 +32,7 @@ router.use(authenticateToken);
 // GET /api/vehicles
 router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (_req, res) => {
   try {
-    const vehicles = sqliteDB.all<Vehicle>('SELECT * FROM vehicles ORDER BY license_plate');
+    const vehicles = await db.all<Vehicle>('SELECT * FROM vehicles ORDER BY license_plate');
     res.json(vehicles);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -42,7 +42,7 @@ router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), 
 // GET /api/vehicles/:id
 router.get('/:id', async (req, res) => {
   try {
-    const vehicle = sqliteDB.get<Vehicle>('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
+    const vehicle = await db.get<Vehicle>('SELECT * FROM vehicles WHERE id = $1', [req.params.id]);
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
     res.json(vehicle);
   } catch (err: any) {
@@ -53,7 +53,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/vehicles
 router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
-    const newId = generateVehicleId();
+    const newId = await generateVehicleId();
     const newVehicle = {
       id: newId,
       license_plate: req.body.license_plate,
@@ -68,8 +68,8 @@ router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res
       last_maintenance_date: req.body.last_maintenance_date || null,
       next_maintenance_date: req.body.next_maintenance_date || null
     };
-    sqliteDB.insert('vehicles', newVehicle);
-    const created = sqliteDB.get<Vehicle>('SELECT * FROM vehicles WHERE id = ?', [newId]);
+    await db.insert('vehicles', newVehicle);
+    const created = await db.get<Vehicle>('SELECT * FROM vehicles WHERE id = $1', [newId]);
     res.status(201).json(created);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -86,8 +86,8 @@ router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, r
     if (req.body.last_maintenance_date) updateData.last_maintenance_date = req.body.last_maintenance_date;
     if (req.body.next_maintenance_date) updateData.next_maintenance_date = req.body.next_maintenance_date;
 
-    sqliteDB.update('vehicles', req.params.id, updateData);
-    const updated = sqliteDB.get<Vehicle>('SELECT * FROM vehicles WHERE id = ?', [req.params.id]);
+    await db.update('vehicles', req.params.id, updateData);
+    const updated = await db.get<Vehicle>('SELECT * FROM vehicles WHERE id = $1', [req.params.id]);
     if (!updated) return res.status(404).json({ error: 'Vehicle not found' });
     res.json(updated);
   } catch (err: any) {
@@ -98,8 +98,8 @@ router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, r
 // DELETE /api/vehicles/:id
 router.delete('/:id', requireRole(['ADMIN', 'DEVELOPER']), async (req, res) => {
   try {
-    const result = sqliteDB.delete('vehicles', req.params.id);
-    if (result.changes === 0) return res.status(404).json({ error: 'Vehicle not found' });
+    const result = await db.delete('vehicles', req.params.id);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Vehicle not found' });
     res.status(204).send();
   } catch (err: any) {
     res.status(500).json({ error: err.message });
