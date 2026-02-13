@@ -505,19 +505,16 @@ app.use(globalErrorHandler);
 // ✅ FIX BUG-009: WebSocket Implementation for Real-time Location Tracking
 const httpServer = http.createServer(app);
 
-// Initialize Socket.IO via SocketService
-const socketService = require('./services/socketService').default;
-
-// Initialize socket service with the HTTP server
-socketService.initialize(httpServer);
-
-// Start server
 // Start server
 const startServer = async () => {
   try {
     // Initialize Database first
     const { initializeDatabase } = require('./db/postgresDB');
     await initializeDatabase();
+
+    // ✅ Move Socket.IO initialization here (Inside non-Vercel block)
+    const socketService = require('./services/socketService').default;
+    socketService.initialize(httpServer);
 
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);

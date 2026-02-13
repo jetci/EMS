@@ -5,6 +5,23 @@ let isInitialized = false;
 
 export default async function handler(req: any, res: any) {
     try {
+        // Log environment status (sanitize for safety)
+        const envStatus = {
+            NODE_ENV: process.env.NODE_ENV,
+            VERCEL: process.env.VERCEL,
+            HAS_DB_URL: !!process.env.DATABASE_URL,
+            HAS_JWT_SECRET: !!process.env.JWT_SECRET
+        };
+        console.log('🔍 Handler Invocation:', {
+            method: req.method,
+            url: req.url,
+            env: envStatus
+        });
+
+        if (!process.env.DATABASE_URL) {
+            throw new Error('CRITICAL: DATABASE_URL is missing from Vercel environment variables.');
+        }
+
         // Ensure database is initialized exactly once per cold start
         if (!isInitialized) {
             console.log('🔄 Serverless Cold Start: Initializing Database...');
@@ -15,11 +32,13 @@ export default async function handler(req: any, res: any) {
 
         // Pass the request to Express
         return app(req, res);
-    } catch (err) {
+    } catch (err: any) {
         console.error('❌ Vercel Handler Error:', err);
         res.status(500).json({
             error: 'Internal Server Error',
-            details: process.env.NODE_ENV === 'development' ? String(err) : undefined
+            message: err.message,
+            code: 'FUNCTION_INVOCATION_FAILED',
+            details: process.env.NODE_ENV === 'development' ? String(err.stack) : undefined
         });
     }
 }

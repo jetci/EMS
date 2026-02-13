@@ -17,13 +17,34 @@ const pool = new Pool({
 // Test connection on startup
 pool.on('error', (err, client) => {
     console.error('❌ Unexpected error on idle client', err);
-    process.exit(-1);
+    // In serverless, we don't want to exit the process
 });
 
 // Initialize Schema (Run SQL file)
 export const initializeSchema = async () => {
     try {
-        const schemaPath = path.join(__dirname, '..', '..', 'db', 'schema.postgres.sql');
+        // Try multiple potential paths for serverless vs local
+        const paths = [
+            path.join(process.cwd(), 'wecare-backend', 'db', 'schema.postgres.sql'),
+            path.join(__dirname, '..', '..', 'db', 'schema.postgres.sql'),
+            path.join(__dirname, '..', 'db', 'schema.postgres.sql'), // Bundled case
+            path.join(process.cwd(), 'db', 'schema.postgres.sql')
+        ];
+
+        let schemaPath = '';
+        for (const p of paths) {
+            if (fs.existsSync(p)) {
+                schemaPath = p;
+                break;
+            }
+        }
+
+        if (!schemaPath) {
+            console.error('❌ could not find schema.postgres.sql in any of:', paths);
+            throw new Error('Schema file not found');
+        }
+
+        console.log(`📜 Loading schema from: ${schemaPath}`);
         const schema = fs.readFileSync(schemaPath, 'utf-8');
         await pool.query(schema);
         console.log('✅ PostgreSQL schema initialized successfully');
