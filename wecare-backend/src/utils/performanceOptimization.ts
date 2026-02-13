@@ -1,9 +1,9 @@
 /**
  * Performance Optimization Utilities
- * Fixes N+1 queries and implements caching
+ * Fixes N+1 queries and implements caching (PostgreSQL Version)
  */
 
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 // Simple in-memory cache
 interface CacheEntry<T> {
@@ -98,7 +98,7 @@ export interface PatientWithAttachments {
  * Get all patients with attachments (optimized - single query)
  * Fixes PERF-002: N+1 Query Problem
  */
-export function getPatientsWithAttachments(): PatientWithAttachments[] {
+export async function getPatientsWithAttachments(): Promise<PatientWithAttachments[]> {
     // Check cache first
     const cacheKey = 'patients:all';
     const cached = cache.get<PatientWithAttachments[]>(cacheKey);
@@ -126,7 +126,8 @@ export function getPatientsWithAttachments(): PatientWithAttachments[] {
     ORDER BY p.created_at DESC, pa.uploaded_at ASC
   `;
 
-    const rows = sqliteDB.all<any>(query);
+    const res = await db.query(query);
+    const rows = res.rows;
 
     // Group attachments by patient
     const patientsMap = new Map<string, PatientWithAttachments>();
@@ -156,7 +157,7 @@ export function getPatientsWithAttachments(): PatientWithAttachments[] {
                 file_name: row.file_name,
                 file_path: row.file_path,
                 file_type: row.file_type,
-                file_size: row.file_size,
+                file_size: parseInt(row.file_size.toString()),
                 uploaded_at: row.uploaded_at
             });
         }
@@ -173,7 +174,7 @@ export function getPatientsWithAttachments(): PatientWithAttachments[] {
 /**
  * Get single patient with attachments (optimized)
  */
-export function getPatientWithAttachments(patientId: string): PatientWithAttachments | null {
+export async function getPatientWithAttachments(patientId: string): Promise<PatientWithAttachments | null> {
     // Check cache first
     const cacheKey = `patient:${patientId}`;
     const cached = cache.get<PatientWithAttachments>(cacheKey);
@@ -197,11 +198,12 @@ export function getPatientWithAttachments(patientId: string): PatientWithAttachm
       pa.uploaded_at
     FROM patients p
     LEFT JOIN patient_attachments pa ON p.id = pa.patient_id
-    WHERE p.id = ? AND p.deleted_at IS NULL
+    WHERE p.id = $1 AND p.deleted_at IS NULL
     ORDER BY pa.uploaded_at ASC
   `;
 
-    const rows = sqliteDB.all<any>(query, [patientId]);
+    const res = await db.query(query, [patientId]);
+    const rows = res.rows;
 
     if (rows.length === 0) {
         return null;
@@ -230,7 +232,7 @@ export function getPatientWithAttachments(patientId: string): PatientWithAttachm
                 file_name: row.file_name,
                 file_path: row.file_path,
                 file_type: row.file_type,
-                file_size: row.file_size,
+                file_size: parseInt(row.file_size.toString()),
                 uploaded_at: row.uploaded_at
             });
         }
@@ -277,7 +279,7 @@ export interface RideWithDetails {
  * Get all rides with patient and driver names (optimized)
  * Fixes PERF-002: N+1 Query Problem
  */
-export function getRidesWithDetails(): RideWithDetails[] {
+export async function getRidesWithDetails(): Promise<RideWithDetails[]> {
     // Check cache
     const cacheKey = 'rides:all';
     const cached = cache.get<RideWithDetails[]>(cacheKey);
@@ -301,7 +303,8 @@ export function getRidesWithDetails(): RideWithDetails[] {
     ORDER BY r.created_at DESC
   `;
 
-    const rides = sqliteDB.all<RideWithDetails>(query);
+    const res = await db.query(query);
+    const rides = res.rows as RideWithDetails[];
 
     // Cache for 2 minutes (rides change frequently)
     cache.set(cacheKey, rides, 120000);

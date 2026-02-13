@@ -1,27 +1,29 @@
 /**
  * Soft Delete Middleware
- * Implements soft delete pattern for data retention
+ * Implements soft delete pattern for data retention (PostgreSQL Version)
  */
 
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 /**
  * Add deleted_at column to tables
+ * Note: In PostgreSQL, this should ideally be part of migration scripts.
  */
-export const enableSoftDelete = (tables: string[]): void => {
+export const enableSoftDelete = async (tables: string[]): Promise<void> => {
   console.log('🗑️  Enabling soft delete...');
 
   for (const table of tables) {
     try {
-      // Check if column exists
-      const columns = sqliteDB
-        .prepare(`PRAGMA table_info(${table})`)
-        .all() as any[];
+      // Check if column exists in PostgreSQL
+      const query = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name = 'deleted_at'
+      `;
+      const res = await db.query(query, [table]);
 
-      const hasDeletedAt = columns.some(c => c.name === 'deleted_at');
-
-      if (!hasDeletedAt) {
-        sqliteDB.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at TEXT`);
+      if (res.rowCount === 0) {
+        await db.query(`ALTER TABLE ${table} ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE`);
         console.log(`  ✅ Added deleted_at to ${table}`);
       } else {
         console.log(`  ℹ️  ${table} already has deleted_at`);
@@ -37,21 +39,19 @@ export const enableSoftDelete = (tables: string[]): void => {
 /**
  * Soft delete a record
  */
-export const softDelete = (table: string, id: string): void => {
-  const now = new Date().toISOString();
-
-  sqliteDB.run(
-    `UPDATE ${table} SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`,
-    [now, id]
+export const softDelete = async (table: string, id: string): Promise<void> => {
+  await db.query(
+    `UPDATE ${table} SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`,
+    [id]
   );
 };
 
 /**
  * Restore a soft-deleted record
  */
-export const restoreSoftDeleted = (table: string, id: string): void => {
-  sqliteDB.run(
-    `UPDATE ${table} SET deleted_at = NULL WHERE id = ?`,
+export const restoreSoftDeleted = async (table: string, id: string): Promise<void> => {
+  await db.query(
+    `UPDATE ${table} SET deleted_at = NULL WHERE id = $1`,
     [id]
   );
 };
@@ -59,92 +59,35 @@ export const restoreSoftDeleted = (table: string, id: string): void => {
 /**
  * Permanently delete soft-deleted records older than X days
  */
-export const permanentlyDeleteOld = (
+export const permanentlyDeleteOld = async (
   table: string,
   daysOld: number = 30
-): number => {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-  const cutoffDateStr = cutoffDate.toISOString();
-
-  const result = sqliteDB.run(
-    `DELETE FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
-    [cutoffDateStr]
+): Promise<number> => {
+  const result = await db.query(
+    `DELETE FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at < CURRENT_TIMESTAMP - INTERVAL '$1 days'`,
+    [daysOld]
   );
 
-  return result.changes || 0;
+  return result.rowCount || 0;
 };
 
 /**
  * Get all soft-deleted records
  */
-export const getSoftDeleted = <T>(table: string): T[] => {
-  return sqliteDB.all<T>(
+export const getSoftDeleted = async <T>(table: string): Promise<T[]> => {
+  const res = await db.query(
     `SELECT * FROM ${table} WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
   );
+  return res.rows;
 };
 
 /**
  * Count soft-deleted records
  */
-export const countSoftDeleted = (table: string): number => {
-  const result = sqliteDB.get<{ count: number }>(
+export const countSoftDeleted = async (table: string): Promise<number> => {
+  const result = await db.query(
     `SELECT COUNT(*) as count FROM ${table} WHERE deleted_at IS NOT NULL`
   );
 
-  return result?.count || 0;
-};
-
-/**
- * Modified sqliteDB wrapper with soft delete support
- */
-export const softDeleteDB = {
-  /**
-   * Get all records (excluding soft-deleted)
-   */
-  all: <T>(sql: string, params?: any[]): T[] => {
-    // Add WHERE clause to exclude deleted
-    if (sql.toLowerCase().includes('where')) {
-      sql = sql.replace(/where/i, 'WHERE deleted_at IS NULL AND');
-    } else if (sql.toLowerCase().includes('from')) {
-      sql = sql.replace(/from\s+(\w+)/i, 'FROM $1 WHERE deleted_at IS NULL');
-    }
-
-    return sqliteDB.all<T>(sql, params);
-  },
-
-  /**
-   * Get single record (excluding soft-deleted)
-   */
-  get: <T>(sql: string, params?: any[]): T | undefined => {
-    // Add WHERE clause to exclude deleted
-    if (sql.toLowerCase().includes('where')) {
-      sql = sql.replace(/where/i, 'WHERE deleted_at IS NULL AND');
-    } else if (sql.toLowerCase().includes('from')) {
-      sql = sql.replace(/from\s+(\w+)/i, 'FROM $1 WHERE deleted_at IS NULL');
-    }
-
-    return sqliteDB.get<T>(sql, params);
-  },
-
-  /**
-   * Soft delete instead of hard delete
-   */
-  delete: (table: string, id: string): void => {
-    softDelete(table, id);
-  },
-
-  /**
-   * Insert (same as regular)
-   */
-  insert: (table: string, data: any): void => {
-    sqliteDB.insert(table, data);
-  },
-
-  /**
-   * Update (same as regular)
-   */
-  update: (table: string, id: string, data: any): void => {
-    sqliteDB.update(table, id, data);
-  },
+  return parseInt(result.rows[0].count) || 0;
 };

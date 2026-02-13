@@ -535,7 +535,10 @@ process.on('uncaughtException', async (error) => {
   captureException(error, { type: 'uncaughtException' });
   await flushSentry(2000);
 
-  process.exit(1);
+  // Don't call process.exit(1) on Vercel
+  if (!process.env.VERCEL) {
+    process.exit(1);
+  }
 });
 
 process.on('unhandledRejection', async (reason, promise) => {
@@ -547,6 +550,9 @@ process.on('unhandledRejection', async (reason, promise) => {
   captureException(error, { type: 'unhandledRejection', promise: String(promise) });
   await flushSentry(2000);
 
-  process.exit(1);
+  // Don't call process.exit(1) on Vercel
+  if (!process.env.VERCEL) {
+    process.exit(1);
+  }
 });
 // Force restart
