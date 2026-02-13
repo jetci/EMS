@@ -358,6 +358,7 @@ export const ensureSchema = async () => {
 };
 
 export const db = {
+    pool, // Expose pool for legacy middleware (like idempotency.ts)
     query: (sql: string, params: any[] = []) => pool.query(sql, params),
     all: async <T>(sql: string, params: any[] = []): Promise<T[]> => {
         const res = await pool.query(sql, params);
@@ -401,7 +402,10 @@ export const db = {
         const res = await pool.query(sql, [...values, id]);
         return res.rows[0];
     },
-    delete: (table: string, id: string) => pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]),
+    delete: async (table: string, id: string): Promise<{ changes: number }> => {
+        const res = await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+        return { changes: res.rowCount ?? 0 };
+    },
     findById: async <T>(table: string, id: string): Promise<T | undefined> => {
         const res = await pool.query(`SELECT * FROM ${table} WHERE id = $1`, [id]);
         return res.rows[0];
