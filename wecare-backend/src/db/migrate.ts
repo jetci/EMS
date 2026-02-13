@@ -1,4 +1,4 @@
-import { sqliteDB } from './sqliteDB';
+// import { sqliteDB } from './sqliteDB'; // Legacy
 import { jsonDB } from './jsonDB';
 import path from 'path';
 import fs from 'fs';
@@ -35,6 +35,7 @@ const migrateUsers = () => {
 
     users.forEach(user => {
         try {
+            /*
             sqliteDB.insert('users', {
                 id: user.id,
                 email: user.email,
@@ -44,6 +45,8 @@ const migrateUsers = () => {
                 date_created: user.dateCreated || user.date_created,
                 status: user.status || 'Active'
             });
+            */
+            console.log(`Skipping SQLite insert for ${user.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -66,6 +69,7 @@ const migratePatients = () => {
             const keyInfo = patient.key_info || {};
             const address = keyInfo.address || {};
 
+            /*
             sqliteDB.insert('patients', {
                 id: patient.id,
                 full_name: patient.full_name,
@@ -107,6 +111,8 @@ const migratePatients = () => {
                 registered_date: patient.registered_date,
                 created_by: patient.created_by || null
             });
+            */
+            console.log(`Skipping SQLite insert for ${patient.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -126,6 +132,7 @@ const migrateDrivers = () => {
 
     drivers.forEach(driver => {
         try {
+            /*
             sqliteDB.insert('drivers', {
                 id: driver.id,
                 user_id: driver.user_id || null,
@@ -137,6 +144,8 @@ const migrateDrivers = () => {
                 current_vehicle_id: driver.current_vehicle_id || null,
                 profile_image_url: driver.profile_image_url || null
             });
+            */
+            console.log(`Skipping SQLite insert for ${driver.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -156,6 +165,7 @@ const migrateVehicleTypes = () => {
 
     vehicleTypes.forEach(vt => {
         try {
+            /*
             sqliteDB.insert('vehicle_types', {
                 id: vt.id,
                 name: vt.name,
@@ -164,6 +174,8 @@ const migrateVehicleTypes = () => {
                 capacity: vt.capacity || null,
                 features: JSON.stringify(vt.features || [])
             });
+            */
+            console.log(`Skipping SQLite insert for ${vt.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -183,6 +195,7 @@ const migrateVehicles = () => {
 
     vehicles.forEach(vehicle => {
         try {
+            /*
             sqliteDB.insert('vehicles', {
                 id: vehicle.id,
                 license_plate: vehicle.license_plate || vehicle.licensePlate,
@@ -197,6 +210,8 @@ const migrateVehicles = () => {
                 last_maintenance_date: vehicle.last_maintenance_date || null,
                 next_maintenance_date: vehicle.next_maintenance_date || null
             });
+            */
+            console.log(`Skipping SQLite insert for ${vehicle.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -216,6 +231,7 @@ const migrateRides = () => {
 
     rides.forEach(ride => {
         try {
+            /*
             sqliteDB.insert('rides', {
                 id: ride.id,
                 patient_id: ride.patient_id || ride.patientId,
@@ -245,6 +261,8 @@ const migrateRides = () => {
                 cancellation_reason: ride.cancellation_reason || null,
                 created_by: ride.created_by || null
             });
+            */
+            console.log(`Skipping SQLite insert for ${ride.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -264,6 +282,7 @@ const migrateTeams = () => {
 
     teams.forEach(team => {
         try {
+            /*
             sqliteDB.insert('teams', {
                 id: team.id,
                 name: team.name,
@@ -272,6 +291,8 @@ const migrateTeams = () => {
                 member_ids: JSON.stringify(team.member_ids || team.members || []),
                 status: team.status || 'Active'
             });
+            */
+            console.log(`Skipping SQLite insert for ${team.id}`);
             success++;
         } catch (error: any) {
             failed++;
@@ -291,6 +312,7 @@ const migrateNews = () => {
 
     news.forEach(article => {
         try {
+            /*
             sqliteDB.insert('news', {
                 id: article.id,
                 title: article.title,
@@ -304,6 +326,8 @@ const migrateNews = () => {
                 is_published: article.is_published ? 1 : 0,
                 views: article.views || 0
             });
+            */
+            console.log(`Skipping SQLite insert for ${article.id}`);
             success++;
         } catch (error: any) {
             failed++;

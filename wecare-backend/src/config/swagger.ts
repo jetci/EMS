@@ -179,7 +179,22 @@ const options: swaggerJsdoc.Options = {
     ]
 };
 
-export const swaggerSpec = swaggerJsdoc(options);
+// Lazy-loaded swagger spec
+let swaggerSpec: any = null;
+
+const getSwaggerSpec = () => {
+    if (swaggerSpec) return swaggerSpec;
+
+    // Disable scanner in production/serverless to avoid filesystem errors
+    const isServerless = !!process.env.VERCEL;
+    if (isServerless) {
+        console.log('ℹ️ Swagger scanner disabled in serverless mode');
+        return { openapi: '3.0.0', info: swaggerDefinition.info, paths: {} };
+    }
+
+    swaggerSpec = swaggerJsdoc(options);
+    return swaggerSpec;
+};
 
 /**
  * Setup Swagger UI for Express app
@@ -192,8 +207,9 @@ export const setupSwagger = (app: Application) => {
     const enableSwagger = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
 
     if (enableSwagger) {
+        const spec = getSwaggerSpec();
         // Swagger UI
-        app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+        app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec, {
             customCss: '.swagger-ui .topbar { display: none }',
             customSiteTitle: 'EMS WeCare API Documentation'
         }));
@@ -201,7 +217,7 @@ export const setupSwagger = (app: Application) => {
         // Swagger JSON
         app.get('/api-docs.json', (req, res) => {
             res.setHeader('Content-Type', 'application/json');
-            res.send(swaggerSpec);
+            res.send(spec);
         });
 
         console.log('📚 Swagger UI available at /api-docs');
