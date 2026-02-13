@@ -368,9 +368,10 @@ export const db = {
         const res = await pool.query(sql, params);
         return res.rows[0];
     },
-    run: async (sql: string, params: any[] = []): Promise<any> => {
+    run: async (sql: string, params: any[] = []): Promise<{ changes: number; rowCount: number }> => {
         const res = await pool.query(sql, params);
-        return { changes: res.rowCount };
+        const count = res.rowCount ?? 0;
+        return { changes: count, rowCount: count };
     },
     transaction: async <T>(callback: (client: any) => Promise<T>): Promise<T> => {
         const client = await pool.connect();
@@ -402,9 +403,10 @@ export const db = {
         const res = await pool.query(sql, [...values, id]);
         return res.rows[0];
     },
-    delete: async (table: string, id: string): Promise<{ changes: number }> => {
+    delete: async (table: string, id: string): Promise<{ changes: number; rowCount: number }> => {
         const res = await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
-        return { changes: res.rowCount ?? 0 };
+        const count = res.rowCount ?? 0;
+        return { changes: count, rowCount: count };
     },
     findById: async <T>(table: string, id: string): Promise<T | undefined> => {
         const res = await pool.query(`SELECT * FROM ${table} WHERE id = $1`, [id]);
