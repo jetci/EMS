@@ -50,4 +50,14 @@ describe('OfficeManageDriversPage', () => {
     expect(apiRequest).toHaveBeenCalledWith('/users/driver-candidates');
     expect(screen.getByText('เพิ่มคนขับใหม่')).toBeInTheDocument();
   });
+
+  test('shows empty state when no drivers match', async () => {
+    currentRole = 'radio_center';
+    (driversAPI.getDrivers as jest.Mock).mockResolvedValue([]);
+
+    render(<OfficeManageDriversPage />);
+
+    expect(await screen.findByText('จัดการข้อมูลคนขับ')).toBeInTheDocument();
+    expect(await screen.findByText('ไม่พบคนขับตามเงื่อนไขที่เลือก')).toBeInTheDocument();
+  });
 });

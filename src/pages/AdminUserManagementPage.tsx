@@ -48,7 +48,13 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                 id: u.id?.toString() || '',
                 fullName: u.full_name || u.name || u.username || '',
                 email: u.email || '',
-                role: u.role || 'community',
+                role: ((): any => {
+                    const r = String(u.role || '').trim();
+                    const upper = r.toUpperCase();
+                    if (upper === 'OFFICE') return 'OFFICER';
+                    if (upper === 'RADIO') return 'radio_center';
+                    return r || 'community';
+                })(),
                 dateCreated: u.created_at || u.dateCreated || new Date().toISOString(),
                 status: (u.status || (u.is_active === false ? 'Inactive' : 'Active')) as UserStatus,
                 profileImageUrl: u.profile_image_url || undefined,

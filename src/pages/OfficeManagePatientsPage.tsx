@@ -195,8 +195,16 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
         });
     }, [patients, searchTerm, filters]);
 
-    const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
+    const totalPages = Math.max(1, Math.ceil(filteredPatients.length / ITEMS_PER_PAGE));
     const paginatedPatients = filteredPatients.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filters.registeredBy, filters.village, filters.healthCoverage, filters.startDate, filters.endDate]);
+
+    useEffect(() => {
+        setCurrentPage(p => Math.min(Math.max(1, p), totalPages));
+    }, [totalPages]);
 
     const handleOpenEditModal = (patient: Patient) => {
         if (setActiveView) {
@@ -380,6 +388,13 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
+                            {!loadingRemote && paginatedPatients.length === 0 && (
+                                <tr>
+                                    <td className="px-4 py-6 text-center text-gray-500" colSpan={6}>
+                                        ไม่พบผู้ป่วยตามเงื่อนไขที่เลือก
+                                    </td>
+                                </tr>
+                            )}
                             {paginatedPatients.map(patient => (
                                 <tr key={patient.id} className="hover:bg-gray-50/50">
                                     <td className="px-4 py-3 font-mono text-xs text-gray-500">{patient.id}</td>

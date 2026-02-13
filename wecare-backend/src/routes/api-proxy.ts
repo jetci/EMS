@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ interface News {
   author_id?: string;
   author_name?: string;
   category?: string;
-  tags?: string; // JSON
+  tags?: string | string[]; // JSON in DB
   image_url?: string;
   published_date?: string;
   is_published: number;
@@ -26,7 +26,7 @@ interface News {
 router.get('/news.php', async (req, res) => {
   try {
     const sql = 'SELECT * FROM news WHERE is_published = 1 ORDER BY published_date DESC';
-    const news = sqliteDB.all<News>(sql);
+    const news = await db.all<News>(sql);
 
     const parsed = news.map(n => ({
       id: n.id,
@@ -35,7 +35,7 @@ router.get('/news.php', async (req, res) => {
       authorId: n.author_id,
       authorName: n.author_name,
       category: n.category,
-      tags: n.tags ? JSON.parse(n.tags) : [],
+      tags: typeof n.tags === 'string' ? JSON.parse(n.tags) : (n.tags || []),
       imageUrl: n.image_url,
       publishedDate: n.published_date,
       status: n.is_published === 1 ? 'published' : 'draft',
@@ -45,7 +45,7 @@ router.get('/news.php', async (req, res) => {
     res.json(parsed);
   } catch (err: any) {
     console.error('[API-PROXY] Error fetching news:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
@@ -59,9 +59,9 @@ router.get('/news.php', async (req, res) => {
 router.get('/news_item.php', async (req, res) => {
   try {
     const { id } = req.query;
-    
+
     if (!id) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: {
           code: 'MISSING_PARAMETER',
@@ -70,10 +70,10 @@ router.get('/news_item.php', async (req, res) => {
       });
     }
 
-    const article = sqliteDB.get<News>('SELECT * FROM news WHERE id = ? AND is_published = 1', [id]);
-    
+    const article = await db.get<News>('SELECT * FROM news WHERE id = $1 AND is_published = 1', [id as string]);
+
     if (!article) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: {
           code: 'NOT_FOUND',
@@ -83,7 +83,7 @@ router.get('/news_item.php', async (req, res) => {
     }
 
     // Increment views
-    sqliteDB.update('news', id as string, { views: article.views + 1 });
+    await db.update('news', id as string, { views: (article.views || 0) + 1 });
 
     const parsed = {
       id: article.id,
@@ -92,17 +92,17 @@ router.get('/news_item.php', async (req, res) => {
       authorId: article.author_id,
       authorName: article.author_name,
       category: article.category,
-      tags: article.tags ? JSON.parse(article.tags) : [],
+      tags: typeof article.tags === 'string' ? JSON.parse(article.tags) : (article.tags || []),
       imageUrl: article.image_url,
       publishedDate: article.published_date,
       status: article.is_published === 1 ? 'published' : 'draft',
-      views: article.views + 1
+      views: (article.views || 0) + 1
     };
 
     res.json(parsed);
   } catch (err: any) {
     console.error('[API-PROXY] Error fetching news item:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: {
         code: 'INTERNAL_ERROR',

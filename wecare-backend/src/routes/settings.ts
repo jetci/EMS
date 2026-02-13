@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = express.Router();
 
@@ -22,10 +22,10 @@ const DEFAULT_SETTINGS = {
     schedulingModel: 'individual' // 'individual' | 'team'
 };
 
-// GET /api/admin/settings
+// GET /api/settings/admin (was /)
 router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (_req, res) => {
     try {
-        const rows = sqliteDB.all<any>('SELECT key, value FROM system_settings');
+        const rows = await db.all<any>('SELECT key, value FROM system_settings');
 
         // Convert array of {key, value} to object
         const dbSettings = rows.reduce((acc, row) => {
@@ -58,30 +58,27 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (_
     }
 });
 
-// PUT /api/admin/settings
+// PUT /api/settings/admin (was /)
 router.put('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
     try {
         const newSettings = req.body;
         const currentUser = (req as any).user;
 
         // Transaction to update all settings
-        sqliteDB.transaction(() => {
-            Object.keys(newSettings).forEach(key => {
-                const value = String(newSettings[key]); // Convert to string for storage
+        await db.transaction(async (client) => {
+            for (const key of Object.keys(newSettings)) {
+                const value = String(newSettings[key]);
 
-                // Check if key exists in defaults (security/integrity check)
-                // or allow dynamic keys? safer to only allow known keys or keys that match schema
-                // For now allow all keys sent from frontend but ideally should be whitelist
-
-                sqliteDB.db.prepare(`
+                // PostgreSQL ON CONFLICT syntax
+                await client.query(`
                     INSERT INTO system_settings (key, value, updated_by, updated_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
                     ON CONFLICT(key) DO UPDATE SET
-                    value = excluded.value,
-                    updated_by = excluded.updated_by,
+                    value = EXCLUDED.value,
+                    updated_by = EXCLUDED.updated_by,
                     updated_at = CURRENT_TIMESTAMP
-                `).run(key, value, currentUser?.id || 'SYSTEM');
-            });
+                `, [key, value, currentUser?.id || 'SYSTEM']);
+            }
         });
 
         res.json(newSettings);
@@ -94,7 +91,7 @@ router.put('/', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (r
 // Exportable handler for public settings
 export const getPublicSettingsHandler = async (_req: express.Request, res: express.Response) => {
     try {
-        const rows = sqliteDB.all<any>('SELECT key, value FROM system_settings');
+        const rows = await db.all<any>('SELECT key, value FROM system_settings');
 
         // Convert array of {key, value} to object
         const dbSettings = rows.reduce((acc, row) => {
@@ -119,7 +116,7 @@ export const getPublicSettingsHandler = async (_req: express.Request, res: expre
     }
 };
 
-// GET /api/public/settings - Public endpoint for landing page and non-authenticated users
+// GET /api/settings/public
 router.get('/public', getPublicSettingsHandler);
 
 export default router;

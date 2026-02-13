@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken, AuthRequest, optionalAuth, requireRole } from '../middleware/auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 
 const router = express.Router();
 
@@ -11,15 +11,15 @@ interface News {
   author_id?: string;
   author_name?: string;
   category?: string;
-  tags?: string; // JSON
+  tags?: string | string[]; // JSON in DB
   image_url?: string;
   published_date?: string;
   is_published: number;
   views: number;
 }
 
-const generateNewsId = (): string => {
-  const news = sqliteDB.all<{ id: string }>('SELECT id FROM news ORDER BY id DESC LIMIT 1');
+const generateNewsId = async (): Promise<string> => {
+  const news = await db.all<{ id: string }>('SELECT id FROM news ORDER BY id DESC LIMIT 1');
   if (news.length === 0) return 'NEWS-001';
   const lastId = news[0].id;
   const num = parseInt(lastId.split('-')[1]) + 1;
@@ -74,10 +74,11 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
     }
 
     sql += ' ORDER BY published_date DESC, created_at DESC';
-    const news = sqliteDB.all<News>(sql, params);
+    const news = await db.all<News>(sql, params);
 
     res.json(news.map(mapNewsToClient));
   } catch (err: any) {
+    console.error('Fetch news error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -85,7 +86,7 @@ router.get('/', optionalAuth, async (req: AuthRequest, res) => {
 // GET /api/news/:id - Public access for published news
 router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
   try {
-    const article = sqliteDB.get<News>('SELECT * FROM news WHERE id = ?', [req.params.id]);
+    const article = await db.get<News>('SELECT * FROM news WHERE id = $1', [req.params.id]);
     if (!article) return res.status(404).json({ error: 'News not found' });
 
     const isPublished = article.is_published === 1;
@@ -95,7 +96,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
 
     // Increment views for published articles only
     if (isPublished) {
-      sqliteDB.update('news', req.params.id, { views: article.views + 1 });
+      await db.update('news', req.params.id, { views: article.views + 1 });
     }
 
     res.json(mapNewsToClient({
@@ -103,6 +104,7 @@ router.get('/:id', optionalAuth, async (req: AuthRequest, res) => {
       views: isPublished ? article.views + 1 : article.views
     }));
   } catch (err: any) {
+    console.error('Fetch news article error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -121,10 +123,10 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER'
     const publishedDate = isPublished ? (publishedDateInput || new Date().toISOString()) : null;
 
     const currentUserId = req.user?.id || null;
-    const userRow = currentUserId ? sqliteDB.get<any>('SELECT full_name, email FROM users WHERE id = ?', [currentUserId]) : null;
+    const userRow = currentUserId ? await db.get<any>('SELECT full_name, email FROM users WHERE id = $1', [currentUserId]) : null;
     const authorName = (req.body.author_name || req.body.author || userRow?.full_name || userRow?.email || null);
 
-    const newId = generateNewsId();
+    const newId = await generateNewsId();
     const newNews = {
       id: newId,
       title,
@@ -138,10 +140,11 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER'
       is_published: isPublished ? 1 : 0,
       views: 0
     };
-    sqliteDB.insert('news', newNews);
-    const created = sqliteDB.get<News>('SELECT * FROM news WHERE id = ?', [newId]);
+    await db.insert('news', newNews);
+    const created = await db.get<News>('SELECT * FROM news WHERE id = $1', [newId]);
     res.status(201).json(mapNewsToClient(created));
   } catch (err: any) {
+    console.error('Create news article error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -149,7 +152,7 @@ router.post('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER'
 // PUT /api/news/:id - Requires authentication
 router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req: AuthRequest, res) => {
   try {
-    const existing = sqliteDB.get<News>('SELECT * FROM news WHERE id = ?', [req.params.id]);
+    const existing = await db.get<News>('SELECT * FROM news WHERE id = $1', [req.params.id]);
     if (!existing) return res.status(404).json({ error: 'News not found' });
 
     const updateData: any = {};
@@ -177,11 +180,12 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICE
       }
     }
 
-    sqliteDB.update('news', req.params.id, updateData);
-    const updated = sqliteDB.get<News>('SELECT * FROM news WHERE id = ?', [req.params.id]);
+    await db.update('news', req.params.id, updateData);
+    const updated = await db.get<News>('SELECT * FROM news WHERE id = $1', [req.params.id]);
     if (!updated) return res.status(404).json({ error: 'News not found' });
     res.json(mapNewsToClient(updated));
   } catch (err: any) {
+    console.error('Update news article error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -189,10 +193,10 @@ router.put('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICE
 // DELETE /api/news/:id - Requires authentication
 router.delete('/:id', authenticateToken, requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req, res) => {
   try {
-    const result = sqliteDB.delete('news', req.params.id);
-    if (result.changes === 0) return res.status(404).json({ error: 'News not found' });
+    await db.delete('news', req.params.id);
     res.status(204).send();
   } catch (err: any) {
+    console.error('Delete news article error:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -209,6 +209,18 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'rides': return <OfficeManageRidesPage setActiveView={handleSetView} />;
           case 'patients': return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'register_patient': return <CommunityRegisterPatientPage setActiveView={handleSetView} />;
+          case 'request_ride':
+            return <CommunityRequestRidePage setActiveView={handleSetView} preselectedPatientId={viewContext?.patientId} addNotification={addNotification} />;
+          case 'patient_detail':
+            if (viewContext?.patientId) {
+              return <PatientDetailPage patientId={viewContext.patientId} setActiveView={handleSetView} />;
+            }
+            return <OfficeManagePatientsPage setActiveView={handleSetView} />;
+          case 'edit_patient':
+            if (viewContext?.patientId) {
+              return <EditPatientPage patientId={viewContext.patientId} setActiveView={handleSetView as any} />;
+            }
+            return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'drivers': return <OfficeManageDriversPage />;
           case 'manage_teams': return <ManageTeamsPage />;
           case 'manage_schedules': return <ManageSchedulePage />;
@@ -225,9 +237,19 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
           case 'dashboard': return <RadioCenterDashboard setActiveView={handleSetView} />;
           case 'map_command': return <MapCommandPage setActiveView={handleSetView} />;
           case 'rides': return <OfficeManageRidesPage setActiveView={handleSetView} />;
-          case 'request_ride': return <CommunityRequestRidePage setActiveView={handleSetView} addNotification={addNotification} />;
+          case 'request_ride': return <CommunityRequestRidePage setActiveView={handleSetView} preselectedPatientId={viewContext?.patientId} addNotification={addNotification} />;
           case 'patients': return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'register_patient': return <CommunityRegisterPatientPage setActiveView={handleSetView} />;
+          case 'patient_detail':
+            if (viewContext?.patientId) {
+              return <PatientDetailPage patientId={viewContext.patientId} setActiveView={handleSetView} />;
+            }
+            return <OfficeManagePatientsPage setActiveView={handleSetView} />;
+          case 'edit_patient':
+            if (viewContext?.patientId) {
+              return <EditPatientPage patientId={viewContext.patientId} setActiveView={handleSetView as any} />;
+            }
+            return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'drivers': return <OfficeManageDriversPage />;
           case 'manage_teams': return <ManageTeamsPage />;
           case 'manage_schedules': return <ManageSchedulePage />;

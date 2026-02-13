@@ -30,12 +30,12 @@ const OfficeManageDriversPage: React.FC = () => {
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadAllData();
-    }, []);
-
     const normalizedRole = String(user?.role || '').trim().toUpperCase();
     const canCreateDriver = normalizedRole === 'ADMIN' || normalizedRole === 'DEVELOPER' || normalizedRole === 'OFFICER';
+
+    useEffect(() => {
+        loadAllData();
+    }, [normalizedRole]);
 
     const showToast = (message: string) => {
         setToastMessage(message);
@@ -104,6 +104,10 @@ const OfficeManageDriversPage: React.FC = () => {
     const totalPages = Math.max(1, Math.ceil(filteredDrivers.length / ITEMS_PER_PAGE));
     const paginatedDrivers = filteredDrivers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+    useEffect(() => {
+        setCurrentPage(p => Math.min(Math.max(1, p), totalPages));
+    }, [totalPages]);
+
     const handleOpenModal = (driver: Driver | null) => {
         setSelectedDriver(driver);
         setIsModalOpen(true);
@@ -169,6 +173,12 @@ const OfficeManageDriversPage: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {loading && (
+                <div className="p-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded">กำลังโหลดข้อมูลคนขับ...</div>
+            )}
+            {error && (
+                <div className="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">เกิดข้อผิดพลาด: {error}</div>
+            )}
             {/* Page Header */}
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการข้อมูลคนขับ</h1>
@@ -213,6 +223,13 @@ const OfficeManageDriversPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
+                            {!loading && paginatedDrivers.length === 0 && (
+                                <tr>
+                                    <td className="px-6 py-6 text-center text-gray-500" colSpan={6}>
+                                        ไม่พบคนขับตามเงื่อนไขที่เลือก
+                                    </td>
+                                </tr>
+                            )}
                             {paginatedDrivers.map(driver => (
                                 <tr key={driver.id} className="hover:bg-gray-50/50">
                                     <td className="px-6 py-4 font-medium text-gray-900">
@@ -253,7 +270,7 @@ const OfficeManageDriversPage: React.FC = () => {
                 <span className="text-sm text-gray-700">ผลลัพธ์ {paginatedDrivers.length} จาก {filteredDrivers.length} รายการ</span>
                 <div className="inline-flex items-center space-x-2">
                     <button onClick={() => setCurrentPage(p => p > 1 ? p - 1 : p)} disabled={currentPage === 1} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronLeftIcon className="w-5 h-5" /></button>
-                    <span className="text-sm font-semibold">Page {currentPage} of {totalPages}</span>
+                    <span className="text-sm font-semibold">หน้า {currentPage} / {totalPages}</span>
                     <button onClick={() => setCurrentPage(p => p < totalPages ? p + 1 : p)} disabled={currentPage >= totalPages} className="p-2 text-sm bg-white border rounded-md disabled:opacity-50"><ChevronRightIcon className="w-5 h-5" /></button>
                 </div>
             </div>

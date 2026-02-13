@@ -1,5 +1,5 @@
 import express from 'express';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { authenticateToken, requireRole } from '../middleware/auth';
 
 const router = express.Router();
@@ -22,7 +22,7 @@ const normalizeVillageList = (villages: any): string[] => {
 // GET /api/office/reports/roster
 router.get('/roster', authenticateToken, async (req, res) => {
     try {
-        const { startDate, endDate, teamId } = req.query;
+        const { startDate, endDate } = req.query;
 
         let sql = `
             SELECT r.*, d.full_name as driver_name, v.license_plate 
@@ -32,27 +32,23 @@ router.get('/roster', authenticateToken, async (req, res) => {
             WHERE 1=1
         `;
         const params: any[] = [];
+        let pIndex = 1;
 
         if (startDate) {
-            sql += ' AND r.appointment_time >= ?';
+            sql += ` AND r.appointment_time >= $${pIndex++}`;
             params.push(`${startDate}T00:00:00`);
         }
         if (endDate) {
-            sql += ' AND r.appointment_time <= ?';
+            sql += ` AND r.appointment_time <= $${pIndex++}`;
             params.push(`${endDate}T23:59:59`);
         }
-        // Note: teamId filter would require joining teams table or having team_id in rides. 
-        // Assuming rides might not have team_id directly, filtering by logic or if functionality is pending.
-        // For now, if rides has team_id (from previous json code it seemed to expect it), we try to use it.
-        // Checking schema, rides table doesn't have team_id. It has driver_id.
-        // Teams usually group drivers. We might skip team filtering or join via drivers -> team members (complex).
-        // For this iteration, we return all matching dates as basic roster.
 
         sql += ' ORDER BY r.appointment_time ASC';
 
-        const rides = sqliteDB.all(sql, params);
+        const rides = await db.all(sql, params);
         res.json(rides);
     } catch (err: any) {
+        console.error('Roster report error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -69,25 +65,27 @@ router.get('/personnel', authenticateToken, async (req, res) => {
             WHERE 1=1
         `;
         const params: any[] = [];
+        let pIndex = 1;
 
         if (startDate) {
-            sql += ' AND r.appointment_time >= ?';
+            sql += ` AND r.appointment_time >= $${pIndex++}`;
             params.push(`${startDate}T00:00:00`);
         }
         if (endDate) {
-            sql += ' AND r.appointment_time <= ?';
+            sql += ` AND r.appointment_time <= $${pIndex++}`;
             params.push(`${endDate}T23:59:59`);
         }
         if (driverId && driverId !== 'all') {
-            sql += ' AND r.driver_id = ?';
+            sql += ` AND r.driver_id = $${pIndex++}`;
             params.push(driverId);
         }
 
         sql += ' ORDER BY r.appointment_time DESC';
 
-        const rides = sqliteDB.all(sql, params);
+        const rides = await db.all(sql, params);
         res.json(rides);
     } catch (err: any) {
+        console.error('Personnel report error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -98,23 +96,25 @@ router.get('/maintenance', authenticateToken, async (req, res) => {
         const { status } = req.query;
         let sql = 'SELECT * FROM vehicles WHERE 1=1';
         const params: any[] = [];
+        let pIndex = 1;
 
         if (status === 'upcoming') {
             const today = new Date().toISOString().split('T')[0];
-            // SQLite date comparison
-            sql += " AND next_maintenance_date >= ? AND next_maintenance_date <= date(?, '+30 days')";
+            // PostgreSQL interval syntax
+            sql += ` AND next_maintenance_date >= $${pIndex++} AND next_maintenance_date <= ($${pIndex++}::date + interval '30 days')`;
             params.push(today, today);
         } else if (status === 'overdue') {
             const today = new Date().toISOString().split('T')[0];
-            sql += ' AND next_maintenance_date < ?';
+            sql += ` AND next_maintenance_date < $${pIndex++}`;
             params.push(today);
         }
 
         sql += ' ORDER BY next_maintenance_date ASC';
 
-        const vehicles = sqliteDB.all(sql, params);
+        const vehicles = await db.all(sql, params);
         res.json(vehicles);
     } catch (err: any) {
+        console.error('Maintenance report error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -125,19 +125,20 @@ router.get('/patients', authenticateToken, async (req, res) => {
         const { startDate, endDate, villages } = req.query;
         let sql = 'SELECT * FROM patients WHERE deleted_at IS NULL';
         const params: any[] = [];
+        let pIndex = 1;
 
         if (startDate) {
-            sql += ' AND registered_date >= ?';
+            sql += ` AND registered_date >= $${pIndex++}`;
             params.push(`${startDate}T00:00:00`);
         }
         if (endDate) {
-            sql += ' AND registered_date <= ?';
+            sql += ` AND registered_date <= $${pIndex++}`;
             params.push(`${endDate}T23:59:59`);
         }
 
-        const patients = sqliteDB.all<any>(sql, params);
+        const patients = await db.all<any>(sql, params);
 
-        // Filter villages in memory (easier than dynamic SQL ORs for comma list)
+        // Filter villages in memory
         let filtered = patients;
         if (villages) {
             const villageList = normalizeVillageList(villages);
@@ -160,6 +161,7 @@ router.get('/patients', authenticateToken, async (req, res) => {
 
         res.json(filtered);
     } catch (err: any) {
+        console.error('Patients report error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -175,18 +177,20 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
         if (type === 'detailed_rides') {
             let sql = 'SELECT * FROM rides WHERE 1=1';
             const params: any[] = [];
-            if (startDate) { sql += ' AND appointment_time >= ?'; params.push(`${startDate}T00:00:00`); }
-            if (endDate) { sql += ' AND appointment_time <= ?'; params.push(`${endDate}T23:59:59`); }
-            if (driverId && driverId !== 'all') { sql += ' AND driver_id = ?'; params.push(driverId); }
+            let pIndex = 1;
+            if (startDate) { sql += ` AND appointment_time >= $${pIndex++}`; params.push(`${startDate}T00:00:00`); }
+            if (endDate) { sql += ` AND appointment_time <= $${pIndex++}`; params.push(`${endDate}T23:59:59`); }
+            if (driverId && driverId !== 'all') { sql += ` AND driver_id = $${pIndex++}`; params.push(driverId); }
 
-            data = sqliteDB.all(sql, params);
+            data = await db.all(sql, params);
             filename = `rides_report_${new Date().toISOString().split('T')[0]}`;
         } else if (type === 'patient_by_village') {
             let sql = 'SELECT * FROM patients WHERE deleted_at IS NULL';
             const params: any[] = [];
-            if (startDate) { sql += ' AND registered_date >= ?'; params.push(`${startDate}T00:00:00`); }
-            if (endDate) { sql += ' AND registered_date <= ?'; params.push(`${endDate}T23:59:59`); }
-            const patients = sqliteDB.all<any>(sql, params);
+            let pIndex = 1;
+            if (startDate) { sql += ` AND registered_date >= $${pIndex++}`; params.push(`${startDate}T00:00:00`); }
+            if (endDate) { sql += ` AND registered_date <= $${pIndex++}`; params.push(`${endDate}T23:59:59`); }
+            const patients = await db.all<any>(sql, params);
             const villageList = normalizeVillageList(villages);
             data = villageList.length === 0 ? patients : patients.filter(p => {
                 const addr = [
@@ -207,26 +211,27 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
         } else if (type === 'maintenance') {
             let sql = 'SELECT * FROM vehicles WHERE 1=1';
             const params: any[] = [];
+            let pIndex = 1;
             const filter = typeof status === 'string' ? status : 'all';
             if (filter === 'upcoming') {
                 const today = new Date().toISOString().split('T')[0];
-                sql += " AND next_maintenance_date >= ? AND next_maintenance_date <= date(?, '+30 days')";
+                sql += ` AND next_maintenance_date >= $${pIndex++} AND next_maintenance_date <= ($${pIndex++}::date + interval '30 days')`;
                 params.push(today, today);
             } else if (filter === 'overdue') {
                 const today = new Date().toISOString().split('T')[0];
-                sql += ' AND next_maintenance_date < ?';
+                sql += ` AND next_maintenance_date < $${pIndex++}`;
                 params.push(today);
             }
             sql += ' ORDER BY next_maintenance_date ASC';
-            data = sqliteDB.all(sql, params);
+            data = await db.all(sql, params);
             filename = `maintenance_report_${new Date().toISOString().split('T')[0]}`;
         } else {
             // Summary
-            const ridesCount = sqliteDB.get<{ c: number }>('SELECT COUNT(*) as c FROM rides');
-            const patientsCount = sqliteDB.get<{ c: number }>('SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL');
+            const ridesCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM rides');
+            const patientsCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM patients WHERE deleted_at IS NULL');
             data = [
-                { Metric: 'Total Rides', Value: ridesCount?.c || 0 },
-                { Metric: 'Total Patients', Value: patientsCount?.c || 0 },
+                { Metric: 'Total Rides', Value: Number(ridesCount?.c || 0) },
+                { Metric: 'Total Patients', Value: Number(patientsCount?.c || 0) },
                 { Metric: 'Efficiency', Value: '95%' }
             ];
             filename = `summary_report_${new Date().toISOString().split('T')[0]}`;
@@ -255,6 +260,7 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
         res.status(400).json({ error: 'Unsupported format. Please use CSV.' });
 
     } catch (err: any) {
+        console.error('Export report error:', err);
         res.status(500).json({ error: err.message });
     }
 });

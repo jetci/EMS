@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { CommunityView, Patient } from '../types';
+import { AuthenticatedView, Patient } from '../types';
 import EditPatientModal from '../components/modals/EditPatientModal';
 import { patientsAPI } from '../services/api';
 
 interface EditPatientPageProps {
   patientId: string;
-  setActiveView: (view: CommunityView, context?: any) => void;
+  setActiveView: (view: AuthenticatedView, context?: any) => void;
 }
 
 const EditPatientPage: React.FC<EditPatientPageProps> = ({ patientId, setActiveView }) => {

@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { sqliteDB } from '../db/sqliteDB';
+import { db } from '../db';
 import { auditService } from '../services/auditService';
 
 const router = express.Router();
@@ -22,7 +22,7 @@ export interface AuditLog {
 // GET /api/audit-logs
 router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE']), async (req, res) => {
   try {
-    const rawLogs = sqliteDB.all<any>('SELECT * FROM audit_logs ORDER BY timestamp DESC');
+    const rawLogs = await db.all<any>('SELECT * FROM audit_logs ORDER BY timestamp DESC');
 
     // Map DB fields to API interface
     const logs: AuditLog[] = rawLogs.map(log => ({
@@ -33,7 +33,7 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE
       action: log.action,
       targetId: log.resource_id,
       ipAddress: log.ip_address,
-      dataPayload: log.details ? JSON.parse(log.details) : undefined,
+      dataPayload: log.details, // Postgres stores as JSONB/JSON
       hash: log.hash,
       previousHash: log.previous_hash,
       sequenceNumber: log.sequence_number
@@ -41,6 +41,7 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE
 
     res.json(logs);
   } catch (err: any) {
+    console.error('Fetch audit logs error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -48,9 +49,10 @@ router.get('/', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE
 // GET /api/audit-logs/integrity - Verify audit log integrity
 router.get('/integrity', authenticateToken, requireRole(['admin', 'DEVELOPER', 'EXECUTIVE']), async (req, res) => {
   try {
-    const status = auditService.getIntegrityStatus();
+    const status = await auditService.getIntegrityStatus();
     res.json(status);
   } catch (err: any) {
+    console.error('Integrity check error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -58,11 +60,11 @@ router.get('/integrity', authenticateToken, requireRole(['admin', 'DEVELOPER', '
 // POST /api/audit-logs/verify - Full integrity verification
 router.post('/verify', authenticateToken, requireRole(['admin', 'DEVELOPER']), async (req, res) => {
   try {
-    const result = auditService.verifyIntegrity();
+    const result = await auditService.verifyIntegrity();
 
     // Log the verification attempt
     const currentUser = (req as any).user;
-    auditService.log(
+    await auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
       'AUDIT_LOG_VERIFICATION',
@@ -72,6 +74,7 @@ router.post('/verify', authenticateToken, requireRole(['admin', 'DEVELOPER']), a
 
     res.json(result);
   } catch (err: any) {
+    console.error('Verify integrity error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -79,11 +82,11 @@ router.post('/verify', authenticateToken, requireRole(['admin', 'DEVELOPER']), a
 // POST /api/audit-logs/rebuild-chain - Rebuild hash chain (DEVELOPER only)
 router.post('/rebuild-chain', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
   try {
-    const result = auditService.rebuildChain();
+    const result = await auditService.rebuildChain();
 
     // Log the rebuild attempt
     const currentUser = (req as any).user;
-    auditService.log(
+    await auditService.log(
       currentUser?.email || 'unknown',
       currentUser?.role || 'unknown',
       'AUDIT_LOG_CHAIN_REBUILD',
@@ -93,6 +96,7 @@ router.post('/rebuild-chain', authenticateToken, requireRole(['DEVELOPER']), asy
 
     res.json(result);
   } catch (err: any) {
+    console.error('Rebuild chain error:', err);
     res.status(500).json({ error: err.message });
   }
 });

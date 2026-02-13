@@ -429,12 +429,8 @@ app.use('/api/admin/dashboard',
   dashboardRoutes
 );
 
-// Settings - admin and developer only
-app.use('/api/admin/settings',
-  authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
-  settingsRoutes
-);
+// Settings - router handles internal protection for admin vs public
+app.use('/api/settings', settingsRoutes);
 
 // Reports - officer and executive
 app.use('/api/office/reports',
