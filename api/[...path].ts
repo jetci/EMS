@@ -22,12 +22,10 @@ export default async function handler(req: any, res: any) {
             throw new Error('CRITICAL: DATABASE_URL is missing from Vercel environment variables.');
         }
 
-        // Ensure database is initialized exactly once per cold start
+        // Initialize Database in background (non-blocking for the first request)
         if (!isInitialized) {
-            console.log('🔄 Serverless Cold Start: Initializing Database...');
-            await initializeDatabase();
+            initializeDatabase().catch(err => console.error('⚠️ Lazy DB Init Error:', err));
             isInitialized = true;
-            console.log('✅ Database Initialized successfully.');
         }
 
         // Pass the request to Express

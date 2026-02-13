@@ -78,8 +78,8 @@ export const userBasedAuthLimiter = (req: Request, res: Response, next: NextFunc
     next();
 };
 
-// Cleanup old entries periodically (every hour)
-if (process.env.NODE_ENV !== 'test') {
+// Cleanup old entries periodically (disabled in test and serverless environments)
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     setInterval(() => {
         const now = Date.now();
         const windowMs = 15 * 60 * 1000;

@@ -330,18 +330,29 @@ export const initializeDatabase = async () => {
         return;
     }
     try {
-        await pool.query('SELECT NOW()');
+        // Minimal connection test
+        const client = await pool.connect();
         console.log('✅ Connected to PostgreSQL');
+        client.release();
+    } catch (error) {
+        console.error('❌ Database connection failed:', error);
+        // Don't throw here to allow app to start and show specific errors on routes
+    }
+};
 
+/**
+ * Manual initialization for schema and seeding
+ * Use this only in development or via migration scripts
+ */
+export const ensureSchema = async () => {
+    try {
         const checkTable = await pool.query("SELECT to_regclass('public.users')");
         if (!checkTable.rows[0].to_regclass) {
             await initializeSchema();
             await seedData();
-        } else {
-            console.log('ℹ️ Schema already exists, skipping init');
         }
     } catch (error) {
-        console.error('❌ Database initialization failed:', error);
+        console.error('❌ Schema initialization failed:', error);
         throw error;
     }
 };
@@ -359,6 +370,20 @@ export const db = {
     run: async (sql: string, params: any[] = []): Promise<any> => {
         const res = await pool.query(sql, params);
         return { changes: res.rowCount };
+    },
+    transaction: async <T>(callback: (client: any) => Promise<T>): Promise<T> => {
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const result = await callback(client);
+            await client.query('COMMIT');
+            return result;
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
     },
     insert: async (table: string, data: Record<string, any>) => {
         const keys = Object.keys(data);

@@ -489,8 +489,9 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   const startServer = async () => {
     try {
       // Initialize Database first
-      const { initializeDatabase } = require('./db/postgresDB');
+      const { initializeDatabase, ensureSchema } = require('./db/postgresDB');
       await initializeDatabase();
+      await ensureSchema();
 
       // ✅ Move Socket.IO initialization here
       const socketService = require('./services/socketService').default;

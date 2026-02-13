@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '../db';
-import { seedData, initializeSchema } from '../db/postgresDB';
+import { seedData, initializeSchema, ensureSchema } from '../db/postgresDB';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { auditService } from '../services/auditService';
 import backupService from '../services/backupService';
@@ -10,6 +10,23 @@ const router = express.Router();
 // Only Admin and Developer can access system tools
 router.use(authenticateToken);
 router.use(requireRole(['admin', 'DEVELOPER']));
+
+/**
+ * POST /api/admin/system/init-db
+ * Manually trigger database initialization (schema + seeding)
+ * This is safer than doing it on every Vercel cold start.
+ */
+router.post('/init-db', async (req: any, res) => {
+    try {
+        console.log('🔄 Manual DB Init requested by', req.user?.email);
+        await ensureSchema();
+        await auditService.log(req.user!.email, req.user!.role, 'SYSTEM_INIT_DB', 'success');
+        res.json({ message: 'Database schema and seeding initialized successfully' });
+    } catch (error: any) {
+        console.error('❌ Manual DB Init Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // POST /api/admin/system/reset-db
 router.post('/reset-db', async (req: any, res) => {

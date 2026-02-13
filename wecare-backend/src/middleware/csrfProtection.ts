@@ -34,8 +34,8 @@ const cleanupExpiredTokens = () => {
     }
 };
 
-// Run cleanup every 15 minutes (disabled in test environment to prevent open handles)
-if (process.env.NODE_ENV !== 'test') {
+// Run cleanup every 15 minutes (disabled in test and serverless environments)
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     setInterval(cleanupExpiredTokens, 15 * 60 * 1000);
 }
 
