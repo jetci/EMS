@@ -26,25 +26,31 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
 const MAX_FILES = 5; // Maximum 5 files per upload
 
 // Configure Multer with security validation
+// Configure Multer with security validation
 const isVercel = !!process.env.VERCEL;
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads/patients');
-    const finalDir = isVercel ? '/tmp' : uploadDir;
-    if (!isVercel && !fs.existsSync(finalDir)) {
-      fs.mkdirSync(finalDir, { recursive: true });
+let storage: multer.StorageEngine;
+
+if (isVercel) {
+  storage = multer.memoryStorage();
+} else {
+  storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(process.cwd(), 'wecare-backend/uploads/patients');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      // Sanitize filename to prevent path traversal
+      const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(sanitizedName);
+      const basename = path.basename(sanitizedName, ext);
+      cb(null, `${basename}-${uniqueSuffix}${ext}`);
     }
-    cb(null, finalDir);
-  },
-  filename: (req, file, cb) => {
-    // Sanitize filename to prevent path traversal
-    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(sanitizedName);
-    const basename = path.basename(sanitizedName, ext);
-    cb(null, `${basename}-${uniqueSuffix}${ext}`);
-  }
-});
+  });
+}
 
 // File filter for validation
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {

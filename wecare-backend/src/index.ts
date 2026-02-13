@@ -59,6 +59,7 @@ if (missingEnvVars.length > 0) {
 }
 
 const app = express();
+const isVercel = !!process.env.VERCEL;
 
 // Export app for testing
 export default app;
@@ -249,13 +250,11 @@ app.use((req, res, next) => {
 // Cookie Parser (required for CSRF protection)
 app.use(cookieParser());
 
-// ✅ FIX: Serve uploaded files statically
-// Allow cross-origin access to images (needed for frontend on different port)
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve uploads statically (not recommended for production serverless, but kept for compatibility)
+const uploadsDir = isVercel
+  ? path.join(process.cwd(), 'wecare-backend/uploads')
+  : path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Body Parser with size limits
 app.use(express.json({
@@ -526,32 +525,23 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   });
 }
 
-process.on('uncaughtException', async (error) => {
-  console.error('❌ Uncaught Exception:', error);
-
-  // Report to Sentry
-  const { captureException, flushSentry } = await import('./config/sentry');
-  captureException(error, { type: 'uncaughtException' });
-  await flushSentry(2000);
-
-  // Don't call process.exit(1) on Vercel
-  if (!process.env.VERCEL) {
+// Don't register handlers on Vercel
+if (!process.env.VERCEL) {
+  process.on('uncaughtException', async (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    const { captureException, flushSentry } = await import('./config/sentry');
+    captureException(error, { type: 'uncaughtException' });
+    await flushSentry(2000);
     process.exit(1);
-  }
-});
+  });
 
-process.on('unhandledRejection', async (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-
-  // Report to Sentry
-  const { captureException, flushSentry } = await import('./config/sentry');
-  const error = reason instanceof Error ? reason : new Error(String(reason));
-  captureException(error, { type: 'unhandledRejection', promise: String(promise) });
-  await flushSentry(2000);
-
-  // Don't call process.exit(1) on Vercel
-  if (!process.env.VERCEL) {
+  process.on('unhandledRejection', async (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    const { captureException, flushSentry } = await import('./config/sentry');
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    captureException(error, { type: 'unhandledRejection', promise: String(promise) });
+    await flushSentry(2000);
     process.exit(1);
-  }
-});
+  });
+}
 // Force restart
