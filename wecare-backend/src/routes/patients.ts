@@ -26,13 +26,15 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
 const MAX_FILES = 5; // Maximum 5 files per upload
 
 // Configure Multer with security validation
+const isVercel = !!process.env.VERCEL;
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, '../../uploads/patients');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    const finalDir = isVercel ? '/tmp' : uploadDir;
+    if (!isVercel && !fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
     }
-    cb(null, uploadDir);
+    cb(null, finalDir);
   },
   filename: (req, file, cb) => {
     // Sanitize filename to prevent path traversal

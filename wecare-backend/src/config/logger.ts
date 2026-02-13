@@ -1,5 +1,4 @@
 import winston from 'winston';
-import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 
 /**
@@ -75,55 +74,12 @@ const sensitiveDataFilter = winston.format((info: any) => {
     return info;
 });
 
-// Transports
-const transports: winston.transport[] = [];
-
-// Console transport (always enabled)
-transports.push(
+// Help prevent crashes on serverless environments by only using console transport
+const transports: winston.transport[] = [
     new winston.transports.Console({
         format: consoleFormat,
     })
-);
-
-// File transports (production, but skip on Vercel)
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
-    const logDir = process.env.LOG_DIR || './logs';
-
-    // Error log file (errors only)
-    transports.push(
-        new DailyRotateFile({
-            filename: path.join(logDir, 'error-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            level: 'error',
-            format: fileFormat,
-            maxFiles: process.env.LOG_MAX_FILES || '14d',
-            zippedArchive: true,
-        })
-    );
-
-    // Combined log file (all logs)
-    transports.push(
-        new DailyRotateFile({
-            filename: path.join(logDir, 'combined-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            format: fileFormat,
-            maxFiles: process.env.LOG_MAX_FILES || '14d',
-            zippedArchive: true,
-        })
-    );
-
-    // HTTP log file (HTTP requests)
-    transports.push(
-        new DailyRotateFile({
-            filename: path.join(logDir, 'http-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            level: 'http',
-            format: fileFormat,
-            maxFiles: process.env.LOG_MAX_FILES || '7d',
-            zippedArchive: true,
-        })
-    );
-}
+];
 
 // Create logger instance
 const logger = winston.createLogger({

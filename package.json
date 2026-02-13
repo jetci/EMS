@@ -25,7 +25,7 @@
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
     "dayjs": "^1.11.19",
-    "express": "^5.2.1",
+    "express": "^4.21.2",
     "joi": "^18.0.2",
     "leaflet": "^1.9.4",
     "multer": "^2.0.2",
@@ -49,8 +49,7 @@
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "@sentry/node": "^10.38.0",
-    "@sentry/profiling-node": "^10.38.0"
+    "@sentry/node": "^10.38.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",

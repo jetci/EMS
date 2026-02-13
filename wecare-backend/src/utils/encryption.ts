@@ -56,7 +56,7 @@ export const encrypt = (text: string): string => {
   try {
     // Generate random IV for each encryption
     const iv = crypto.randomBytes(IV_LENGTH);
-    
+
     // Create cipher
     const cipher = crypto.createCipheriv(
       ALGORITHM,
@@ -91,7 +91,7 @@ export const decrypt = (encryptedText: string): string => {
   try {
     // Split IV and encrypted data
     const parts = encryptedText.split(':');
-    
+
     if (parts.length !== 2) {
       throw new Error('Invalid encrypted text format. Expected format: iv:encryptedData');
     }
@@ -142,15 +142,15 @@ export const decryptArray = (encryptedText: string): string[] => {
   if (!encryptedText) {
     return [];
   }
-  
+
   try {
     const decrypted = decrypt(encryptedText);
     const parsed = JSON.parse(decrypted);
-    
+
     if (!Array.isArray(parsed)) {
       throw new Error('Decrypted data is not an array');
     }
-    
+
     return parsed;
   } catch (error) {
     console.error('Failed to decrypt array:', error);
@@ -165,14 +165,14 @@ export const decryptArray = (encryptedText: string): string[] => {
  */
 export const isEncrypted = (text: string): boolean => {
   if (!text) return false;
-  
+
   const parts = text.split(':');
   if (parts.length !== 2) return false;
-  
+
   // Check if both parts are valid hex strings
   const ivHex = parts[0];
   const dataHex = parts[1];
-  
+
   return (
     /^[0-9a-f]+$/i.test(ivHex) &&
     /^[0-9a-f]+$/i.test(dataHex) &&
@@ -187,6 +187,9 @@ if (process.env.NODE_ENV === 'production') {
     console.log('✅ Encryption key validated successfully');
   } catch (error) {
     console.error('❌ Encryption key validation failed:', error);
-    process.exit(1);
+    // In serverless, we don't exit the process
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
   }
 }

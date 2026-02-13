@@ -16,14 +16,15 @@ if (!JWT_SECRET) {
 }
 
 // Configure multer for profile image uploads
+const isVercel = !!process.env.VERCEL;
 const uploadDir = path.join(__dirname, '../../uploads/profiles');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    const finalDir = isVercel ? '/tmp' : uploadDir;
+    if (!isVercel && !fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
+    }
+    cb(null, finalDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

@@ -482,38 +482,36 @@ app.use(notFoundHandler);
 // Global error handler - must be last
 app.use(globalErrorHandler);
 
-// ✅ FIX BUG-009: WebSocket Implementation for Real-time Location Tracking
-const httpServer = http.createServer(app);
-
-// Start server
-const startServer = async () => {
-  try {
-    // Initialize Database first
-    const { initializeDatabase } = require('./db/postgresDB');
-    await initializeDatabase();
-
-    // ✅ Move Socket.IO initialization here (Inside non-Vercel block)
-    const socketService = require('./services/socketService').default;
-    socketService.initialize(httpServer);
-
-    httpServer.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
-      console.log(`🔌 WebSocket server ready for real-time location tracking`);
-      console.log('');
-
-      // Start automatic backup scheduler
-      console.log('🔄 Initializing automatic backup system...');
-      backupService.startAutomaticBackups();
-      console.log('');
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
-};
-
-// Only start server if not in test mode and not on Vercel
+// Only start server and create httpServer if not on Vercel
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+  const httpServer = http.createServer(app);
+
+  const startServer = async () => {
+    try {
+      // Initialize Database first
+      const { initializeDatabase } = require('./db/postgresDB');
+      await initializeDatabase();
+
+      // ✅ Move Socket.IO initialization here
+      const socketService = require('./services/socketService').default;
+      socketService.initialize(httpServer);
+
+      httpServer.listen(PORT, () => {
+        console.log(`🚀 Server is running on http://localhost:${PORT}`);
+        console.log(`🔌 WebSocket server ready for real-time location tracking`);
+        console.log('');
+
+        // Start automatic backup scheduler
+        console.log('🔄 Initializing automatic backup system...');
+        backupService.startAutomaticBackups();
+        console.log('');
+      });
+    } catch (error) {
+      console.error('❌ Failed to start server:', error);
+      process.exit(1);
+    }
+  };
+
   startServer();
 
   httpServer.on('error', (error: any) => {
