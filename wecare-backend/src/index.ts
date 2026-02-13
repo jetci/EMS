@@ -127,22 +127,12 @@ function getAllowedOrigins(): string[] {
   if (env === 'production') {
     // Production: Require ALLOWED_ORIGINS
     if (!process.env.ALLOWED_ORIGINS) {
-      console.error('');
-      console.error('❌ FATAL ERROR: ALLOWED_ORIGINS environment variable is required in production');
-      console.error('');
-      console.error('📋 How to fix:');
-      console.error('   1. Set ALLOWED_ORIGINS in your .env file or hosting platform');
-      console.error('   2. Format: Comma-separated list of allowed origins');
-      console.error('');
-      console.error('📝 Example:');
-      console.error('   ALLOWED_ORIGINS=https://wecare.example.com,https://app.wecare.com');
-      console.error('');
-      console.error('⚠️  Security Warning:');
-      console.error('   - Do NOT use wildcards (*)');
-      console.error('   - Do NOT use http:// in production (use https://)');
-      console.error('   - Only include trusted domains');
-      console.error('');
-      process.exit(1);
+      console.warn('');
+      console.warn('⚠️  WARNING: ALLOWED_ORIGINS environment variable is missing in production');
+      console.warn('   Defaulting to empty allowed list. API requests may fail CORS checks.');
+      console.warn('   Please set ALLOWED_ORIGINS in Vercel Project Settings.');
+      console.warn('');
+      return [];
     }
 
     const origins = process.env.ALLOWED_ORIGINS
@@ -151,9 +141,8 @@ function getAllowedOrigins(): string[] {
       .filter(o => o.length > 0);
 
     if (origins.length === 0) {
-      console.error('❌ FATAL ERROR: ALLOWED_ORIGINS is empty');
-      console.error('   Please provide at least one origin');
-      process.exit(1);
+      console.warn('⚠️  WARNING: ALLOWED_ORIGINS is empty. CORS requests will be blocked.');
+      return [];
     }
 
     // Validate each origin
@@ -165,19 +154,10 @@ function getAllowedOrigins(): string[] {
     });
 
     if (invalidOrigins.length > 0) {
-      console.error('');
-      console.error('❌ FATAL ERROR: Invalid origins detected in ALLOWED_ORIGINS');
-      console.error('');
-      console.error('Invalid origins:');
-      invalidOrigins.forEach(o => console.error(`   - "${o}"`));
-      console.error('');
-      console.error('📝 Valid format examples:');
-      console.error('   ✅ https://wecare.example.com');
-      console.error('   ✅ https://app.wecare.com:8080');
-      console.error('   ❌ wecare.example.com (missing protocol)');
-      console.error('   ❌ ftp://wecare.example.com (invalid protocol)');
-      console.error('');
-      process.exit(1);
+      console.warn('');
+      console.warn('⚠️  WARNING: Invalid origins detected in ALLOWED_ORIGINS');
+      invalidOrigins.forEach(o => console.warn(`   - "${o}"`));
+      console.warn('');
     }
 
     // Warn about http in production
