@@ -3,15 +3,11 @@
     "rewrites": [
         {
             "source": "/api/(.*)",
-            "destination": "https://api.wiangwecare.com/api/$1"
+            "destination": "/api/[...path].js"
         },
         {
             "source": "/uploads/(.*)",
-            "destination": "https://api.wiangwecare.com/uploads/$1"
-        },
-        {
-            "source": "/socket.io/(.*)",
-            "destination": "https://api.wiangwecare.com/socket.io/$1"
+            "destination": "/wecare-backend/uploads/$1"
         },
         {
             "source": "/(.*)",

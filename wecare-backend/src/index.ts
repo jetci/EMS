@@ -539,8 +539,8 @@ const startServer = async () => {
   }
 };
 
-// Only start server if not in test mode
-if (process.env.NODE_ENV !== 'test') {
+// Only start server if not in test mode and not on Vercel
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   startServer();
 
   httpServer.on('error', (error: any) => {
