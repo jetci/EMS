@@ -85,8 +85,8 @@ transports.push(
     })
 );
 
-// File transports (production)
-if (process.env.NODE_ENV !== 'test') {
+// File transports (production, but skip on Vercel)
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     const logDir = process.env.LOG_DIR || './logs';
 
     // Error log file (errors only)

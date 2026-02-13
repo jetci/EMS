@@ -53,9 +53,9 @@ import { setupSwagger } from './config/swagger';
 const requiredEnvVars = ['JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
-  console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-  console.error('   Please set them in your .env file');
-  process.exit(1);
+  console.error(`⚠️ WARNING: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('   Please set them in your Vercel Project Settings or .env file');
+  // Continuing execution - requests requiring these will fail gracefully later
 }
 
 const app = express();
