@@ -504,7 +504,11 @@ router.put(
         return res.status(403).json({ error: 'Access denied' });
       }
 
+
       // Validate latitude/longitude if provided in update
+      console.log('📝 Update Patient Payload:', JSON.stringify(req.body, null, 2));
+      console.log('📂 Update Patient Files:', req.files ? Object.keys(req.files) : 'No files');
+
       const { latitude, longitude } = req.body;
       if (latitude && longitude) {
         const lat = Number(latitude);
