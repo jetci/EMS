@@ -26,6 +26,7 @@ const tokens = {
     developer: generateToken('dev-001', 'developer@wecare.dev', 'DEVELOPER'),
     admin: generateToken('admin-001', 'admin@wecare.dev', 'admin'),
     officer: generateToken('officer-001', 'officer@wecare.dev', 'OFFICER'),
+    officeAlias: generateToken('office-001', 'office@wecare.dev', 'office'),
     radioCenter: generateToken('radio-001', 'radio@wecare.dev', 'radio_center'),
     driver: generateToken('driver-001', 'driver@wecare.dev', 'driver'),
     community: generateToken('community-001', 'community@wecare.dev', 'community'),
@@ -47,6 +48,7 @@ describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
         developer: generateToken('dev-001', 'developer@wecare.dev', 'DEVELOPER'),
         admin: generateToken('admin-001', 'admin@wecare.dev', 'admin'),
         officer: generateToken('officer-001', 'officer@wecare.dev', 'OFFICER'),
+        officeAlias: generateToken('office-001', 'office@wecare.dev', 'office'),
         radioCenter: generateToken('radio-001', 'radio@wecare.dev', 'radio_center'),
         driver: generateToken('driver-001', 'driver@wecare.dev', 'driver'),
         community: generateToken('community-001', 'community@wecare.dev', 'community'),
@@ -78,6 +80,13 @@ describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
             const response = await request(app)
                 .get('/api/patients')
                 .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(200);
+        });
+
+        it('should allow office alias to access patients', async () => {
+            await request(app)
+                .get('/api/patients')
+                .set('Authorization', `Bearer ${tokens.officeAlias}`)
                 .expect(200);
         });
 

@@ -3,6 +3,7 @@ import { authenticateToken, AuthRequest, requireRole } from '../middleware/auth'
 import { sqliteDB } from '../db/sqliteDB';
 import { auditService } from '../services/auditService';
 import { logRideEvent } from './ride-events';
+import { notifyOperationalRoles } from '../utils/socketNotifier';
 
 const router = express.Router();
 
@@ -158,16 +159,20 @@ router.post('/rides/:id/assign', async (req, res) => {
             `จ่ายงานให้ ${result.driver.full_name}`
         );
 
+        // ✅ FIX BUG-005: Use socket notification utility
         try {
             const io = (req as any).app?.get?.('io');
             if (io) {
                 const ns = io.of('/locations');
                 const message = `✅ จ่ายงาน ${id} ให้ ${result.driver.full_name}`;
-                const payload = { eventType: 'ride_status', type: 'success', message, rideId: id, status: 'ASSIGNED' };
-                ns.to('role:radio_center').emit('notification:new', payload);
-                ns.to('role:OFFICER').emit('notification:new', payload);
-                ns.to('role:admin').emit('notification:new', payload);
-                ns.to('role:DEVELOPER').emit('notification:new', payload);
+                const payload = {
+                    eventType: 'ride_status',
+                    type: 'success' as const,
+                    message,
+                    rideId: id,
+                    status: 'ASSIGNED'
+                };
+                notifyOperationalRoles(ns, payload);
             }
         } catch { }
 

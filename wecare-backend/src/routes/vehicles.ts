@@ -51,7 +51,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/vehicles
-router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const newId = generateVehicleId();
     const newVehicle = {
@@ -77,7 +77,7 @@ router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
 });
 
 // PUT /api/vehicles/:id
-router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
+router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const updateData: any = {};
     if (req.body.license_plate) updateData.license_plate = req.body.license_plate;
@@ -96,7 +96,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, r
 });
 
 // DELETE /api/vehicles/:id
-router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.delete('/:id', requireRole(['ADMIN', 'DEVELOPER']), async (req, res) => {
   try {
     const result = sqliteDB.delete('vehicles', req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Vehicle not found' });

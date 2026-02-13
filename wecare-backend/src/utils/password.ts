@@ -199,3 +199,19 @@ export const calculatePasswordStrength = (password: string): number => {
 
     return Math.max(0, Math.min(100, score));
 };
+
+/**
+ * Check if the password hash needs to be rehashed
+ * (e.g. if work factor has changed)
+ * @param hash - Current password hash
+ * @returns True if rehash is needed
+ */
+export const needsRehash = (hash: string): boolean => {
+    // bcrpyt hash format: $2a$10$...
+    // 2a = version, 10 = cost factor
+    const parts = hash.split('$');
+    if (parts.length < 3) return true;
+
+    const cost = parseInt(parts[2], 10);
+    return cost < SALT_ROUNDS;
+};

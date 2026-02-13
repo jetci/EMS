@@ -63,23 +63,25 @@ db.pragma('foreign_keys = ON');
 // WAL allows multiple readers and one writer simultaneously
 db.pragma('journal_mode = WAL');
 
-// Set busy timeout (wait up to 5 seconds if database is locked)
-// This prevents "database is locked" errors under concurrent load
-db.pragma('busy_timeout = 5000');
+// Set busy timeout (wait up to 10 seconds if database is locked)
+// Increased to reduce "database is locked" errors under heavy load
+db.pragma('busy_timeout = 10000');
 
-// Optimize cache size (10MB = 10000 pages of 1KB each)
-// Larger cache = better performance for frequently accessed data
-db.pragma('cache_size = -10000');
+// Optimize cache size (-20000 = approx 20MB)
+// Negative value means number of 1024-byte pages
+// Larger cache = fewer disk reads for frequently accessed data
+db.pragma('cache_size = -20000');
 
 // Synchronous mode: NORMAL (good balance of safety and performance)
-// FULL = safest but slowest, NORMAL = good compromise, OFF = fastest but risky
+// In WAL mode, NORMAL is safe and much faster than FULL
 db.pragma('synchronous = NORMAL');
 
-// Memory-mapped I/O (30MB)
+// Memory-mapped I/O (64MB)
 // Improves read performance by mapping database file to memory
-db.pragma('mmap_size = 30000000');
+// Set to 0 to disable if memory is constrained
+db.pragma('mmap_size = 67108864');
 
-// Temp store in memory (faster temporary operations)
+// Temp store in memory (faster temporary operations like sorting)
 db.pragma('temp_store = MEMORY');
 
 // Optimize page size (4KB is optimal for most systems)
@@ -90,9 +92,10 @@ db.pragma('auto_vacuum = INCREMENTAL');
 
 console.log('✅ SQLite database connection initialized with performance optimizations');
 console.log('   - WAL mode: Enabled (concurrent reads)');
-console.log('   - Busy timeout: 5000ms');
-console.log('   - Cache size: 10MB');
-console.log('   - Memory-mapped I/O: 30MB');
+console.log('   - Busy timeout: 10000ms');
+console.log('   - Cache size: ~20MB');
+console.log('   - Memory-mapped I/O: 64MB');
+console.log('   - Synchronous: NORMAL');
 console.log('');
 
 import { hashPassword } from '../utils/password';
@@ -608,7 +611,7 @@ function backupBeforeMigrate(currentVersion: number, latestVersion: number): voi
             fs.mkdirSync(backupsDir, { recursive: true });
         }
         // Checkpoint WAL to ensure backup consistency
-        try { sqliteDB.checkpoint('FULL'); } catch {}
+        try { sqliteDB.checkpoint('FULL'); } catch { }
         const timestamp = new Date().toISOString()
             .replace(/:/g, '-')
             .replace(/\..+/, '')

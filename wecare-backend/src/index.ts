@@ -5,13 +5,18 @@ import dotenv from 'dotenv';
 dotenv.config();
 console.log('🚀 Starting WeCare Backend initialization...');
 
+// CRITICAL: Initialize Sentry BEFORE importing other modules
+// This ensures all errors are captured from the start
+import { initializeSentry } from './config/sentry';
+initializeSentry();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import http from 'http';
 import path from 'path';
-import { Server as SocketIOServer } from 'socket.io';
+// Socket.IO Server import moved to socketService usage
 import authRoutes from './routes/auth';
 import patientRoutes from './routes/patients';
 import driverRoutes from './routes/drivers';
@@ -24,7 +29,7 @@ import newsRoutes from './routes/news';
 import apiProxyRoutes from './routes/api-proxy';
 import auditLogRoutes from './routes/audit-logs';
 import dashboardRoutes from './routes/dashboard';
-import settingsRoutes, { getPublicSettingsHandler } from './routes/settings';
+import settingsRoutes from './routes/settings';
 import reportsRoutes from './routes/reports';
 import officeRoutes from './routes/office';
 import mapDataRoutes from './routes/map-data';
@@ -42,25 +47,22 @@ import { handleMulterError } from './middleware/multerErrorHandler';
 import { globalErrorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requireRole, UserRole } from './middleware/roleProtection';
 import backupService from './services/backupService';
-import { enableSoftDelete } from './middleware/softDelete';
+import { setupSwagger } from './config/swagger';
 
 // Validate required environment variables
 const requiredEnvVars = ['JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 if (missingEnvVars.length > 0) {
-  if (process.env.NODE_ENV === 'test') {
-    // Provide safe defaults in test environment
-    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
-    console.warn(`⚠️ Test mode: setting default env for ${missingEnvVars.join(', ')}`);
-  } else {
-    console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-    console.error('   Please set them in your .env file');
-    process.exit(1);
-  }
+  console.error(`❌ FATAL: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('   Please set them in your .env file');
+  process.exit(1);
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// Export app for testing
+export default app;
+const PORT = process.env.PORT || 3001;
 
 // Security Middleware
 app.use(helmet({
@@ -285,6 +287,11 @@ app.use(express.urlencoded({
   limit: '10mb',
 }));
 
+// Sentry Request Handler - captures request context for error reporting
+import { sentryRequestHandler, sentryTracingHandler, sentryErrorHandler } from './config/sentry';
+app.use(sentryRequestHandler());
+app.use(sentryTracingHandler());
+
 // SQL Injection Prevention (apply to all routes)
 app.use(preventSQLInjection);
 
@@ -301,15 +308,14 @@ app.use((req, res, next) => {
 app.get('/api/csrf-token', getCsrfToken);
 
 // Health check endpoint (no rate limit)
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+// Health check endpoint (handled by healthRoutes below)
+// app.get('/api/health', ...);
+
+// Setup Swagger API Documentation
+setupSwagger(app);
 
 // Routes
 app.get('/', (req, res) => res.send('EMS WeCare Backend is running!'));
-
-// Serve Socket.IO test page via backend (port 3000)
-app.get('/socket_locations_test.html', (req, res) => {
-  res.sendFile(path.resolve('D:\\EMS\\_tmp\\socket_locations_test.html'));
-});
 
 // Apply rate limiters to auth routes (dual-layer: IP + user-based)
 app.use('/api/auth/login', authLimiter, userBasedAuthLimiter);
@@ -355,7 +361,7 @@ app.use('/api/community/patients',
 // Driver routes - accessible by admin, officer, and drivers themselves
 app.use('/api/drivers',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER, UserRole.EXECUTIVE]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.DRIVER]),
   driverRoutes
 );
 
@@ -378,14 +384,14 @@ app.use('/api/users',
   userRoutes
 );
 
-// Team management - admin, developer, officer, radio center, radio, executive
+// Team management - admin, developer, officer
 app.use('/api/teams',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.EXECUTIVE]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
   teamRoutes
 );
 
-// Vehicle management - admin, developer, officer, radio center, radio
+// Vehicle management - admin, developer, officer
 app.use('/api/vehicles',
   authenticateToken,
   requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
@@ -429,9 +435,6 @@ app.use('/api/admin/settings',
   requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
   settingsRoutes
 );
-
-// Public Settings - no auth required
-app.get('/api/settings/public', getPublicSettingsHandler);
 
 // Reports - officer and executive
 app.use('/api/office/reports',
@@ -506,141 +509,11 @@ app.use(globalErrorHandler);
 // ✅ FIX BUG-009: WebSocket Implementation for Real-time Location Tracking
 const httpServer = http.createServer(app);
 
-// Initialize Socket.IO with CORS
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production'
-      ? process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim())
-      : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
-    credentials: true
-  }
-});
+// Initialize Socket.IO via SocketService
+const socketService = require('./services/socketService').default;
 
-// Store io instance for use in routes
-app.set('io', io);
-
-// Location tracking namespace
-const locationNamespace = io.of('/locations');
-
-// Location tracking namespace with authentication
-locationNamespace.use((socket, next) => {
-  // Get token from handshake auth or query
-  const token = socket.handshake.auth.token || socket.handshake.query.token;
-
-  if (!token) {
-    console.warn('⚠️ WebSocket connection rejected: No token provided');
-    return next(new Error('Authentication required'));
-  }
-
-  try {
-    // Verify JWT token
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
-
-    const userId = decoded.userId || decoded.id || decoded.user_id;
-    const roleRaw = decoded.role;
-    const roleUpper = typeof roleRaw === 'string' ? roleRaw.toUpperCase() : undefined;
-    const roleLower = typeof roleRaw === 'string' ? roleRaw.toLowerCase() : undefined;
-
-    if (!userId) {
-      console.warn('⚠️ WebSocket connection rejected: Invalid token payload (missing user id)');
-      return next(new Error('Invalid token'));
-    }
-
-    // Attach user info to socket
-    (socket as any).user = {
-      id: userId,
-      email: decoded.email,
-      role: roleRaw
-    };
-
-    // Join user-specific room for targeted notifications
-    socket.join(`user:${userId}`);
-    if (roleRaw) socket.join(`role:${roleRaw}`);
-    if (roleUpper && roleUpper !== roleRaw) socket.join(`role:${roleUpper}`);
-    if (roleLower && roleLower !== roleRaw) socket.join(`role:${roleLower}`);
-
-    console.log(`✅ WebSocket authenticated: ${decoded.email} (${decoded.role})`);
-    next();
-  } catch (error) {
-    console.warn('⚠️ WebSocket connection rejected: Invalid token');
-    return next(new Error('Invalid token'));
-  }
-});
-
-locationNamespace.on('connection', (socket) => {
-  const user = (socket as any).user;
-  console.log(`🔌 Client connected to location tracking: ${user.email} (${user.role})`);
-
-  // Handle location updates from drivers
-  socket.on('location:update', (data) => {
-    // Only allow drivers to send location updates
-    if (user.role !== 'driver' && user.role !== 'DRIVER') {
-      console.warn(`⚠️ Unauthorized location update attempt from ${user.email} (${user.role})`);
-      socket.emit('error', { message: 'Only drivers can send location updates' });
-      return;
-    }
-
-    // Validate location data
-    const lat = Number(data.lat);
-    const lng = Number(data.lng);
-
-    if (
-      Number.isNaN(lat) ||
-      Number.isNaN(lng) ||
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lng) ||
-      lat < -90 || lat > 90 ||
-      lng < -180 || lng > 180
-    ) {
-      console.warn(`⚠️ Invalid coordinates from ${user.email}: lat=${data.lat}, lng=${data.lng}`);
-      socket.emit('error', { message: 'Invalid coordinates' });
-      return;
-    }
-
-    // Broadcast to all connected clients (office, executives, etc.)
-    locationNamespace.emit('location:updated', {
-      driverId: data.driverId || user.id,
-      driverEmail: user.email,
-      lat,
-      lng,
-      timestamp: new Date().toISOString(),
-      status: data.status || 'AVAILABLE'
-    });
-  });
-
-  // Handle driver status updates
-  socket.on('driver:status', (data) => {
-    // Only allow drivers to update their own status
-    if (user.role !== 'driver' && user.role !== 'DRIVER') {
-      console.warn(`⚠️ Unauthorized status update attempt from ${user.email}`);
-      socket.emit('error', { message: 'Only drivers can update status' });
-      return;
-    }
-
-    locationNamespace.emit('driver:status:updated', {
-      driverId: data.driverId || user.id,
-      driverEmail: user.email,
-      status: data.status,
-      timestamp: new Date().toISOString()
-    });
-
-    locationNamespace.to('role:radio_center').emit('notification:new', {
-      eventType: 'driver_status',
-      type: 'info',
-      message: `🔔 อัปเดตสถานะคนขับ: ${data.status || ''}`.trim()
-    });
-    locationNamespace.to('role:OFFICER').emit('notification:new', {
-      eventType: 'driver_status',
-      type: 'info',
-      message: `🔔 อัปเดตสถานะคนขับ: ${data.status || ''}`.trim()
-    });
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`🔌 Client disconnected: ${user.email}`);
-  });
-});
+// Initialize socket service with the HTTP server
+socketService.initialize(httpServer);
 
 // Start server
 // Start server
@@ -649,9 +522,6 @@ const startServer = async () => {
     // Initialize Database first
     const { initializeDatabase } = require('./db/sqliteDB');
     await initializeDatabase();
-
-    // Enable soft delete on critical tables
-    enableSoftDelete(['patients']);
 
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server is running on http://localhost:${PORT}`);
@@ -669,31 +539,41 @@ const startServer = async () => {
   }
 };
 
+// Only start server if not in test mode
 if (process.env.NODE_ENV !== 'test') {
   startServer();
+
+  httpServer.on('error', (error: any) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use`);
+      process.exit(1);
+    } else {
+      console.error('❌ Server error:', error);
+      process.exit(1);
+    }
+  });
 }
 
-httpServer.on('error', (error: any) => {
-  if (error.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use`);
-    process.exit(1);
-  } else {
-    console.error('❌ Server error:', error);
-    process.exit(1);
-  }
-});
-
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', async (error) => {
   console.error('❌ Uncaught Exception:', error);
+
+  // Report to Sentry
+  const { captureException, flushSentry } = await import('./config/sentry');
+  captureException(error, { type: 'uncaughtException' });
+  await flushSentry(2000);
+
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', async (reason, promise) => {
   console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+
+  // Report to Sentry
+  const { captureException, flushSentry } = await import('./config/sentry');
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  captureException(error, { type: 'unhandledRejection', promise: String(promise) });
+  await flushSentry(2000);
+
   process.exit(1);
 });
 // Force restart
-
-// Exports for testing
-export default app;
-export { httpServer, startServer };

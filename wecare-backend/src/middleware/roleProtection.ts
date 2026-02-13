@@ -33,12 +33,14 @@ const ROLE_HIERARCHY: Record<string, number> = {
  */
 function normalizeRole(role: string): string {
     // Convert to uppercase for comparison
-    const upperRole = role.toUpperCase();
+    const upperRole = role.trim().toUpperCase();
 
     // Map common variations
     const roleMap: Record<string, string> = {
         'ADMIN': UserRole.ADMIN,
+        'OFFICE': UserRole.OFFICER,
         'OFFICER': UserRole.OFFICER,
+        'RADIO': UserRole.RADIO_CENTER,
         'RADIO_CENTER': UserRole.RADIO_CENTER,
         'DRIVER': UserRole.DRIVER,
         'COMMUNITY': UserRole.COMMUNITY,
@@ -46,7 +48,7 @@ function normalizeRole(role: string): string {
         'DEVELOPER': UserRole.DEVELOPER
     };
 
-    return roleMap[upperRole] || role;
+    return roleMap[upperRole] || role.trim();
 }
 
 /**

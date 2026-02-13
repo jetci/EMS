@@ -71,9 +71,28 @@ export const validateUserInput = (req: Request, res: Response, next: NextFunctio
     }
 
     // Role validation
-    const validRoles = ['admin', 'OFFICER', 'driver', 'community', 'EXECUTIVE', 'radio_center', 'DEVELOPER'];
-    if (role !== undefined && !validRoles.includes(role)) {
-        errors.push(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+    const normalizeRole = (value: any): string | null => {
+        if (typeof value !== 'string') return null;
+        const raw = value.trim();
+        if (!raw) return null;
+        const upper = raw.toUpperCase();
+        if (upper === 'ADMIN') return 'admin';
+        if (upper === 'DEVELOPER') return 'DEVELOPER';
+        if (upper === 'EXECUTIVE') return 'EXECUTIVE';
+        if (upper === 'OFFICER' || upper === 'OFFICE') return 'OFFICER';
+        if (upper === 'RADIO_CENTER' || upper === 'RADIO') return 'radio_center';
+        if (upper === 'DRIVER') return 'driver';
+        if (upper === 'COMMUNITY') return 'community';
+        return null;
+    };
+    const validRoles = ['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'driver', 'community', 'EXECUTIVE'];
+    if (role !== undefined) {
+        const normalizedRole = normalizeRole(role);
+        if (!normalizedRole || !validRoles.includes(normalizedRole)) {
+            errors.push(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+        } else {
+            req.body.role = normalizedRole;
+        }
     }
 
     // Name validation

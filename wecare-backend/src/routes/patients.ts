@@ -232,20 +232,23 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // Parse pagination parameters
     const { page, limit, offset } = parsePaginationParams(req.query);
 
+    const rawRole = String(req.user?.role || '').trim().toUpperCase();
+    const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
     // Build WHERE clause
     let whereClause = 'WHERE deleted_at IS NULL';
     const params: any[] = [];
 
     // Filter by created_by if user is community role
-    if (req.user?.role === 'community' && req.user?.id) {
+    if (role === 'COMMUNITY' && req.user?.id) {
       whereClause += ' AND created_by = ?';
       params.push(req.user.id);
     } else if (
-      req.user?.role !== 'admin' &&
-      req.user?.role !== 'DEVELOPER' &&
-      req.user?.role !== 'radio_center' &&
-      req.user?.role !== 'OFFICER' &&
-      req.user?.role !== 'EXECUTIVE'
+      role !== 'ADMIN' &&
+      role !== 'DEVELOPER' &&
+      role !== 'RADIO_CENTER' &&
+      role !== 'OFFICER' &&
+      role !== 'EXECUTIVE'
     ) {
       // If not an authorized role, deny access to full list
       return res.status(403).json({ error: 'Access denied' });
@@ -280,7 +283,10 @@ router.get('/:id', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Patient not found' });
     }
 
-    if (req.user?.role === 'community' && patient.created_by && patient.created_by !== req.user.id) {
+    const rawRole = String(req.user?.role || '').trim().toUpperCase();
+    const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
+    if (role === 'COMMUNITY' && patient.created_by && patient.created_by !== req.user?.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -475,7 +481,10 @@ router.put(
       }
 
       // Check ownership for community users
-      if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
+      const rawRole = String(req.user?.role || '').trim().toUpperCase();
+      const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
+      if (role === 'COMMUNITY' && existing.created_by && existing.created_by !== req.user?.id) {
         return res.status(403).json({ error: 'Access denied' });
       }
 
@@ -615,7 +624,10 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     }
 
     // Check ownership for community users
-    if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
+    const rawRole = String(req.user?.role || '').trim().toUpperCase();
+    const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
+    if (role === 'COMMUNITY' && existing.created_by && existing.created_by !== req.user?.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

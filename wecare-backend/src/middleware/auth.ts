@@ -115,7 +115,13 @@ export const requireRole = (roles: string[]) => {
     }
 
     // Case-insensitive exact match
-    const normalize = (role: string) => role.toUpperCase();
+    const normalize = (role: string) => {
+      const upper = role.toUpperCase().trim();
+      if (upper === 'OFFICE') return 'OFFICER';
+      if (upper === 'RADIO') return 'RADIO_CENTER';
+      if (upper === 'ADMIN') return 'ADMIN';
+      return upper;
+    };
     const userRole = normalize(req.user.role);
     const allowedRoles = roles.map(normalize);
 

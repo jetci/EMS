@@ -1,13 +1,6 @@
 import request from 'supertest';
-import express from 'express';
-import authRoutes from '../../src/routes/auth';
-import usersRoutes from '../../src/routes/users';
 import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
-
-const app = express();
-app.use(express.json());
-app.use('/api', authRoutes);
-app.use('/api/users', usersRoutes);
+import app from '../../src/index';
 
 async function login(email: string): Promise<string> {
   const passwords = ['password123', 'Admin@123', 'TestPassword123!'];

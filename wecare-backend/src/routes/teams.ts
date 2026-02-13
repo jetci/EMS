@@ -52,7 +52,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/teams
-router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
+router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const newId = generateTeamId();
     const newTeam = {
@@ -72,7 +72,7 @@ router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res
 });
 
 // PUT /api/teams/:id
-router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
+router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const updateData: any = {};
     if (req.body.name) updateData.name = req.body.name;

@@ -6,6 +6,8 @@ import { logRideEvent } from './ride-events';
 import { checkDuplicateRide } from '../middleware/idempotency';
 import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { transformResponse } from '../utils/caseConverter';
+import { normalizeRole } from '../utils/roleNormalizer';
+import { notifyOperationalRoles } from '../utils/socketNotifier';
 import rateLimit from 'express-rate-limit';
 
 // Rate limiter for assign driver (prevent abuse)
@@ -91,21 +93,24 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     // Parse pagination parameters
     const { page, limit, offset } = parsePaginationParams(req.query);
 
+    // ✅ FIX BUG-004: Use centralized role normalizer
+    const role = normalizeRole(req.user?.role);
+
     // Build WHERE clause
     let whereClause = '';
     const params: any[] = [];
 
     // Filter by created_by if user is community role
-    if (req.user?.role === 'community' && req.user?.id) {
+    if (role === 'COMMUNITY' && req.user?.id) {
       whereClause = 'WHERE r.created_by = ?';
       params.push(req.user.id);
     } else if (
-      req.user?.role !== 'admin' &&
-      req.user?.role !== 'DEVELOPER' &&
-      req.user?.role !== 'radio_center' &&
-      req.user?.role !== 'OFFICER' &&
-      req.user?.role !== 'EXECUTIVE' &&
-      req.user?.role !== 'driver'
+      role !== 'ADMIN' &&
+      role !== 'DEVELOPER' &&
+      role !== 'RADIO_CENTER' &&
+      role !== 'OFFICER' &&
+      role !== 'EXECUTIVE' &&
+      role !== 'DRIVER'
     ) {
       // If not an authorized role, deny access to full list
       return res.status(403).json({ error: 'Access denied' });
@@ -170,7 +175,10 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
     }
 
     // Check ownership for community users
-    if (req.user?.role === 'community' && ride.created_by && ride.created_by !== req.user.id) {
+    const rawRole = String(req.user?.role || '').trim().toUpperCase();
+    const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
+    if (role === 'COMMUNITY' && ride.created_by && ride.created_by !== req.user?.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -259,16 +267,14 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
 
     const created = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [newId]);
 
+    // ✅ FIX BUG-005: Use socket notification utility
     try {
       const io = (req as any).app?.get?.('io');
       if (io) {
         const ns = io.of('/locations');
         const message = `🆕 คำขอเดินทางใหม่: ${patient_name || 'ผู้ป่วย'} (${newId})`;
-        const payload = { eventType: 'job_request', type: 'info', message, rideId: newId };
-        ns.to('role:radio_center').emit('notification:new', payload);
-        ns.to('role:OFFICER').emit('notification:new', payload);
-        ns.to('role:admin').emit('notification:new', payload);
-        ns.to('role:DEVELOPER').emit('notification:new', payload);
+        const payload = { eventType: 'job_request', type: 'info' as 'info', message, rideId: newId };
+        notifyOperationalRoles(ns, payload);
       }
     } catch { }
 
@@ -293,6 +299,9 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { status, driver_id, driver_name, ...otherUpdates } = req.body;
   try {
+    const rawRole = String(req.user?.role || '').trim().toUpperCase();
+    const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
     const existing = sqliteDB.get<Ride>('SELECT * FROM rides WHERE id = ?', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Ride not found' });
@@ -302,19 +311,19 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
     const statusChanged = status && status !== existing.status;
 
     // Community users can only update their own rides
-    if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
+    if (role === 'COMMUNITY' && existing.created_by && existing.created_by !== req.user?.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     // Drivers can only update rides assigned to them
-    if (req.user?.role === 'driver' && existing.driver_id && existing.driver_id !== req.user.driver_id) {
+    if (role === 'DRIVER' && existing.driver_id && existing.driver_id !== req.user?.driver_id) {
       return res.status(403).json({ error: 'Access denied: This ride is not assigned to you' });
     }
 
     // Only OFFICER, RADIO_CENTER, ADMIN can assign drivers
     if (assignmentChanged) {
-      const allowedRoles = ['OFFICER', 'radio_center', 'RADIO_CENTER', 'admin', 'DEVELOPER'];
-      if (!req.user?.role || !allowedRoles.includes(req.user.role)) {
+      const allowedRoles = new Set(['OFFICER', 'RADIO_CENTER', 'ADMIN', 'DEVELOPER']);
+      if (!allowedRoles.has(role)) {
         return res.status(403).json({ error: 'Access denied: Only officers can assign drivers' });
       }
 
@@ -452,6 +461,7 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 
     const updated = sqliteDB.get<any>('SELECT * FROM rides WHERE id = ?', [id]);
 
+    // ✅ FIX BUG-005: Use socket notification utility
     try {
       const io = (req as any).app?.get?.('io');
       if (io && (assignmentChanged || statusChanged)) {
@@ -459,11 +469,15 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
         const message = assignmentChanged
           ? `✅ จ่ายงาน ${id} ให้ ${driver_name || driver_id}`
           : `🔄 อัปเดตสถานะงาน ${id}: ${existing.status} → ${status}`;
-        const payload = { eventType: 'ride_status', type: assignmentChanged ? 'success' : 'info', message, rideId: id, status };
-        ns.to('role:radio_center').emit('notification:new', payload);
-        ns.to('role:OFFICER').emit('notification:new', payload);
-        ns.to('role:admin').emit('notification:new', payload);
-        ns.to('role:DEVELOPER').emit('notification:new', payload);
+        const notificationType: 'success' | 'info' = assignmentChanged ? 'success' : 'info';
+        const payload = {
+          eventType: 'ride_status',
+          type: notificationType,
+          message,
+          rideId: id,
+          status
+        };
+        notifyOperationalRoles(ns, payload);
       }
     } catch { }
 
@@ -485,13 +499,16 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 router.delete('/:id', async (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
+    const rawRole = String(req.user?.role || '').trim().toUpperCase();
+    const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
+
     const existing = sqliteDB.get<Ride>('SELECT * FROM rides WHERE id = ?', [id]);
     if (!existing) {
       return res.status(404).json({ error: 'Ride not found' });
     }
 
     // Community users can only delete their own rides
-    if (req.user?.role === 'community' && existing.created_by && existing.created_by !== req.user.id) {
+    if (role === 'COMMUNITY' && existing.created_by && existing.created_by !== req.user?.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

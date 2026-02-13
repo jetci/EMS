@@ -42,4 +42,17 @@ declare global {
     }
 }
 
-export {};
+import { initializeDatabase } from '../src/db/sqliteDB';
+
+beforeAll(async () => {
+    // Silence logs during test initialization
+    const originalLog = console.log;
+    console.log = jest.fn();
+    try {
+        await initializeDatabase();
+    } finally {
+        console.log = originalLog;
+    }
+});
+
+export { };

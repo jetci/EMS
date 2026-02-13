@@ -13,12 +13,16 @@ import {
   decryptPatientData,
   PatientData
 } from '../src/services/patientService';
-import { initializeDatabase, sqliteDB } from '../src/db/sqliteDB';
+import { sqliteDB } from '../src/db/sqliteDB';
 import { isEncrypted } from '../src/utils/encryption';
 
+// Set test encryption key
+process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
 describe('Patient Service - Encryption Integration', () => {
-  beforeAll(async () => {
-    await initializeDatabase();
+  beforeAll(() => {
+    // Setup test database
+    // Note: In real tests, you'd use a separate test database
   });
 
   afterEach(() => {
@@ -41,7 +45,7 @@ describe('Patient Service - Encryption Integration', () => {
         gender: 'ชาย',
         chronicDiseases: ['เบาหวาน', 'ความดันโลหิตสูง'],
         allergies: ['ยาปฏิชีวนะ'],
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-001'
       };
 
       const encrypted = encryptPatientData(patientData);
@@ -71,7 +75,7 @@ describe('Patient Service - Encryption Integration', () => {
     test('should handle missing optional fields', () => {
       const patientData: PatientData = {
         fullName: 'Test Patient',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-001'
       };
 
       const encrypted = encryptPatientData(patientData);
@@ -90,7 +94,7 @@ describe('Patient Service - Encryption Integration', () => {
         contactPhone: '0898765432',
         chronicDiseases: ['หัวใจ'],
         allergies: ['อาหารทะเล'],
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-001'
       };
 
       const encrypted = encryptPatientData(patientData);
@@ -144,7 +148,7 @@ describe('Patient Service - Encryption Integration', () => {
         patientTypes: ['ผู้สูงอายุ'],
         chronicDiseases: ['เบาหวาน'],
         allergies: [],
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-001'
       };
 
       const created = createPatient(patientData);
@@ -176,7 +180,7 @@ describe('Patient Service - Encryption Integration', () => {
         nationalId: '2222222222222',
         contactPhone: '0822222222',
         chronicDiseases: ['ความดันโลหิตสูง'],
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-002'
       };
 
       const created = createPatient(patientData);
@@ -203,18 +207,18 @@ describe('Patient Service - Encryption Integration', () => {
         fullName: 'Patient 1',
         nationalId: '3333333333333',
         contactPhone: '0833333333',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-003'
       });
 
       createPatient({
         fullName: 'Patient 2',
         nationalId: '4444444444444',
         contactPhone: '0844444444',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-003'
       });
 
       const result = getAllPatients({
-        createdBy: 'USR-ADMIN',
+        createdBy: 'USR-TEST-003',
         page: 1,
         limit: 10
       });
@@ -236,7 +240,7 @@ describe('Patient Service - Encryption Integration', () => {
         fullName: 'Original Name',
         nationalId: '5555555555555',
         contactPhone: '0855555555',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-004'
       });
 
       // Update patient
@@ -274,7 +278,7 @@ describe('Patient Service - Encryption Integration', () => {
       const created = createPatient({
         fullName: 'To Be Deleted',
         nationalId: '7777777777777',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-005'
       });
 
       deletePatient(created.id);
@@ -295,13 +299,13 @@ describe('Patient Service - Encryption Integration', () => {
       const data1 = encryptPatientData({
         fullName: 'Test',
         nationalId: '8888888888888',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-001'
       });
 
       const data2 = encryptPatientData({
         fullName: 'Test',
         nationalId: '8888888888888',
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-001'
       });
 
       // Same input should produce different encrypted output (random IV)
@@ -315,7 +319,7 @@ describe('Patient Service - Encryption Integration', () => {
         contactPhone: '0899999999',
         chronicDiseases: ['ลับมาก'],
         allergies: ['ข้อมูลลับ'],
-        createdBy: 'USR-ADMIN'
+        createdBy: 'USR-TEST-006'
       });
 
       // Query database directly

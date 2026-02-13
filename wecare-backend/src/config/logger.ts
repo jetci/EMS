@@ -1,115 +1,171 @@
-/**
- * Winston Logger Configuration
- * Centralized logging for production monitoring
- */
-
 import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 
-const LOG_DIR = process.env.LOG_DIR || './logs';
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+/**
+ * Winston Logger Configuration
+ * Provides structured logging for development and production
+ */
 
-// Custom log format
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-);
+// Log levels
+const levels = {
+    error: 0,
+    warn: 1,
+    info: 2,
+    http: 3,
+    debug: 4,
+};
 
-// Console format for development
+// Log colors for console
+const colors = {
+    error: 'red',
+    warn: 'yellow',
+    info: 'green',
+    http: 'magenta',
+    debug: 'blue',
+};
+
+winston.addColors(colors);
+
+// Determine log level based on environment
+const level = () => {
+    const env = process.env.NODE_ENV || 'development';
+    const isDevelopment = env === 'development';
+    return isDevelopment ? 'debug' : process.env.LOG_LEVEL || 'info';
+};
+
+// Custom format for console (development)
 const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'HH:mm:ss' }),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let msg = `${timestamp} [${level}]: ${message}`;
-    if (Object.keys(meta).length > 0) {
-      msg += ` ${JSON.stringify(meta)}`;
-    }
-    return msg;
-  })
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.colorize({ all: true }),
+    winston.format.printf(
+        (info) => `${info.timestamp} [${info.level}]: ${info.message}`
+    )
 );
 
-// Create logger instance
-export const logger = winston.createLogger({
-  level: LOG_LEVEL,
-  format: logFormat,
-  defaultMeta: { service: 'wecare-backend' },
-  transports: [
-    // Error log file
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, 'error.log'),
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
+// Custom format for files (production)
+const fileFormat = winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.errors({ stack: true }),
+    winston.format.splat(),
+    winston.format.json()
+);
 
-    // Combined log file
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
+// Filter sensitive data from logs
+const sensitiveDataFilter = winston.format((info: any) => {
+    const sensitiveKeys = ['password', 'token', 'secret', 'apiKey', 'authorization'];
 
-    // Access log file
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, 'access.log'),
-      level: 'http',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-  ],
+    // Filter message
+    if (typeof info.message === 'string') {
+        sensitiveKeys.forEach(key => {
+            const regex = new RegExp(`"${key}"\\s*:\\s*"[^"]*"`, 'gi');
+            info.message = (info.message as string).replace(regex, `"${key}":"[FILTERED]"`);
+        });
+    }
+
+    // Filter metadata
+    if (info.meta && typeof info.meta === 'object') {
+        sensitiveKeys.forEach(key => {
+            if ((info.meta as any)[key]) {
+                (info.meta as any)[key] = '[FILTERED]';
+            }
+        });
+    }
+
+    return info;
 });
 
-// Console transport for development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(
+// Transports
+const transports: winston.transport[] = [];
+
+// Console transport (always enabled)
+transports.push(
     new winston.transports.Console({
-      format: consoleFormat,
+        format: consoleFormat,
     })
-  );
+);
+
+// File transports (production)
+if (process.env.NODE_ENV !== 'test') {
+    const logDir = process.env.LOG_DIR || './logs';
+
+    // Error log file (errors only)
+    transports.push(
+        new DailyRotateFile({
+            filename: path.join(logDir, 'error-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            level: 'error',
+            format: fileFormat,
+            maxFiles: process.env.LOG_MAX_FILES || '14d',
+            zippedArchive: true,
+        })
+    );
+
+    // Combined log file (all logs)
+    transports.push(
+        new DailyRotateFile({
+            filename: path.join(logDir, 'combined-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            format: fileFormat,
+            maxFiles: process.env.LOG_MAX_FILES || '14d',
+            zippedArchive: true,
+        })
+    );
+
+    // HTTP log file (HTTP requests)
+    transports.push(
+        new DailyRotateFile({
+            filename: path.join(logDir, 'http-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            level: 'http',
+            format: fileFormat,
+            maxFiles: process.env.LOG_MAX_FILES || '7d',
+            zippedArchive: true,
+        })
+    );
 }
 
-// Stream for Morgan (HTTP logging)
+// Create logger instance
+const logger = winston.createLogger({
+    level: level(),
+    levels,
+    format: winston.format.combine(
+        sensitiveDataFilter(),
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.splat()
+    ),
+    transports,
+    exitOnError: false,
+});
+
+// Stream for Morgan HTTP logging
 export const stream = {
-  write: (message: string) => {
-    logger.http(message.trim());
-  },
+    write: (message: string) => {
+        logger.http(message.trim());
+    },
 };
 
-// Helper functions
-export const logInfo = (message: string, meta?: any) => {
-  logger.info(message, meta);
-};
-
-export const logError = (message: string, error?: Error, meta?: any) => {
-  logger.error(message, { error: error?.message, stack: error?.stack, ...meta });
+// Helper functions for different log levels
+export const logError = (message: string, meta?: any) => {
+    logger.error(message, meta);
 };
 
 export const logWarn = (message: string, meta?: any) => {
-  logger.warn(message, meta);
+    logger.warn(message, meta);
 };
 
-export const logDebug = (message: string, meta?: any) => {
-  logger.debug(message, meta);
+export const logInfo = (message: string, meta?: any) => {
+    logger.info(message, meta);
 };
 
 export const logHttp = (message: string, meta?: any) => {
-  logger.http(message, meta);
+    logger.http(message, meta);
 };
 
-// Log uncaught exceptions
-logger.exceptions.handle(
-  new winston.transports.File({
-    filename: path.join(LOG_DIR, 'exceptions.log'),
-  })
-);
+export const logDebug = (message: string, meta?: any) => {
+    logger.debug(message, meta);
+};
 
-// Log unhandled promise rejections
-logger.rejections.handle(
-  new winston.transports.File({
-    filename: path.join(LOG_DIR, 'rejections.log'),
-  })
-);
-
-console.log('✅ Logger initialized');
+// Export logger
+export default logger;

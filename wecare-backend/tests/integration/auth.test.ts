@@ -6,8 +6,7 @@
 import request from 'supertest';
 import express from 'express';
 import authRoutes from '../../src/routes/auth';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
-import accountLockoutService from '../../src/services/accountLockoutService';
+import { sqliteDB } from '../../src/db/sqliteDB';
 
 // Create test app
 const app = express();
@@ -23,8 +22,7 @@ describe('Auth API Integration Tests', () => {
     };
 
     // Cleanup before tests
-    beforeAll(async () => {
-        await initializeDatabase();
+    beforeAll(() => {
         // Delete test user if exists
         try {
             sqliteDB.db.prepare('DELETE FROM users WHERE email = ?').run(testUser.email);
@@ -41,9 +39,6 @@ describe('Auth API Integration Tests', () => {
         } catch (error) {
             // Ignore errors
         }
-
-        // Close database to prevent open handles
-        try { sqliteDB.close(); } catch {}
     });
 
     describe('POST /api/auth/register', () => {
@@ -187,8 +182,6 @@ describe('Auth API Integration Tests', () => {
         let authToken: string;
 
         beforeAll(async () => {
-            // Ensure account not locked before login
-            accountLockoutService.unlockAccount(testUser.email);
             // Login to get token
             const response = await request(app)
                 .post('/api/auth/login')

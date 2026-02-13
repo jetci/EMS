@@ -5,6 +5,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { ApiError, sendError } from '../utils/apiResponse';
+import { captureException, setUserContext } from '../config/sentry';
 
 export const globalErrorHandler = (
     err: any,
@@ -12,6 +13,24 @@ export const globalErrorHandler = (
     res: Response,
     next: NextFunction
 ) => {
+    // Set user context if available (from auth middleware)
+    if ((req as any).user) {
+        const user = (req as any).user;
+        setUserContext({
+            id: user.id || user.userId,
+            email: user.email,
+            role: user.role
+        });
+    }
+
+    // Capture error to Sentry (will filter sensitive data automatically)
+    captureException(err, {
+        url: req.url,
+        method: req.method,
+        statusCode: err.statusCode || err.status || 500,
+        errorName: err.name,
+    });
+
     // Log error for debugging
     console.error('Error caught by global handler:', {
         name: err.name,
