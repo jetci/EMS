@@ -37,19 +37,20 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
   try {
     const { startDate, endDate } = req.query;
 
-    let dateFilter = '';
+    const whereClauses: string[] = ['appointment_time IS NOT NULL AND appointment_time <> \'\''];
     const params: any[] = [];
     if (startDate || endDate) {
       const start = startDate || '1970-01-01';
       const end = endDate || new Date().toISOString();
-      dateFilter = ' WHERE appointment_time BETWEEN $1 AND $2';
+      whereClauses.push('appointment_time::timestamp BETWEEN $1 AND $2');
       params.push(start, end);
     }
+    const dateFilter = whereClauses.length ? ` WHERE ${whereClauses.join(' AND ')}` : '';
 
     // Monthly Ride Data
     const monthlyData = await db.all<any>(`
       SELECT 
-        TO_CHAR(appointment_time, 'MM') as month,
+        TO_CHAR(appointment_time::timestamp, 'MM') as month,
         COUNT(*) as value
       FROM rides
       ${dateFilter}

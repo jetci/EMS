@@ -126,6 +126,18 @@ const Step3Contact: React.FC<Step3Props> = ({ onNext, onBack, formData = {} as a
       newErrors.caregiverPhone = 'เบอร์โทรศัพท์ไม่ถูกต้อง (ต้องขึ้นต้นด้วย 0 และมี 9-10 หลัก)';
     }
 
+    const latNum = parseFloat(data.latitude);
+    const lngNum = parseFloat(data.longitude);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      newErrors.location = 'กรุณาเลือกตำแหน่งบ้านผู้ป่วยบนแผนที่';
+    } else {
+      const isDefaultLat = Math.abs(latNum - 19.9213) < 1e-6;
+      const isDefaultLng = Math.abs(lngNum - 99.2131) < 1e-6;
+      if (isDefaultLat && isDefaultLng) {
+        newErrors.location = 'กรุณาเลื่อนหมุดบนแผนที่เพื่อระบุพิกัดบ้านผู้ป่วย';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -391,7 +403,7 @@ const Step3Contact: React.FC<Step3Props> = ({ onNext, onBack, formData = {} as a
         <label className="block text-sm font-medium text-gray-700 mb-2">
           ระบุตำแหน่งบ้านผู้ป่วยบนแผนที่
         </label>
-        <div className="border rounded-lg overflow-hidden h-[400px]">
+        <div className="border rounded-lg overflow-hidden h-[500px] md:h-[600px]">
           <SimpleLeafletMapPicker
             position={currentPosition}
             onLocationChange={handleLocationChange}
@@ -418,6 +430,9 @@ const Step3Contact: React.FC<Step3Props> = ({ onNext, onBack, formData = {} as a
             </div>
           </div>
         </div>
+        {errors.location && (
+          <p className="mt-2 text-sm text-red-600">{errors.location}</p>
+        )}
       </div>
 
       {/* Emergency Contact */}

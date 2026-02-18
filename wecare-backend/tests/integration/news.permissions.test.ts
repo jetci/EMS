@@ -1,13 +1,6 @@
 import request from 'supertest';
-import express from 'express';
-import authRoutes from '../../src/routes/auth';
-import newsRoutes from '../../src/routes/news';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
-
-const app = express();
-app.use(express.json());
-app.use('/api', authRoutes);
-app.use('/api/news', newsRoutes);
+import app from '../../src/index';
+import { initializeSchema, seedData } from '../../src/db/postgresDB';
 
 async function login(email: string): Promise<string> {
   const res = await request(app)
@@ -19,11 +12,9 @@ async function login(email: string): Promise<string> {
 
 describe('News permissions and draft visibility', () => {
   beforeAll(async () => {
-    await initializeDatabase();
-  });
-
-  afterAll(() => {
-    try { sqliteDB.close(); } catch { }
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+    await initializeSchema();
+    await seedData();
   });
 
   test('OFFICER can create draft and public cannot fetch it by id', async () => {
@@ -61,4 +52,3 @@ describe('News permissions and draft visibility', () => {
     expect(del.status).toBe(204);
   });
 });
-

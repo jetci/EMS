@@ -34,6 +34,7 @@ export interface Ride {
     contactPhone?: string;
     caregiverPhone?: string;
     pickupCoordinates?: { lat: number; lng: number };
+    destinationCoordinates?: { lat: number; lng: number };
     driverInfo?: {
         id: string;
         fullName: string;
@@ -248,6 +249,7 @@ export interface Vehicle {
     licensePlate: string;
     model: string;
     brand: string;
+    color?: string;
     vehicleTypeId: string;
     vehicleTypeName?: string;
     status: VehicleStatus;
@@ -337,8 +339,24 @@ export type OfficerView =
     'register_patient' |
     'request_ride' |
     'patient_detail' |
-    'edit_patient';
-export type AdminView = 'dashboard' | 'users' | 'logs' | 'settings' | 'profile' | 'news' | 'edit_news' | 'view_news' | 'reports' | 'manage_teams' | 'manage_schedules' | 'manage_vehicles' | 'manage_vehicle_types' | 'test_map';
+    'edit_patient' |
+    'manage_facilities';
+export type AdminView =
+    'dashboard' |
+    'users' |
+    'logs' |
+    'settings' |
+    'profile' |
+    'news' |
+    'edit_news' |
+    'view_news' |
+    'reports' |
+    'manage_teams' |
+    'manage_schedules' |
+    'manage_vehicles' |
+    'manage_vehicle_types' |
+    'manage_facilities' |
+    'test_map';
 export type ExecutiveView =
     'executive_dashboard' |
     'village_distribution' |

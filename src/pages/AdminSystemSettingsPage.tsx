@@ -151,7 +151,12 @@ const AdminSystemSettingsPage: React.FC<AdminSystemSettingsPageProps> = ({ curre
                                                 <input id="logoUpload" name="logoUpload" type="file" className="sr-only" accept="image/png, image/jpeg, image/svg+xml" onChange={handleLogoChange} />
                                             </label>
                                             {settings.logoUrl && (
-                                                <button type="button" onClick={handleRemoveLogo} className="p-2 text-red-600 hover:bg-red-50 rounded-full" title="ลบโลโก้">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemoveLogo}
+                                                    className="icon-btn icon-btn-delete"
+                                                    title="ลบโลโก้"
+                                                >
                                                     <TrashIcon className="w-5 h-5" />
                                                 </button>
                                             )}

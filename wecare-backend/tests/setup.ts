@@ -59,8 +59,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    const { postgresDB } = require('../src/db/postgresDB');
-    await postgresDB.close();
+    try {
+        const module = require('../src/db/postgresDB');
+        const postgresDB = module && module.postgresDB;
+        if (postgresDB && typeof postgresDB.close === 'function') {
+            await postgresDB.close();
+        }
+    } catch {
+    }
 });
 
 export { };

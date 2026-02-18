@@ -95,7 +95,7 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
             };
         });
 
-        return {
+        const result: Patient = {
             id: data?.id?.toString?.() || data?.patient_id?.toString?.() || '',
             fullName: sanitizeText(data?.fullName || data?.full_name || `${data?.first_name || data?.firstName || ''} ${data?.last_name || data?.lastName || ''}`.trim()),
             profileImageUrl: data?.profileImageUrl || data?.profile_image_url || undefined,
@@ -169,13 +169,27 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
             // Metadata
             registeredDate: sanitizeText(data?.registeredDate || data?.registered_date || data?.created_at || ''),
-            registeredBy: sanitizeText(data?.registeredBy || data?.created_by || ''),
+            registeredBy: sanitizeText(data?.registeredBy || data?.createdBy || data?.created_by || ''),
             keyInfo: sanitizeText(data?.key_info || data?.keyInfo || ''),
             caregiverName: sanitizeText(data?.caregiver_name || data?.caregiverName || ''),
             caregiverPhone: sanitizeText(data?.caregiver_phone || data?.caregiverPhone || ''),
             createdAt: data?.created_at || data?.createdAt,
             updatedAt: data?.updated_at || data?.updatedAt,
         };
+
+        const phoneLike = (v: string | undefined): boolean => {
+            if (!v) return false;
+            const s = v.replace(/[\s\-()+]/g, '');
+            if (!/^\d+$/.test(s)) return false;
+            return s.length >= 6 && s.length <= 12;
+        };
+
+        if (!result.emergencyContactPhone && result.emergencyContactRelation && phoneLike(result.emergencyContactRelation)) {
+            result.emergencyContactPhone = result.emergencyContactRelation;
+            result.emergencyContactRelation = '';
+        }
+
+        return result;
     };
 
     const loadData = async () => {
@@ -196,7 +210,9 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
             // Load ride history (filtering all rides for this patient)
             const allRides = await ridesAPI.getRides();
-            const ridesArray = Array.isArray(allRides) ? allRides : (allRides.rides || []);
+            const ridesArray = Array.isArray(allRides)
+                ? allRides
+                : (allRides.data || (allRides as any).rides || []);
             const patientIdStr = String(patientId);
             const patientRides = ridesArray
                 .filter((r: any) => String(r.patientId ?? r.patient_id) === patientIdStr)
@@ -217,6 +233,7 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
             // Map frontend Patient to backend format
             const backendData = {
                 full_name: updatedPatient.fullName,
+                profileImageUrl: updatedPatient.profileImageUrl,
                 title: updatedPatient.title,
                 gender: updatedPatient.gender,
                 national_id: updatedPatient.nationalId,
@@ -285,10 +302,41 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                             if (!url) return defaultProfileImage;
                             if (url.startsWith('http') || url.startsWith('data:')) return url;
 
-                            // Construct absolute URL for relative paths
-                            const apiBase = (import.meta as any).env?.VITE_API_BASE_URL || '/api';
-                            const rootUrl = apiBase.replace(/\/api\/?$/, ''); // Remove /api suffix
-                            return `${rootUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+                            let base = '';
+
+                            try {
+                                if (typeof window !== 'undefined') {
+                                    const apiBaseWindow = (window as any).__API_BASE__ as string | undefined;
+                                    if (apiBaseWindow && /^https?:\/\//i.test(apiBaseWindow)) {
+                                        base = apiBaseWindow.replace(/\/api-proxy\/?$/i, '').replace(/\/api\/?$/i, '');
+                                    }
+                                }
+                            } catch {}
+
+                            if (!base) {
+                                try {
+                                    const envBase =
+                                        (import.meta as any).env?.VITE_API_URL ||
+                                        (import.meta as any).env?.VITE_API_BASE_URL ||
+                                        '';
+                                    if (envBase && /^https?:\/\//i.test(envBase)) {
+                                        base = envBase.replace(/\/api-proxy\/?$/i, '').replace(/\/api\/?$/i, '');
+                                    }
+                                } catch {}
+                            }
+
+                            if (!base && typeof window !== 'undefined') {
+                                const { protocol, hostname, origin } = window.location;
+                                if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                                    base = `${protocol}//${hostname}:3002`;
+                                } else {
+                                    base = origin;
+                                }
+                            }
+
+                            if (!base) return url;
+
+                            return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
                         })()}
                         alt={patient.fullName}
                         className="w-32 h-32 rounded-full flex-shrink-0 object-cover border-4 border-blue-200"
@@ -320,11 +368,14 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
             {/* ✅ NEW: ข้อมูลส่วนตัวครบถ้วน */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลส่วนตัว</h2>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                    <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ข้อมูลส่วนตัว</h2>
+                </div>
                 <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                     {/* 1. คำนำหน้าชื่อ */}
                     <div>
-                        <dt className="font-semibold text-gray-600">คำนำหน้าชื่อ:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">คำนำหน้าชื่อ</dt>
                         <dd className="text-gray-800">
                             {(() => {
                                 // Debug logging with JSON.stringify
@@ -345,33 +396,33 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                         </dd>
                     </div>
 
-                    {/* 2. เพศ */}
+                    {/* 2. ชื่อ */}
                     <div>
-                        <dt className="font-semibold text-gray-600">เพศ:</dt>
-                        <dd className="text-gray-800">{(patient as any).gender || (patient as any).sex || '-'}</dd>
-                    </div>
-
-                    {/* 3. ชื่อ */}
-                    <div>
-                        <dt className="font-semibold text-gray-600">ชื่อ:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ชื่อ</dt>
                         <dd className="text-gray-800">{(patient as any).firstName || (patient as any).first_name || patient.fullName.split(' ')[0] || '-'}</dd>
                     </div>
 
-                    {/* 4. นามสกุล */}
+                    {/* 3. นามสกุล */}
                     <div>
-                        <dt className="font-semibold text-gray-600">นามสกุล:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">นามสกุล</dt>
                         <dd className="text-gray-800">{(patient as any).lastName || (patient as any).last_name || patient.fullName.split(' ').slice(1).join(' ') || '-'}</dd>
+                    </div>
+
+                    {/* 4. เพศ */}
+                    <div>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">เพศ</dt>
+                        <dd className="text-gray-800">{(patient as any).gender || (patient as any).sex || '-'}</dd>
                     </div>
 
                     {/* 5. เลขบัตรประชาชน */}
                     <div className="sm:col-span-2">
-                        <dt className="font-semibold text-gray-600">เลขบัตรประชาชน:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">เลขบัตรประชาชน</dt>
                         <dd className="text-gray-800 font-mono">{(patient as any).nationalId || (patient as any).national_id || (patient as any).idCard || 'ไม่ระบุ'}</dd>
                     </div>
 
                     {/* 6. วันเกิด */}
                     <div>
-                        <dt className="font-semibold text-gray-600">วันเกิด:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">วันเกิด</dt>
                         <dd className="text-gray-800">
                             {(() => {
                                 // Try different field names
@@ -401,13 +452,13 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
                     {/* 7. อายุ */}
                     <div>
-                        <dt className="font-semibold text-gray-600">อายุ:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">อายุ</dt>
                         <dd className="text-gray-800">{patient.age || '-'} ปี</dd>
                     </div>
 
                     {/* 8. ประเภทผู้ป่วย */}
                     <div className="sm:col-span-2 lg:col-span-3">
-                        <dt className="font-semibold text-gray-600">ประเภทผู้ป่วย:</dt>
+                        <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ประเภทผู้ป่วย</dt>
                         <dd className="text-gray-800">
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {(patient.patientTypes || []).map((type, index) => (
@@ -425,10 +476,13 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                 <div className="space-y-8">
                     {/* ✅ NEW: ที่อยู่ตามบัตรประชาชน */}
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ที่อยู่ตามบัตรประชาชน</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                            <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ที่อยู่ตามบัตรประชาชน</h2>
+                        </div>
                         <dl className="space-y-3 text-sm">
                             <div>
-                                <dt className="font-semibold text-gray-600">ที่อยู่:</dt>
+                                <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ที่อยู่</dt>
                                 <dd className="text-gray-800 whitespace-pre-wrap break-words">
                                     {(() => {
                                         // Try registeredAddress object first
@@ -463,11 +517,14 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
                     {/* ที่อยู่ปัจจุบัน */}
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลติดต่อและที่อยู่ปัจจุบัน</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                            <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ข้อมูลติดต่อและที่อยู่ปัจจุบัน</h2>
+                        </div>
                         <dl className="space-y-3 text-sm">
                             {/* 🐛 FIX: Support multiple address formats */}
                             <div>
-                                <dt className="font-semibold text-gray-600">ที่อยู่:</dt>
+                                <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ที่อยู่</dt>
                                 <dd className="text-gray-800 whitespace-pre-wrap break-words">
                                     {(() => {
                                         // Try currentAddress object first
@@ -497,9 +554,9 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                                     })()}
                                 </dd>
                             </div>
-                            <div><dt className="font-semibold text-gray-600">เบอร์โทรศัพท์:</dt><dd className="text-gray-800">{patient.contactPhone || (patient as any).phone || (patient as any).contact_phone || 'ไม่มีข้อมูล'}</dd></div>
-                            <div><dt className="font-semibold text-gray-600">จุดสังเกต:</dt><dd className="text-gray-800 whitespace-pre-wrap">{patient.landmark || (patient as any).landmark || 'ไม่มี'}</dd></div>
-                            <div><dt className="font-semibold text-gray-600">พิกัด:</dt><dd className="text-gray-800 font-mono text-xs break-all">{`Lat: ${patient.latitude || (patient as any).lat || 'N/A'}, Long: ${patient.longitude || (patient as any).lng || 'N/A'}`}</dd></div>
+                            <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">เบอร์โทรศัพท์</dt><dd className="text-gray-800">{patient.contactPhone || (patient as any).phone || (patient as any).contact_phone || 'ไม่มีข้อมูล'}</dd></div>
+                            <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">จุดสังเกต</dt><dd className="text-gray-800 whitespace-pre-wrap">{patient.landmark || (patient as any).landmark || 'ไม่มี'}</dd></div>
+                            <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">พิกัด</dt><dd className="text-gray-800 font-mono text-xs break-all">{`Lat: ${patient.latitude || (patient as any).lat || 'N/A'}, Long: ${patient.longitude || (patient as any).lng || 'N/A'}`}</dd></div>
                         </dl>
                         <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center text-sm font-semibold text-blue-600 hover:text-blue-800">
                             ดูตำแหน่งบนแผนที่ <ExternalLinkIcon className="w-4 h-4 ml-2" />
@@ -507,28 +564,31 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
                         {/* Emergency Contact */}
                         <div className="mt-4 pt-4 border-t border-gray-100">
-                            <h3 className="font-semibold text-gray-700 mb-2">ผู้ติดต่อฉุกเฉิน</h3>
+                            <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">ผู้ติดต่อฉุกเฉิน</h3>
                             <dl className="space-y-2">
-                                <div><dt className="font-semibold text-gray-600">ชื่อ:</dt><dd className="text-gray-800">{patient.emergencyContactName || (patient as any).emergency_contact_name || (patient as any).emergencyContact?.name || '-'}</dd></div>
-                                <div><dt className="font-semibold text-gray-600">ความสัมพันธ์:</dt><dd className="text-gray-800">{patient.emergencyContactRelation || (patient as any).emergency_contact_relation || (patient as any).emergencyContact?.relation || '-'}</dd></div>
-                                <div><dt className="font-semibold text-gray-600">เบอร์โทรศัพท์:</dt><dd className="text-gray-800">{patient.emergencyContactPhone || (patient as any).emergency_contact_phone || (patient as any).emergencyContact?.phone || '-'}</dd></div>
+                                <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ชื่อ</dt><dd className="text-gray-800">{patient.emergencyContactName || (patient as any).emergency_contact_name || (patient as any).emergencyContact?.name || '-'}</dd></div>
+                                <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ความสัมพันธ์</dt><dd className="text-gray-800">{patient.emergencyContactRelation || (patient as any).emergency_contact_relation || (patient as any).emergencyContact?.relation || '-'}</dd></div>
+                                <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">เบอร์โทรศัพท์</dt><dd className="text-gray-800">{patient.emergencyContactPhone || (patient as any).emergency_contact_phone || (patient as any).emergencyContact?.phone || '-'}</dd></div>
                             </dl>
 
                             {/* Caregiver Info */}
                             <div className="mt-4">
-                                <h3 className="font-semibold text-gray-700 mb-2">ผู้ดูแล</h3>
+                                <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">ผู้ดูแล</h3>
                                 <dl className="space-y-2">
-                                    <div><dt className="font-semibold text-gray-600">ชื่อผู้ดูแล:</dt><dd className="text-gray-800">{patient.caregiverName || (patient as any).caregiver_name || '-'}</dd></div>
-                                    <div><dt className="font-semibold text-gray-600">เบอร์โทรผู้ดูแล:</dt><dd className="text-gray-800">{patient.caregiverPhone || (patient as any).caregiver_phone || '-'}</dd></div>
+                                    <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ชื่อผู้ดูแล</dt><dd className="text-gray-800">{patient.caregiverName || (patient as any).caregiver_name || '-'}</dd></div>
+                                    <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">เบอร์โทรผู้ดูแล</dt><dd className="text-gray-800">{patient.caregiverPhone || (patient as any).caregiver_phone || '-'}</dd></div>
                                 </dl>
                             </div>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลทางการแพทย์</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                            <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ข้อมูลทางการแพทย์</h2>
+                        </div>
                         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-4">
-                            <div><dt className="font-semibold text-gray-600">กรุ๊ปเลือด:</dt><dd className="text-gray-800">{`${patient.bloodType || '-'} ${patient.rhFactor || ''}`}</dd></div>
-                            <div className="sm:col-span-2"><dt className="font-semibold text-gray-600">สิทธิการรักษา:</dt><dd className="text-gray-800">{patient.healthCoverage || 'ไม่ระบุ'}</dd></div>
+                            <div><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">กรุ๊ปเลือด</dt><dd className="text-gray-800">{`${patient.bloodType || '-'} ${patient.rhFactor || ''}`}</dd></div>
+                            <div className="sm:col-span-2"><dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">สิทธิการรักษา</dt><dd className="text-gray-800">{patient.healthCoverage || 'ไม่ระบุ'}</dd></div>
                         </dl>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><h3 className="text-sm font-semibold text-gray-600 mb-2">โรคประจำตัว</h3><ul className="list-disc list-inside text-sm text-gray-800 space-y-1">{(patient.chronicDiseases || []).map((d, i) => <li key={`${d}-${i}`}>{d}</li>)}</ul></div>
@@ -540,28 +600,33 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
                 <div className="space-y-8">
                     {/* Registration Meta */}
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลการลงทะเบียน</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                            <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ข้อมูลการลงทะเบียน</h2>
+                        </div>
                         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div>
-                                <dt className="font-semibold text-gray-600">วันที่ลงทะเบียน:</dt>
+                                <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">วันที่ลงทะเบียน</dt>
                                 <dd className="text-gray-800">{(() => {
                                     const d = patient.registeredDate || (patient as any).registered_date || (patient as any).created_at || '';
                                     try { return d ? formatDateToThai(d) : '-'; } catch { return d || '-'; }
                                 })()}</dd>
                             </div>
                             <div>
-                                <dt className="font-semibold text-gray-600">ผู้สร้างข้อมูล:</dt>
-                                <dd className="text-gray-800">{patient.registeredBy || (patient as any).created_by || '-'}</dd>
+                                <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">ผู้สร้างข้อมูล</dt>
+                                <dd className="text-gray-800">
+                                    {patient.registeredBy || (patient as any).createdBy || (patient as any).created_by || '-'}
+                                </dd>
                             </div>
                             <div>
-                                <dt className="font-semibold text-gray-600">สร้างเมื่อ:</dt>
+                                <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">สร้างเมื่อ</dt>
                                 <dd className="text-gray-800">{(() => {
                                     const d = patient.createdAt || (patient as any).created_at || '';
                                     try { return d ? formatDateToThai(d) : '-'; } catch { return d || '-'; }
                                 })()}</dd>
                             </div>
                             <div>
-                                <dt className="font-semibold text-gray-600">แก้ไขล่าสุด:</dt>
+                                <dt className="text-xs font-bold text-gray-600 uppercase tracking-wide">แก้ไขล่าสุด</dt>
                                 <dd className="text-gray-800">{(() => {
                                     const d = patient.updatedAt || (patient as any).updated_at || '';
                                     try { return d ? formatDateToThai(d) : '-'; } catch { return d || '-'; }
@@ -572,12 +637,18 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 
                     {/* Key Info */}
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] mb-4">ข้อมูลสำคัญ</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                            <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ข้อมูลสำคัญ</h2>
+                        </div>
                         <p className="text-sm text-gray-800 whitespace-pre-wrap">{patient.keyInfo || (patient as any).key_info || 'ไม่มีข้อมูลสำคัญ'}</p>
                     </div>
 
                     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h2 className="text-xl font-bold text-[var(--wecare-blue)] p-6 pb-4">ประวัติการเดินทางล่าสุด</h2>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-1.5 h-6 rounded-full bg-[var(--wecare-blue)]" />
+                            <h2 className="text-lg font-semibold text-gray-900 tracking-wide">ประวัติการเดินทางล่าสุด</h2>
+                        </div>
                         <div className="overflow-x-auto"><table className="w-full text-sm">
                             <thead className="text-xs text-gray-700 uppercase bg-gray-50/75"><tr className="text-left">
                                 <th className="px-6 py-3 font-semibold">วัน-เวลา</th><th className="px-6 py-3 font-semibold">ปลายทาง</th><th className="px-6 py-3 font-semibold">สถานะ</th>
@@ -603,4 +674,3 @@ const PatientDetailPage: React.FC<PatientDetailPageProps> = ({ patientId, setAct
 };
 
 export default PatientDetailPage;
-

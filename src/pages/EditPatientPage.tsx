@@ -34,6 +34,7 @@ const EditPatientPage: React.FC<EditPatientPageProps> = ({ patientId, setActiveV
     try {
       const backendData = {
         full_name: updatedPatient.fullName,
+        profileImageUrl: updatedPatient.profileImageUrl,
         title: updatedPatient.title,
         gender: updatedPatient.gender,
         national_id: updatedPatient.nationalId,

@@ -73,13 +73,66 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
                             </td>
                             <td>
                                 <div className="patient-name">
-                                    {patient.profileImage && (
-                                        <img
-                                            src={patient.profileImage}
-                                            alt={patient.fullName}
-                                            className="patient-avatar"
-                                        />
-                                    )}
+                                    {(() => {
+                                        const rawUrl =
+                                            (patient as any).profileImage ||
+                                            (patient as any).profileImageUrl ||
+                                            (patient as any).profile_image_url;
+                                        if (!rawUrl) return null;
+
+                                        if (typeof rawUrl === 'string' && (rawUrl.startsWith('http') || rawUrl.startsWith('data:'))) {
+                                            return (
+                                                <img
+                                                    src={rawUrl}
+                                                    alt={patient.fullName}
+                                                    className="patient-avatar"
+                                                />
+                                            );
+                                        }
+
+                                        let base = '';
+
+                                        try {
+                                            if (typeof window !== 'undefined') {
+                                                const apiBaseWindow = (window as any).__API_BASE__ as string | undefined;
+                                                if (apiBaseWindow && /^https?:\/\//i.test(apiBaseWindow)) {
+                                                    base = apiBaseWindow.replace(/\/api-proxy\/?$/i, '').replace(/\/api\/?$/i, '');
+                                                }
+                                            }
+                                        } catch {}
+
+                                        if (!base) {
+                                            try {
+                                                const envBase =
+                                                    (import.meta as any).env?.VITE_API_URL ||
+                                                    (import.meta as any).env?.VITE_API_BASE_URL ||
+                                                    '';
+                                                if (envBase && /^https?:\/\//i.test(envBase)) {
+                                                    base = envBase.replace(/\/api-proxy\/?$/i, '').replace(/\/api\/?$/i, '');
+                                                }
+                                            } catch {}
+                                        }
+
+                                        if (!base && typeof window !== 'undefined') {
+                                            const { protocol, hostname, origin } = window.location;
+                                            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                                                base = `${protocol}//${hostname}:3002`;
+                                            } else {
+                                                base = origin;
+                                            }
+                                        }
+
+                                        const url = String(rawUrl);
+                                        const finalUrl = base ? `${base}${url.startsWith('/') ? '' : '/'}${url}` : url;
+
+                                        return (
+                                            <img
+                                                src={finalUrl}
+                                                alt={patient.fullName}
+                                                className="patient-avatar"
+                                            />
+                                        );
+                                    })()}
                                     <span>{patient.fullName}</span>
                                 </div>
                             </td>
@@ -98,29 +151,31 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
                             </td>
                             <td>
                                 <div className="action-buttons" role="group" aria-label={`การจัดการผู้ป่วย ${patient.fullName}`}>
-                                    <button
-                                        className="btn btn-sm btn-info"
-                                        onClick={() => onViewDetails(patient.id)}
-                                        title="ดูรายละเอียด"
-                                        aria-label={`ดูรายละเอียดผู้ป่วย ${patient.fullName}`}
-                                    >
-                                        <i className="fas fa-eye"></i>
-                                        ดูรายละเอียด
-                                    </button>
-                                    {canEdit && (
+                                    <div className="action-buttons-main">
                                         <button
-                                            className="btn btn-sm btn-primary"
-                                            onClick={() => onEdit(patient)}
-                                            title="แก้ไข"
-                                            aria-label={`แก้ไขผู้ป่วย ${patient.fullName}`}
+                                            className="btn btn-sm btn-info"
+                                            onClick={() => onViewDetails(patient.id)}
+                                            title="ดูรายละเอียด"
+                                            aria-label={`ดูรายละเอียดผู้ป่วย ${patient.fullName}`}
                                         >
-                                            <i className="fas fa-edit"></i>
-                                            แก้ไข
+                                            <i className="fas fa-eye"></i>
+                                            ดูรายละเอียด
                                         </button>
-                                    )}
+                                        {canEdit && (
+                                            <button
+                                                className="btn btn-sm btn-primary"
+                                                onClick={() => onEdit(patient)}
+                                                title="แก้ไข"
+                                                aria-label={`แก้ไขผู้ป่วย ${patient.fullName}`}
+                                            >
+                                                <i className="fas fa-edit"></i>
+                                                แก้ไข
+                                            </button>
+                                        )}
+                                    </div>
                                     {canDelete && (
                                         <button
-                                            className="btn btn-sm btn-danger"
+                                            className="btn btn-sm btn-danger action-delete"
                                             onClick={() => onDelete(patient.id)}
                                             title="ลบ"
                                             aria-label={`ลบผู้ป่วย ${patient.fullName}`}
@@ -201,7 +256,18 @@ const PatientListTable: React.FC<PatientListTableProps> = ({
 
         .action-buttons {
           display: flex;
+          align-items: center;
+          justify-content: space-between;
           gap: 8px;
+        }
+
+        .action-buttons-main {
+          display: flex;
+          gap: 8px;
+        }
+
+        .action-delete {
+          margin-left: auto;
         }
 
         .btn {

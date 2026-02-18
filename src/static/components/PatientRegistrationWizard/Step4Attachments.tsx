@@ -51,7 +51,7 @@ const Step4Attachments: React.FC<Step4Props> = ({ onNext, onBack, formData = {} 
       setData({ ...data, attachments: [...data.attachments, ...files] });
 
       // Create previews
-      files.forEach(file => {
+      files.forEach((file: File) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           setAttachmentPreviews(prev => [...prev, reader.result as string]);

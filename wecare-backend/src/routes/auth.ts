@@ -8,9 +8,10 @@ import { hashPassword, verifyPassword, validatePasswordStrength } from '../utils
 import { auditService } from '../services/auditService';
 import accountLockoutService from '../services/accountLockoutService';
 import { loginSchema, registerSchema, validateRequest } from '../middleware/joiValidation';
+import { generateUserId } from './users';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-jwt-secret-change-me' : undefined);
 if (!JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET must be set in environment variables');
 }
@@ -21,11 +22,9 @@ const isVercel = !!process.env.VERCEL;
 let storage: multer.StorageEngine;
 
 if (isVercel) {
-  // Use memory storage on Vercel to avoid filesystem issues
   storage = multer.memoryStorage();
 } else {
-  // Use disk storage in development
-  const uploadDir = path.join(process.cwd(), 'wecare-backend/uploads/profiles');
+  const uploadDir = path.join(process.cwd(), 'uploads/profiles');
   storage = multer.diskStorage({
     destination: (req, file, cb) => {
       if (!fs.existsSync(uploadDir)) {
@@ -272,14 +271,7 @@ router.post('/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Generate new ID
-    const users = await db.all<{ id: string }>('SELECT id FROM users ORDER BY id DESC LIMIT 1');
-    let newId = 'USR-001';
-    if (users.length > 0) {
-      const lastId = users[0].id;
-      const num = parseInt(lastId.split('-')[1]) + 1;
-      newId = `USR-${String(num).padStart(3, '0')}`;
-    }
+    const newId = await generateUserId();
 
     // Hash password before storing
     const hashedPassword = await hashPassword(password);
@@ -492,7 +484,8 @@ router.post('/auth/upload-profile-image', upload.single('profile_image'), async 
 
     // Delete old profile image if exists
     if (user.profile_image_url) {
-      const oldImagePath = path.join(__dirname, '../..', user.profile_image_url);
+      const normalized = user.profile_image_url.replace(/^\//, '');
+      const oldImagePath = path.join(process.cwd(), normalized);
       if (fs.existsSync(oldImagePath)) {
         try {
           fs.unlinkSync(oldImagePath);

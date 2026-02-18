@@ -3,16 +3,16 @@ import ToggleSwitch from '../components/ui/ToggleSwitch';
 import IndividualShiftCalendar from '../components/schedules/IndividualShiftCalendar';
 import TeamShiftCalendar from '../components/schedules/TeamShiftCalendar';
 import { driversAPI, teamsAPI, apiRequest } from '../services/api';
+import { Vehicle, VehicleStatus } from '../types';
 
 type SchedulingModel = 'individual' | 'team';
 
 const ManageSchedulePage: React.FC = () => {
-    // Read from localStorage or default to 'individual'
     const savedModel = (localStorage.getItem('wecare_schedulingModel') as SchedulingModel) || 'individual';
     const [schedulingModel, setSchedulingModel] = useState<SchedulingModel>(savedModel);
     const [drivers, setDrivers] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
-    const [vehicles, setVehicles] = useState<any[]>([]);
+    const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -29,7 +29,22 @@ const ManageSchedulePage: React.FC = () => {
             ]);
             setDrivers(Array.isArray(driversData) ? driversData : (driversData?.drivers || []));
             setTeams(Array.isArray(teamsData) ? teamsData : (teamsData?.teams || []));
-            setVehicles(Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []));
+
+            const rawVehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []);
+            const mappedVehicles: Vehicle[] = rawVehicles.map((v: any) => ({
+                id: v.id,
+                licensePlate: v.license_plate,
+                model: v.model || '',
+                brand: v.brand || '',
+                color: v.color || '',
+                vehicleTypeId: v.vehicle_type_id || '',
+                vehicleTypeName: v.vehicle_type_name || undefined,
+                status: (v.status || 'AVAILABLE') as VehicleStatus,
+                assignedTeamId: v.assigned_team_id,
+                nextMaintenanceDate: v.next_maintenance_date
+            }));
+
+            setVehicles(mappedVehicles);
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {

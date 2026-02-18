@@ -180,7 +180,7 @@ const options: swaggerJsdoc.Options = {
 };
 
 // Lazy-loaded swagger spec
-let swaggerSpec: any = null;
+export let swaggerSpec: any = null;
 
 const getSwaggerSpec = () => {
     if (swaggerSpec) return swaggerSpec;

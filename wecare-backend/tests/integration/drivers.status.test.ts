@@ -1,13 +1,6 @@
 import request from 'supertest';
-import express from 'express';
-import authRoutes from '../../src/routes/auth';
-import driverRoutes from '../../src/routes/drivers';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
-
-const app = express();
-app.use(express.json());
-app.use('/api', authRoutes);
-app.use('/api/drivers', driverRoutes);
+import app from '../../src/index';
+import { initializeSchema, seedData } from '../../src/db/postgresDB';
 
 async function login(email: string): Promise<string> {
   const res = await request(app)
@@ -19,11 +12,9 @@ async function login(email: string): Promise<string> {
 
 describe('Drivers status update compatibility', () => {
   beforeAll(async () => {
-    await initializeDatabase();
-  });
-
-  afterAll(() => {
-    try { sqliteDB.close(); } catch { }
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+    await initializeSchema();
+    await seedData();
   });
 
   test('OFFICER can set driver status to INACTIVE', async () => {
@@ -36,4 +27,3 @@ describe('Drivers status update compatibility', () => {
     expect(res.body).toHaveProperty('status', 'INACTIVE');
   });
 });
-

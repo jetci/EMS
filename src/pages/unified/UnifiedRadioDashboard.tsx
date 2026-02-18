@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { RadioCenterView } from '../../../types';
+import { RadioCenterView } from '../../types';
 import SharedRadioDashboard from '../../components/radio/SharedRadioDashboard';
 
 interface UnifiedRadioDashboardProps {

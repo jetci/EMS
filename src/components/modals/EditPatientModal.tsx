@@ -35,7 +35,14 @@ const rhFactors = [
     { value: '-', label: 'Rh-' }
 ];
 const healthCoverages = ["สิทธิบัตรทอง (UC)", "ประกันสังคม", "ข้าราชการ", "ชำระเงินเอง", "อื่นๆ"];
-const patientTypeOptions = ['ผู้ป่วยติดเตียง', 'ผู้ป่วยภาวะพึงพิง', 'ผู้ป่วยยากไร้'];
+const patientTypeOptions = [
+    'ผู้ป่วยติดเตียง',
+    'ผู้สูงอายุ',
+    'ผู้พิการ',
+    'ผู้ป่วยเรื้อรัง',
+    'ภาวะพึ่งพิง',
+    'ผู้ป่วยยากไร้',
+];
 
 
 const EditPatientModal: React.FC<EditPatientModalProps> = ({ isOpen, onClose, onSave, patient, mode = 'modal' }) => {

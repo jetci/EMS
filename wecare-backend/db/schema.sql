@@ -249,7 +249,53 @@ CREATE TABLE IF NOT EXISTS teams (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 -- ============================================
--- 10. NEWS TABLE
+-- 10. TEAM SHIFTS TABLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS team_shifts (
+    id TEXT PRIMARY KEY,
+    team_id TEXT NOT NULL,
+    shift_date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(team_id, shift_date),
+    FOREIGN KEY (team_id) REFERENCES teams(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS team_shift_assignments (
+    id TEXT PRIMARY KEY,
+    team_shift_id TEXT NOT NULL,
+    vehicle_id TEXT,
+    driver_id TEXT,
+    helper_ids TEXT,
+    properties TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_shift_id) REFERENCES team_shifts(id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+    FOREIGN KEY (driver_id) REFERENCES drivers(id)
+);
+-- ============================================
+-- 11. DRIVER SHIFTS TABLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS driver_shifts (
+    id TEXT PRIMARY KEY,
+    driver_id TEXT NOT NULL,
+    shift_date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(driver_id, shift_date),
+    FOREIGN KEY (driver_id) REFERENCES drivers(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+-- ============================================
+-- 12. NEWS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS news (
     id TEXT PRIMARY KEY,
@@ -269,7 +315,7 @@ CREATE TABLE IF NOT EXISTS news (
     FOREIGN KEY (author_id) REFERENCES users(id)
 );
 -- ============================================
--- 11. AUDIT LOGS TABLE (with Hash Chain Integrity)
+-- 12. AUDIT LOGS TABLE (with Hash Chain Integrity)
 -- ============================================
 CREATE TABLE IF NOT EXISTS audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -294,7 +340,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 -- ============================================
--- 12. SYSTEM SETTINGS TABLE
+-- 13. SYSTEM SETTINGS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS system_settings (
     key TEXT PRIMARY KEY,
@@ -305,7 +351,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
     FOREIGN KEY (updated_by) REFERENCES users(id)
 );
 -- ============================================
--- 13. MAP DATA TABLE
+-- 14. MAP DATA TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS map_data (
     id TEXT PRIMARY KEY,

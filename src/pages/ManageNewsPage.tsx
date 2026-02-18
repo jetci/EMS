@@ -110,7 +110,7 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
                 </div>
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)} className="w-full md:w-auto">
                     <option value="all">สถานะทั้งหมด</option>
-                    <option value="published">เผยแพร่แล้ว</option>
+                    <option value="published">เผยแพร่</option>
                     <option value="draft">ฉบับร่าง</option>
                 </select>
             </div>
@@ -146,10 +146,30 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
                                     <td className="px-6 py-4">{article.author}</td>
                                     <td className="px-6 py-4">{article.publishedDate ? formatDateToThai(article.publishedDate) : 'ยังไม่เผยแพร่'}</td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => setActiveView('view_news', { articleId: article.id })} className="text-gray-500 hover:text-green-600" title="ดูตัวอย่าง"><PreviewIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => setActiveView('edit_news', { articleId: article.id })} className="text-gray-500 hover:text-blue-600" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleOpenDeleteConfirm(article)} className="text-gray-500 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
+                                        <div className="flex items-center justify-between space-x-3">
+                                            <div className="flex items-center space-x-3">
+                                                <button
+                                                    onClick={() => setActiveView('view_news', { articleId: article.id })}
+                                                    className="icon-btn icon-btn-view"
+                                                    title="ดูตัวอย่าง"
+                                                >
+                                                    <PreviewIcon className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveView('edit_news', { articleId: article.id })}
+                                                    className="icon-btn icon-btn-edit"
+                                                    title="แก้ไข"
+                                                >
+                                                    <EditIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => handleOpenDeleteConfirm(article)}
+                                                className="icon-btn icon-btn-delete"
+                                                title="ลบ"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -172,4 +192,3 @@ const ManageNewsPage: React.FC<ManageNewsPageProps> = ({ setActiveView }) => {
 };
 
 export default ManageNewsPage;
-

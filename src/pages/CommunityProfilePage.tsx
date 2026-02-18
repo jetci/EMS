@@ -80,22 +80,24 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
     const handleConfirmSave = async () => {
         setIsConfirmModalOpen(false);
         try {
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            const isCustomImage = profileImage !== defaultProfileImage;
+
             await authAPI.updateProfile({
-                name: `${formData.firstName} ${formData.lastName}`.trim(),
+                name: fullName,
                 phone: formData.phone,
+                profileImageUrl: isCustomImage ? profileImage : undefined,
             });
 
-            // Create updated user object
             const updatedUser = {
                 ...initialUser,
-                name: `${formData.firstName} ${formData.lastName}`.trim(),
-                phone: formData.phone
+                name: fullName,
+                phone: formData.phone,
+                profileImageUrl: isCustomImage ? profileImage : undefined,
             };
 
-            // Update global state via callback
             onUpdateUser(updatedUser);
 
-            // Update localStorage with new user data
             localStorage.setItem('wecare_user', JSON.stringify(updatedUser));
             setIsEditing(false);
             showToast("✅ บันทึกข้อมูลสำเร็จแล้ว!");
@@ -187,7 +189,7 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
 
             // After upload, fetch latest profile to get canonical image URL
             const latest = await authAPI.getProfile();
-            const imageUrl = latest.profile_image_url || initialUser.profileImageUrl || undefined;
+            const imageUrl = latest.profileImageUrl || latest.profile_image_url || initialUser.profileImageUrl || undefined;
             if (imageUrl) {
                 setProfileImage(imageUrl);
                 const updatedUser = { ...initialUser, profileImageUrl: imageUrl } as any;

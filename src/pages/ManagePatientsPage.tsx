@@ -200,10 +200,12 @@ const ManagePatientsPage: React.FC<ManagePatientsPageProps> = ({ setActiveView }
                   <td className="px-6 py-4 max-w-xs truncate">{patient.keyInfo}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{formatDateToThai(patient.registeredDate)}</td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center justify-center space-x-2">
-                      <button onClick={() => setActiveView('patient_detail', { patientId: patient.id })} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
+                    <div className="flex items-center justify-between space-x-2">
+                      <div className="flex items-center space-x-2">
+                        <button onClick={() => setActiveView('patient_detail', { patientId: patient.id })} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
+                        <button onClick={() => setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full hover:bg-green-100 text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
+                      </div>
                       <button onClick={() => handleDeleteClick(patient.id, patient.fullName)} className="p-2 rounded-full hover:bg-red-100 text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
-                      <button onClick={() => setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full hover:bg-green-100 text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
                     </div>
                   </td>
                 </tr>

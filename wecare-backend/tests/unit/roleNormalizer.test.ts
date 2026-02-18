@@ -2,7 +2,7 @@
  * Unit Tests for Role Normalizer Utility
  */
 
-import { normalizeRole, hasRole, UserRole } from '../src/utils/roleNormalizer';
+import { normalizeRole, hasRole, UserRole } from '../../src/utils/roleNormalizer';
 
 describe('roleNormalizer', () => {
     describe('normalizeRole', () => {

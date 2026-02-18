@@ -44,6 +44,7 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
     const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRide, setSelectedRide] = useState<Ride | null>(null);
+    const [modalMode, setModalMode] = useState<'view' | 'assign' | 'change'>('assign');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -116,8 +117,9 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
     const totalPages = Math.ceil(filteredRides.length / ITEMS_PER_PAGE);
     const paginatedRides = filteredRides.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-    const handleOpenAssignModal = (ride: Ride) => {
+    const handleOpenAssignModal = (ride: Ride, mode: 'view' | 'assign' | 'change') => {
         setSelectedRide(ride);
+        setModalMode(mode);
         setIsModalOpen(true);
     };
 
@@ -274,19 +276,51 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
                                         <td className="px-4 py-3 whitespace-nowrap">{formatDateTimeToThai(ride.appointmentTime)}</td>
                                         <td className="px-4 py-3"><StatusBadge status={ride.status} /></td>
                                         <td className="px-4 py-3">
-                                            <div className="flex items-center justify-center space-x-2">
-                                                <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดูรายละเอียด"><EyeIcon className="w-5 h-5" /></button>
-                                                {ride.status === RideStatus.PENDING && (
-                                                    <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="จ่ายงาน"><UserCheckIcon className="w-5 h-5" /></button>
-                                                )}
-                                                {(ride.status === RideStatus.ASSIGNED || ride.status === RideStatus.IN_PROGRESS) && (
-                                                    <button onClick={() => handleOpenAssignModal(ride)} className="p-2 rounded-full text-gray-400 hover:text-yellow-600" title="เปลี่ยนคนขับ"><UserSwitchIcon className="w-5 h-5" /></button>
-                                                )}
-                                                {canEdit && (
-                                                    <button onClick={() => showToast('Feature: Edit Ride is coming soon. Please use Assign Driver for updates.')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                                )}
+                                            <div className="flex items-center justify-between space-x-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <button
+                                                        onClick={() => handleOpenAssignModal(ride, 'view')}
+                                                        className="p-2 rounded-full text-blue-600 hover:bg-blue-50"
+                                                        title="ดูรายละเอียด"
+                                                    >
+                                                        <EyeIcon className="w-5 h-5" />
+                                                    </button>
+                                                    {ride.status === RideStatus.PENDING && (
+                                                        <button
+                                                            onClick={() => handleOpenAssignModal(ride, 'assign')}
+                                                            className="p-2 rounded-full text-green-600 hover:bg-green-50"
+                                                            title="จ่ายงาน"
+                                                        >
+                                                            <UserCheckIcon className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                    {(ride.status === RideStatus.ASSIGNED || ride.status === RideStatus.IN_PROGRESS) && (
+                                                        <button
+                                                            onClick={() => handleOpenAssignModal(ride, 'change')}
+                                                            className="p-2 rounded-full text-yellow-500 hover:bg-yellow-50"
+                                                            title="เปลี่ยนคนขับ"
+                                                        >
+                                                            <UserSwitchIcon className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                    {canEdit && (
+                                                        <button
+                                                            onClick={() => showToast('Feature: Edit Ride is coming soon. Please use Assign Driver for updates.')}
+                                                            className="icon-btn icon-btn-edit"
+                                                            title="แก้ไข"
+                                                        >
+                                                            <EditIcon className="w-5 h-5" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 {canCancel && (
-                                                    <button onClick={() => handleCancelRide(ride.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ยกเลิก"><TrashIcon className="w-5 h-5" /></button>
+                                                    <button
+                                                        onClick={() => handleCancelRide(ride.id)}
+                                                        className="p-2 rounded-full text-red-600 hover:bg-red-50"
+                                                        title="ยกเลิก"
+                                                    >
+                                                        <TrashIcon className="w-5 h-5" />
+                                                    </button>
                                                 )}
                                             </div>
                                         </td>
@@ -307,7 +341,7 @@ const OfficeManageRidesPage: React.FC<OfficeManageRidesPageProps> = ({ setActive
                 </div>
             </div>
 
-            {selectedRide && <AssignDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={drivers} allRides={rides} />}
+            {selectedRide && <AssignDriverModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} ride={selectedRide} onAssign={handleAssignDriver} allDrivers={drivers} allRides={rides} mode={modalMode} />}
             <Toast message={toastMessage} />
         </div>
     );

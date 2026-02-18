@@ -14,6 +14,8 @@ app.use(express.json());
 app.use('/api', authRoutes); // for /api/auth/login
 app.use('/api/patients', patientRoutes); // protected by authenticateToken inside router
 
+const TEST_NATIONAL_ID = String(Date.now()).slice(0, 13);
+
 // Helper: robust admin login (tries multiple known passwords)
 async function loginAdmin(): Promise<string> {
   const credentials = [
@@ -74,7 +76,7 @@ describe('Patients API Integration Tests', () => {
       const payload = {
         fullName: 'ทดสอบ ผู้ป่วย',
         title: 'นาย',
-        nationalId: '1234567890123',
+        nationalId: TEST_NATIONAL_ID,
         contactPhone: '0812345678',
         patientTypes: JSON.stringify(['ผู้สูงอายุ']),
         chronicDiseases: JSON.stringify(['เบาหวาน']),

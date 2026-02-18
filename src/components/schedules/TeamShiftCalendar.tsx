@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import buddhistEra from 'dayjs/plugin/buddhistEra';
 import { TeamShiftStatus, Team, TeamScheduleEntry } from '../../types';
+import { teamShiftsAPI } from '../../services/api';
 import ChevronLeftIcon from '../icons/ChevronLeftIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import AssignTeamShiftModal from './AssignTeamShiftModal';
@@ -36,22 +37,67 @@ const TeamShiftCalendar: React.FC<TeamShiftCalendarProps> = ({ teams, vehicles }
         return new Map(vehicles.map(v => [v.id, v]));
     }, [vehicles]);
 
+    useEffect(() => {
+        const fetchShifts = async () => {
+            try {
+                const year = currentMonth.year();
+                const month = currentMonth.month() + 1;
+                const data = await teamShiftsAPI.getByMonth(year, month);
+                const mapped: Record<string, TeamScheduleEntry> = {};
+                if (Array.isArray(data)) {
+                    data.forEach((item: any) => {
+                        if (!item || !item.teamId || !item.date || !item.status) return;
+                        const key = `${item.teamId}-${item.date}`;
+                        const firstAssignment = Array.isArray(item.assignments) && item.assignments.length > 0
+                            ? item.assignments[0]
+                            : null;
+                        mapped[key] = {
+                            status: item.status as TeamShiftStatus,
+                            vehicleId: firstAssignment?.vehicleId,
+                        };
+                    });
+                }
+                setSchedule(mapped);
+            } catch (err) {
+                console.error('Failed to load team shifts:', err);
+            }
+        };
+        fetchShifts();
+    }, [currentMonth]);
+
     const handleCellClick = (team: { id: string, name: string }, date: dayjs.Dayjs) => {
         setSelectedCell({ team, date });
         setIsModalOpen(true);
     };
 
-    const handleSaveShift = (teamId: string, date: dayjs.Dayjs, entry: TeamScheduleEntry | null) => {
+    const handleSaveShift = async (teamId: string, date: dayjs.Dayjs, entry: TeamScheduleEntry | null) => {
         const key = `${teamId}-${date.format('YYYY-MM-DD')}`;
-        setSchedule(prev => {
-            const newSchedule = { ...prev };
-            if (entry && entry.status) {
-                newSchedule[key] = entry;
+        const isoDate = date.format('YYYY-MM-DD');
+
+        try {
+            if (!entry || !entry.status) {
+                await teamShiftsAPI.delete(teamId, isoDate);
+                setSchedule(prev => {
+                    const newSchedule = { ...prev };
+                    delete newSchedule[key];
+                    return newSchedule;
+                });
             } else {
-                delete newSchedule[key];
+                await teamShiftsAPI.upsert({
+                    teamId,
+                    date: isoDate,
+                    status: entry.status,
+                    vehicleId: entry.vehicleId,
+                });
+                setSchedule(prev => ({
+                    ...prev,
+                    [key]: entry,
+                }));
             }
-            return newSchedule;
-        });
+        } catch (err) {
+            console.error('Failed to save team shift:', err);
+        }
+
         setIsModalOpen(false);
     };
 

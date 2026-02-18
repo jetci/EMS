@@ -1,5 +1,4 @@
 import React from 'react';
-import CheckIcon from './icons/CheckIcon';
 
 interface ToastProps {
   message: string | null;

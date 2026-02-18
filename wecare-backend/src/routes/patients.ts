@@ -35,14 +35,13 @@ if (isVercel) {
 } else {
   storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      const uploadDir = path.join(process.cwd(), 'wecare-backend/uploads/patients');
+      const uploadDir = path.join(process.cwd(), 'uploads/patients');
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
       cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-      // Sanitize filename to prevent path traversal
       const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
       const ext = path.extname(sanitizedName);
@@ -139,21 +138,69 @@ interface Patient {
   updated_at?: string;
 }
 
-// Helper to generate patient ID
+const normalizePatientRequestBody = (req: any, _res: any, next: any) => {
+  if (req.body) {
+    if (!req.body.fullName && typeof req.body.full_name === 'string') {
+      req.body.fullName = req.body.full_name;
+    }
+    if (!req.body.nationalId && typeof req.body.national_id === 'string') {
+      req.body.nationalId = req.body.national_id;
+    }
+    if (!req.body.contactPhone && typeof req.body.contact_phone === 'string') {
+      req.body.contactPhone = req.body.contact_phone;
+    }
+  }
+  next();
+};
+
 const generatePatientId = async (): Promise<string> => {
-  // Get the maximum numeric ID from patients with format PAT-XXX
-  // We use CAST and SUBSTRING to extract the number and ignore non-numeric IDs like PAT-NaN
-  const result = await db.get<{ max_id: number }>(
-    "SELECT MAX(CAST(SUBSTRING(id FROM 5) AS INTEGER)) as max_id FROM patients WHERE id ~ '^PAT-[0-9]+'"
+  const result = await db.get<{ max_id: string | number }>(
+    "SELECT MAX(CAST(SUBSTRING(id FROM 5) AS BIGINT)) as max_id FROM patients WHERE id ~ '^PAT-[0-9]+'"
   );
-  const nextNum = (result?.max_id || 0) + 1;
+  const rawMaxId = result?.max_id;
+  const parsedMaxId =
+    typeof rawMaxId === 'number'
+      ? rawMaxId
+      : rawMaxId
+      ? parseInt(rawMaxId, 10)
+      : 0;
+  const safeMaxId = Number.isFinite(parsedMaxId) && parsedMaxId > 0 ? parsedMaxId : 0;
+  const nextNum = safeMaxId + 1;
   return `PAT-${String(nextNum).padStart(3, '0')}`;
 };
 
 // Apply authentication to all routes
 router.use(authenticateToken);
 
-// Helper to map DB snake_case to API camelCase
+const decodeAttachmentName = (name: string | null | undefined) => {
+  if (!name) return name;
+  try {
+    const decoded = Buffer.from(name, 'latin1').toString('utf8');
+    if (/[\u0E00-\u0E7F]/.test(decoded)) {
+      return decoded;
+    }
+    return name;
+  } catch {
+    return name;
+  }
+};
+
+const parseJsonArrayFromDb = (value: any): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+    }
+  }
+  return [];
+};
+
 const mapPatientToResponse = (p: any, attachments: any[] = []) => {
   // Parse full_name to get firstName and lastName
   const nameParts = (p.full_name || '').trim().split(' ');
@@ -209,23 +256,23 @@ const mapPatientToResponse = (p: any, attachments: any[] = []) => {
       relation: p.emergency_contact_relation || null
     },
 
-    // Medical (Parse JSON if string)
-    patientTypes: p.patient_types ? (typeof p.patient_types === 'string' ? JSON.parse(p.patient_types) : p.patient_types) : [],  // ประเภทผู้ป่วย
-    chronicDiseases: p.chronic_diseases ? (typeof p.chronic_diseases === 'string' ? JSON.parse(p.chronic_diseases) : p.chronic_diseases) : [],  // โรคประจำตัว
-    allergies: p.allergies ? (typeof p.allergies === 'string' ? JSON.parse(p.allergies) : p.allergies) : [],  // แพ้ยา/อาหาร
+    patientTypes: parseJsonArrayFromDb(p.patient_types),
+    chronicDiseases: parseJsonArrayFromDb(p.chronic_diseases),
+    allergies: parseJsonArrayFromDb(p.allergies),
 
     // Metadata
-    profileImageUrl: p.profile_image_url,  // รูปภาพ
+    profileImageUrl: p.profile_image_url,
     registeredDate: p.registered_date,
     createdBy: p.created_by,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
     keyInfo: p.key_info || null,
     caregiverName: p.caregiver_name || null,
     caregiverPhone: p.caregiver_phone || null,
 
-    // Attachments (เอกสารแนบ)
     attachments: attachments.map(a => ({
       id: a.id,
-      name: a.file_name,
+      name: decodeAttachmentName(a.file_name),
       url: a.file_path,
       type: a.file_type,
       size: a.file_size
@@ -326,6 +373,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 router.post(
   '/',
   upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'attachments', maxCount: 5 }]),
+  normalizePatientRequestBody,
   validateRequest(patientCreateSchema),
   checkDuplicatePatient,
   async (req: AuthRequest, res) => {
@@ -342,6 +390,19 @@ router.post(
           lng < -180 || lng > 180
         ) {
           return res.status(400).json({ error: 'Invalid latitude/longitude' });
+        }
+      }
+
+      const nationalId = req.body.nationalId || null;
+
+      if (nationalId) {
+        const existingPatient = await db.get<any>(
+          'SELECT * FROM patients WHERE national_id = $1 AND deleted_at IS NULL',
+          [nationalId]
+        );
+        if (existingPatient) {
+          const mappedExisting = mapPatientToResponse(existingPatient, []);
+          return res.status(201).json(mappedExisting);
         }
       }
 
@@ -481,10 +542,38 @@ router.post(
 
       const created = await db.get<any>('SELECT * FROM patients WHERE id = $1 AND deleted_at IS NULL', [newId]);
 
-      // Unified response
       const mappedPatient = mapPatientToResponse(created, []);
       res.status(201).json(mappedPatient);
     } catch (err: any) {
+      const code = err && err.code;
+      const message = String(err && err.message ? err.message : '');
+      const constraint = (err as any)?.constraint;
+
+      const body = (req as any).body || {};
+      const nationalId =
+        (typeof body.nationalId === 'string' && body.nationalId.trim()) ? body.nationalId.trim()
+          : (typeof body.national_id === 'string' && body.national_id.trim()) ? body.national_id.trim()
+            : null;
+
+      if (
+        nationalId &&
+        (code === '23505' || message.includes('duplicate key value') || message.includes('UNIQUE constraint failed')) &&
+        (constraint === 'patients_national_id_key' || message.includes('patients_national_id'))
+      ) {
+        try {
+          const existing = await db.get<any>(
+            'SELECT * FROM patients WHERE national_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [nationalId]
+          );
+          if (existing) {
+            const mappedExisting = mapPatientToResponse(existing, []);
+            return res.status(201).json(mappedExisting);
+          }
+        } catch (lookupErr) {
+          console.error('Error loading existing patient after duplicate:', lookupErr);
+        }
+      }
+
       console.error('Error creating patient:', err);
       res.status(500).json({ error: err.message });
     }

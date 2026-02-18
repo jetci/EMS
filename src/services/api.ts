@@ -243,7 +243,7 @@ export const authAPI = {
       body: JSON.stringify(data),
     }),
   getProfile: () => apiRequest('/auth/me'),
-  updateProfile: (data: { name?: string; phone?: string }) =>
+  updateProfile: (data: { name?: string; phone?: string; profileImageUrl?: string }) =>
     apiRequest('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -420,7 +420,29 @@ export const ridesAPI = {
   createRide: (data: any) =>
     apiRequest('/rides', { method: 'POST', body: JSON.stringify(data) }),
   cancelRide: (id: string) =>
-    apiRequest(`/rides/${id}`, { method: 'DELETE' }),
+    apiRequest(`/rides/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: 'CANCELLED' }),
+    }),
+};
+
+// --- Facilities API ---
+export const facilitiesAPI = {
+  getFacilities: () => apiRequest('/facilities'),
+  createFacility: (data: { name: string; lat: number; lng: number; facilityType?: string; isActive?: boolean }) =>
+    apiRequest('/facilities', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateFacility: (id: string, data: Partial<{ name: string; lat: number; lng: number; facilityType?: string; isActive: boolean }>) =>
+    apiRequest(`/facilities/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteFacility: (id: string) =>
+    apiRequest(`/facilities/${id}`, {
+      method: 'DELETE',
+    }),
 };
 
 // --- Teams API ---
@@ -433,4 +455,36 @@ export const teamsAPI = {
     apiRequest(`/teams/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteTeam: (id: string) =>
     apiRequest(`/teams/${id}`, { method: 'DELETE' }),
+};
+
+// --- Team Shifts API ---
+export const teamShiftsAPI = {
+  getByMonth: (year: number, month: number) =>
+    apiRequest(`/team-shifts?year=${year}&month=${month}`),
+  upsert: (payload: { teamId: string; date: string; status: string; vehicleId?: string }) =>
+    apiRequest('/team-shifts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  delete: (teamId: string, date: string) =>
+    apiRequest('/team-shifts', {
+      method: 'DELETE',
+      body: JSON.stringify({ teamId, date }),
+    }),
+};
+
+// --- Driver Shifts API ---
+export const driverShiftsAPI = {
+  getByWeekStart: (weekStart: string) =>
+    apiRequest(`/driver-shifts?weekStart=${weekStart}`),
+  upsert: (payload: { driverId: string; date: string; status: string }) =>
+    apiRequest('/driver-shifts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  delete: (driverId: string, date: string) =>
+    apiRequest('/driver-shifts', {
+      method: 'DELETE',
+      body: JSON.stringify({ driverId, date }),
+    }),
 };

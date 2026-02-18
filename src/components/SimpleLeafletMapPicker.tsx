@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, LayersControl, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -165,7 +166,7 @@ const SimpleLeafletMapPicker: React.FC<SimpleLeafletMapPickerProps> = ({
         }
     };
 
-    return (
+    const content = (
         <div className={`${isFullScreen ? 'fixed inset-0 z-[9999] bg-white p-4' : 'relative w-full'}`} style={{ height: isFullScreen ? '100vh' : height }}>
             <MapContainer
                 center={[position.lat || 19.904394846183447, position.lng || 99.19735149982482]}
@@ -251,6 +252,12 @@ const SimpleLeafletMapPicker: React.FC<SimpleLeafletMapPickerProps> = ({
             </div>
         </div>
     );
+
+    if (isFullScreen && typeof document !== 'undefined') {
+        return createPortal(content, document.body);
+    }
+
+    return content;
 };
 
 export default React.memo(SimpleLeafletMapPicker);

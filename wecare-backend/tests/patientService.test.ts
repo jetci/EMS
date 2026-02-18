@@ -13,24 +13,38 @@ import {
   decryptPatientData,
   PatientData
 } from '../src/services/patientService';
-import { sqliteDB } from '../src/db/sqliteDB';
+import { db } from '../src/db';
 import { isEncrypted } from '../src/utils/encryption';
 
 // Set test encryption key
 process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 describe('Patient Service - Encryption Integration', () => {
-  beforeAll(() => {
-    // Setup test database
-    // Note: In real tests, you'd use a separate test database
+  beforeAll(async () => {
+    const userIds = [
+      'USR-001',
+      'USR-TEST-001',
+      'USR-TEST-002',
+      'USR-TEST-003',
+      'USR-TEST-004',
+      'USR-TEST-005',
+      'USR-TEST-006'
+    ];
+    for (const id of userIds) {
+      try {
+        await db.run(
+          "INSERT INTO users (id, email, password, role, full_name, date_created, status) VALUES ($1, $2, $3, $4, $5, NOW(), 'Active') ON CONFLICT (id) DO NOTHING",
+          [id, `${id.toLowerCase()}@wecare.ems`, 'password123', 'community', `Test User ${id}`]
+        );
+      } catch (e) {
+      }
+    }
   });
 
-  afterEach(() => {
-    // Clean up test data
+  afterEach(async () => {
     try {
-      sqliteDB.run('DELETE FROM patients WHERE id LIKE ?', ['PAT-TEST%']);
+      await db.run('DELETE FROM patients WHERE id LIKE $1', ['PAT-%']);
     } catch (e) {
-      // Ignore if table doesn't exist
     }
   });
 
@@ -135,7 +149,7 @@ describe('Patient Service - Encryption Integration', () => {
   });
 
   describe('createPatient()', () => {
-    test('should create patient with encrypted data', () => {
+    test('should create patient with encrypted data', async () => {
       const patientData: PatientData = {
         fullName: 'สมชาย ทดสอบ',
         nationalId: '1111111111111',
@@ -151,7 +165,7 @@ describe('Patient Service - Encryption Integration', () => {
         createdBy: 'USR-TEST-001'
       };
 
-      const created = createPatient(patientData);
+      const created = await createPatient(patientData);
 
       expect(created.id).toBeDefined();
       expect(created.id).toMatch(/^PAT-\d+$/);
@@ -160,8 +174,8 @@ describe('Patient Service - Encryption Integration', () => {
       expect(created.contactPhone).toBe('0811111111');
 
       // Verify data is encrypted in database
-      const dbPatient = sqliteDB.get<any>(
-        'SELECT * FROM patients WHERE id = ?',
+      const dbPatient = await db.get<any>(
+        'SELECT * FROM patients WHERE id = $1',
         [created.id]
       );
 
@@ -173,7 +187,7 @@ describe('Patient Service - Encryption Integration', () => {
   });
 
   describe('getPatientById()', () => {
-    test('should return decrypted patient data', () => {
+    test('should return decrypted patient data', async () => {
       // Create patient first
       const patientData: PatientData = {
         fullName: 'สมหญิง ทดสอบ',
@@ -183,10 +197,10 @@ describe('Patient Service - Encryption Integration', () => {
         createdBy: 'USR-TEST-002'
       };
 
-      const created = createPatient(patientData);
+      const created = await createPatient(patientData);
 
       // Get patient
-      const retrieved = getPatientById(created.id);
+      const retrieved = await getPatientById(created.id);
 
       expect(retrieved).toBeDefined();
       expect(retrieved.nationalId).toBe('2222222222222');
@@ -194,30 +208,30 @@ describe('Patient Service - Encryption Integration', () => {
       expect(retrieved.chronicDiseases).toEqual(['ความดันโลหิตสูง']);
     });
 
-    test('should return null for non-existent patient', () => {
-      const retrieved = getPatientById('PAT-NONEXISTENT');
+    test('should return null for non-existent patient', async () => {
+      const retrieved = await getPatientById('PAT-NONEXISTENT');
       expect(retrieved).toBeNull();
     });
   });
 
   describe('getAllPatients()', () => {
-    test('should return all patients with decrypted data', () => {
+    test('should return all patients with decrypted data', async () => {
       // Create multiple patients
-      createPatient({
+      await createPatient({
         fullName: 'Patient 1',
         nationalId: '3333333333333',
         contactPhone: '0833333333',
         createdBy: 'USR-TEST-003'
       });
 
-      createPatient({
+      await createPatient({
         fullName: 'Patient 2',
         nationalId: '4444444444444',
         contactPhone: '0844444444',
         createdBy: 'USR-TEST-003'
       });
 
-      const result = getAllPatients({
+      const result = await getAllPatients({
         createdBy: 'USR-TEST-003',
         page: 1,
         limit: 10
@@ -234,9 +248,9 @@ describe('Patient Service - Encryption Integration', () => {
   });
 
   describe('updatePatient()', () => {
-    test('should update patient with encrypted data', () => {
+    test('should update patient with encrypted data', async () => {
       // Create patient
-      const created = createPatient({
+      const created = await createPatient({
         fullName: 'Original Name',
         nationalId: '5555555555555',
         contactPhone: '0855555555',
@@ -244,7 +258,7 @@ describe('Patient Service - Encryption Integration', () => {
       });
 
       // Update patient
-      const updated = updatePatient(created.id, {
+      const updated = await updatePatient(created.id, {
         fullName: 'Updated Name',
         nationalId: '6666666666666',
         contactPhone: '0866666666',
@@ -257,8 +271,8 @@ describe('Patient Service - Encryption Integration', () => {
       expect(updated.chronicDiseases).toEqual(['โรคใหม่']);
 
       // Verify encryption in database
-      const dbPatient = sqliteDB.get<any>(
-        'SELECT * FROM patients WHERE id = ?',
+      const dbPatient = await db.get<any>(
+        'SELECT * FROM patients WHERE id = $1',
         [created.id]
       );
 
@@ -266,31 +280,31 @@ describe('Patient Service - Encryption Integration', () => {
       expect(isEncrypted(dbPatient.national_id)).toBe(true);
     });
 
-    test('should throw error for non-existent patient', () => {
-      expect(() => {
-        updatePatient('PAT-NONEXISTENT', { fullName: 'Test' });
-      }).toThrow('Patient not found');
+    test('should throw error for non-existent patient', async () => {
+      await expect(updatePatient('PAT-NONEXISTENT', { fullName: 'Test' }))
+        .rejects
+        .toThrow('Patient not found');
     });
   });
 
   describe('deletePatient()', () => {
-    test('should delete patient', () => {
-      const created = createPatient({
+    test('should delete patient', async () => {
+      const created = await createPatient({
         fullName: 'To Be Deleted',
         nationalId: '7777777777777',
         createdBy: 'USR-TEST-005'
       });
 
-      deletePatient(created.id);
+      await deletePatient(created.id);
 
-      const retrieved = getPatientById(created.id);
+      const retrieved = await getPatientById(created.id);
       expect(retrieved).toBeNull();
     });
 
-    test('should throw error for non-existent patient', () => {
-      expect(() => {
-        deletePatient('PAT-NONEXISTENT');
-      }).toThrow('Patient not found');
+    test('should throw error for non-existent patient', async () => {
+      await expect(deletePatient('PAT-NONEXISTENT'))
+        .rejects
+        .toThrow('Patient not found');
     });
   });
 
@@ -312,8 +326,8 @@ describe('Patient Service - Encryption Integration', () => {
       expect(data1.national_id).not.toBe(data2.national_id);
     });
 
-    test('should not expose sensitive data in database', () => {
-      const created = createPatient({
+    test('should not expose sensitive data in database', async () => {
+      const created = await createPatient({
         fullName: 'Security Test',
         nationalId: '9999999999999',
         contactPhone: '0899999999',
@@ -323,8 +337,8 @@ describe('Patient Service - Encryption Integration', () => {
       });
 
       // Query database directly
-      const dbPatient = sqliteDB.get<any>(
-        'SELECT * FROM patients WHERE id = ?',
+      const dbPatient = await db.get<any>(
+        'SELECT * FROM patients WHERE id = $1',
         [created.id]
       );
 

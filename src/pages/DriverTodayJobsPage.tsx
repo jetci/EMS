@@ -49,6 +49,12 @@ const DriverTodayJobsPage: React.FC = () => {
                 destination: r.destination || '',
                 appointmentTime: r.appointment_time || new Date().toISOString(),
                 status: (r.status as RideStatus) || RideStatus.ASSIGNED,
+                pickupCoordinates: r.pickup_lat && r.pickup_lng
+                    ? { lat: parseFloat(String(r.pickup_lat)), lng: parseFloat(String(r.pickup_lng)) }
+                    : undefined,
+                destinationCoordinates: r.destination_lat && r.destination_lng
+                    ? { lat: parseFloat(String(r.destination_lat)), lng: parseFloat(String(r.destination_lng)) }
+                    : undefined,
             }));
             setRides(mapped);
         } catch (e) {

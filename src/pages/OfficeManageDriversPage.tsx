@@ -247,11 +247,27 @@ const OfficeManageDriversPage: React.FC = () => {
                                     <td className="px-6 py-4"><DriverStatusBadge status={driver.status} /></td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => handleOpenModal(driver)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดู/แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => showToast('Feature: Driver History View is coming soon.')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="ดูประวัติการเดินทาง"><HistoryIcon className="w-5 h-5" /></button>
+                                            <button
+                                                onClick={() => handleOpenModal(driver)}
+                                                className="p-2 rounded-full text-blue-600 hover:bg-blue-50"
+                                                title="ดู/แก้ไขข้อมูลคนขับ"
+                                            >
+                                                <EditIcon className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => showToast('Feature: Driver History View is coming soon.')}
+                                                className="p-2 rounded-full text-gray-500 hover:bg-gray-100"
+                                                title="ดูประวัติการเดินทาง"
+                                            >
+                                                <HistoryIcon className="w-5 h-5" />
+                                            </button>
                                             <button
                                                 onClick={() => handleToggleActive(driver.id)}
-                                                className={`p-2 rounded-full text-gray-400 ${driver.status === DriverStatus.INACTIVE ? 'hover:text-green-600' : 'hover:text-red-600'}`}
+                                                className={`p-2 rounded-full ${
+                                                    driver.status === DriverStatus.INACTIVE
+                                                        ? 'text-green-600 hover:bg-green-50'
+                                                        : 'text-red-600 hover:bg-red-50'
+                                                }`}
                                                 title={driver.status === DriverStatus.INACTIVE ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                                             >
                                                 <PowerIcon className="w-5 h-5" />

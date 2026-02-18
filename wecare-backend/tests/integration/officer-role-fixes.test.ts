@@ -4,7 +4,6 @@
 
 import request from 'supertest';
 import app from '../../src/index';
-import { sqliteDB } from '../../src/db/sqliteDB';
 
 describe('OFFICER Role - Bug Fixes Integration Tests', () => {
     let officerToken: string;
@@ -168,6 +167,47 @@ describe('OFFICER Role - Bug Fixes Integration Tests', () => {
                 });
 
             expect(res.status).toBe(201);
+        });
+
+        test('OFFICER can update driver with new vehicle and create vehicle record', async () => {
+            const createDriverRes = await request(app)
+                .post('/api/drivers')
+                .set('Authorization', `Bearer ${officerToken}`)
+                .send({
+                    full_name: 'Driver Without Vehicle',
+                    email: `novehicle${Date.now()}@test.com`,
+                    phone: '0800000000'
+                });
+
+            expect(createDriverRes.status).toBe(201);
+            const driverId = createDriverRes.body.id;
+
+            const newLicensePlate = `DRV-UPD-${Date.now()}`;
+
+            const updateRes = await request(app)
+                .put(`/api/drivers/${driverId}`)
+                .set('Authorization', `Bearer ${officerToken}`)
+                .send({
+                    full_name: 'Driver With Vehicle',
+                    license_plate: newLicensePlate,
+                    brand: 'Updated Brand',
+                    model: 'Updated Model',
+                    color: 'White'
+                });
+
+            expect(updateRes.status).toBe(200);
+            expect(updateRes.body).toHaveProperty('current_vehicle_id');
+            expect(updateRes.body.current_vehicle_id).toBeTruthy();
+
+            const vehiclesRes = await request(app)
+                .get('/api/vehicles')
+                .set('Authorization', `Bearer ${officerToken}`);
+
+            expect(vehiclesRes.status).toBe(200);
+            const hasCreatedVehicle = Array.isArray(vehiclesRes.body)
+                ? vehiclesRes.body.some((v: any) => v.license_plate === newLicensePlate)
+                : false;
+            expect(hasCreatedVehicle).toBe(true);
         });
 
         test('OFFICER can manage teams', async () => {

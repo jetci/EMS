@@ -148,9 +148,23 @@ const ManageVehicleTypesPage: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => handleOpenEditModal(type)} className="text-gray-500 hover:text-blue-600" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleOpenDeleteConfirm(type)} className="text-gray-500 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
+                                        <div className="flex items-center justify-between space-x-3">
+                                            <div className="flex items-center space-x-3">
+                                                <button
+                                                    onClick={() => handleOpenEditModal(type)}
+                                                    className="icon-btn icon-btn-edit"
+                                                    title="แก้ไข"
+                                                >
+                                                    <EditIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => handleOpenDeleteConfirm(type)}
+                                                className="icon-btn icon-btn-delete"
+                                                title="ลบ"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

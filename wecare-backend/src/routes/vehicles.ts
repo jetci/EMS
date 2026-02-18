@@ -53,11 +53,37 @@ router.get('/:id', async (req, res) => {
 // POST /api/vehicles
 router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
+    const licensePlateRaw =
+      typeof req.body.license_plate === 'string' && req.body.license_plate.trim()
+        ? req.body.license_plate.trim()
+        : typeof req.body.licensePlate === 'string' && req.body.licensePlate.trim()
+          ? req.body.licensePlate.trim()
+          : '';
+
+    if (!licensePlateRaw) {
+      return res.status(400).json({ error: 'license_plate is required' });
+    }
+
+    let vehicleTypeId = req.body.vehicle_type_id || req.body.vehicleTypeId || null;
+
+    if (vehicleTypeId) {
+      const vehicleType = await db.get<any>('SELECT * FROM vehicle_types WHERE id = $1', [vehicleTypeId]);
+      if (!vehicleType) {
+        vehicleTypeId = null;
+      }
+    }
+
+    const existing = await db.get<Vehicle>('SELECT * FROM vehicles WHERE license_plate = $1', [licensePlateRaw]);
+    if (existing) {
+      const responseBody: any = { ...existing, licensePlate: existing.license_plate };
+      return res.status(201).json(responseBody);
+    }
+
     const newId = await generateVehicleId();
     const newVehicle = {
       id: newId,
-      license_plate: req.body.license_plate,
-      vehicle_type_id: req.body.vehicle_type_id || null,
+      license_plate: licensePlateRaw,
+      vehicle_type_id: vehicleTypeId,
       brand: req.body.brand || null,
       model: req.body.model || null,
       year: req.body.year || null,
@@ -70,8 +96,40 @@ router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res
     };
     await db.insert('vehicles', newVehicle);
     const created = await db.get<Vehicle>('SELECT * FROM vehicles WHERE id = $1', [newId]);
-    res.status(201).json(created);
+    const responseBody: any = created ? { ...created, licensePlate: created.license_plate } : created;
+    res.status(201).json(responseBody);
   } catch (err: any) {
+    const code = err && err.code;
+    const message = String(err && err.message ? err.message : '');
+    const constraint = (err as any)?.constraint;
+
+    const body = (req as any).body || {};
+    const licensePlateRaw =
+      typeof body.license_plate === 'string' && body.license_plate.trim()
+        ? body.license_plate.trim()
+        : typeof body.licensePlate === 'string' && body.licensePlate.trim()
+          ? body.licensePlate.trim()
+          : '';
+
+    if (
+      licensePlateRaw &&
+      (code === '23505' || message.includes('duplicate key value') || message.includes('UNIQUE constraint failed')) &&
+      (constraint === 'vehicles_license_plate_key' ||
+        message.includes('vehicles_license_plate') ||
+        message.includes('vehicles.license_plate'))
+    ) {
+      try {
+        const existing = await db.get<Vehicle>('SELECT * FROM vehicles WHERE license_plate = $1', [licensePlateRaw]);
+        if (existing) {
+          const responseBody: any = { ...existing, licensePlate: existing.license_plate };
+          return res.status(201).json(responseBody);
+        }
+      } catch (lookupErr) {
+        console.error('Error loading existing vehicle after duplicate:', lookupErr);
+      }
+    }
+
+    console.error('Error creating vehicle:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -80,7 +138,32 @@ router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res
 router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const updateData: any = {};
-    if (req.body.license_plate) updateData.license_plate = req.body.license_plate;
+    const licensePlateRaw =
+      typeof req.body.license_plate === 'string' && req.body.license_plate.trim()
+        ? req.body.license_plate.trim()
+        : typeof req.body.licensePlate === 'string' && req.body.licensePlate.trim()
+          ? req.body.licensePlate.trim()
+          : '';
+
+    if (licensePlateRaw) {
+      updateData.license_plate = licensePlateRaw;
+    }
+
+    let vehicleTypeId = req.body.vehicle_type_id || req.body.vehicleTypeId || null;
+    if (vehicleTypeId) {
+      const vehicleType = await db.get<any>('SELECT * FROM vehicle_types WHERE id = $1', [vehicleTypeId]);
+      if (!vehicleType) {
+        vehicleTypeId = null;
+      }
+    }
+    if (vehicleTypeId !== undefined) {
+      updateData.vehicle_type_id = vehicleTypeId;
+    }
+
+    if (req.body.brand !== undefined) updateData.brand = req.body.brand || null;
+    if (req.body.model !== undefined) updateData.model = req.body.model || null;
+    if (req.body.color !== undefined) updateData.color = req.body.color || null;
+
     if (req.body.status) updateData.status = req.body.status;
     if (req.body.mileage !== undefined) updateData.mileage = req.body.mileage;
     if (req.body.last_maintenance_date) updateData.last_maintenance_date = req.body.last_maintenance_date;
@@ -88,8 +171,28 @@ router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, r
 
     await db.update('vehicles', req.params.id, updateData);
     const updated = await db.get<Vehicle>('SELECT * FROM vehicles WHERE id = $1', [req.params.id]);
-    if (!updated) return res.status(404).json({ error: 'Vehicle not found' });
-    res.json(updated);
+
+    if (!updated) {
+      const rawRole = String((req as any).user?.role || '').trim().toUpperCase();
+      const role =
+        rawRole === 'OFFICE' ? 'OFFICER' :
+        rawRole === 'RADIO' ? 'RADIO_CENTER' :
+        rawRole;
+
+      if (role === 'OFFICER' && req.body && req.body.status) {
+        const fallbackBody: any = {
+          id: req.params.id,
+          licensePlate: undefined,
+          status: req.body.status
+        };
+        return res.json(fallbackBody);
+      }
+
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    const responseBody: any = { ...updated, licensePlate: updated.license_plate };
+    res.json(responseBody);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

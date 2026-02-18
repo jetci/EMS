@@ -28,7 +28,8 @@ const PublicNewsListingPage: React.FC<PublicNewsListingPageProps> = ({ onViewArt
             setLoading(true);
             setError(null);
             try {
-                const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || window.location.origin;
+                const rawBase = (import.meta as any).env?.VITE_API_BASE_URL || window.location.origin;
+                const baseUrl = rawBase.replace(/\/api\/?$/i, '');
                 // Try without trailing slash first, then with slash
                 let resp = await fetch(joinUrl(baseUrl, '/api/news'), { method: 'GET', mode: 'cors', headers: { 'Accept': 'application/json' } });
                 if (!resp.ok) {
@@ -155,4 +156,3 @@ const PublicNewsListingPage: React.FC<PublicNewsListingPageProps> = ({ onViewArt
 };
 
 export default PublicNewsListingPage;
-

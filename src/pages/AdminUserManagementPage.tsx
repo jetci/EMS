@@ -252,9 +252,31 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                                     <td className="px-6 py-4"><UserStatusBadge status={user.status} /></td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => handleOpenEditModal(user)} className="p-2 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleResetPasswordRequest(user)} className="p-2 rounded-full text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 transition-colors" title="รีเซ็ตรหัสผ่าน"><KeyIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleToggleStatus(user)} className={`p-2 rounded-full text-gray-400 hover:text-${user.status === 'Active' ? 'red' : 'green'}-600 hover:bg-${user.status === 'Active' ? 'red' : 'green'}-50 transition-colors`} title={user.status === 'Active' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}><PowerIcon className="w-5 h-5" /></button>
+                                            <button
+                                                onClick={() => handleOpenEditModal(user)}
+                                                className="icon-btn icon-btn-edit"
+                                                title="แก้ไข"
+                                            >
+                                                <EditIcon className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleResetPasswordRequest(user)}
+                                                className="icon-btn icon-btn-view"
+                                                title="รีเซ็ตรหัสผ่าน"
+                                            >
+                                                <KeyIcon className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleToggleStatus(user)}
+                                                className={`icon-btn ${
+                                                    user.status === 'Active'
+                                                        ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                                                        : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                                }`}
+                                                title={user.status === 'Active' ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                                            >
+                                                <PowerIcon className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

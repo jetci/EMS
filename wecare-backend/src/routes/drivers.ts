@@ -136,15 +136,44 @@ router.get('/my-rides', authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /api/drivers/my-profile - get current driver's profile
+// GET /api/drivers/my-profile - get current driver's profile (with vehicle info)
 router.get('/my-profile', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user?.id;
     const driverId = req.user?.driver_id;
 
-    let driver = await db.get<Driver>('SELECT * FROM drivers WHERE id = $1', [driverId]);
+    let driver: any | null = null;
+
+    if (driverId) {
+      driver = await db.get<any>(
+        `
+        SELECT d.*,
+               v.license_plate,
+               v.brand,
+               v.model,
+               v.color
+        FROM drivers d
+        LEFT JOIN vehicles v ON v.id = d.current_vehicle_id
+        WHERE d.id = $1
+        `,
+        [driverId]
+      );
+    }
+
     if (!driver && userId) {
-      driver = await db.get<Driver>('SELECT * FROM drivers WHERE user_id = $1', [userId]);
+      driver = await db.get<any>(
+        `
+        SELECT d.*,
+               v.license_plate,
+               v.brand,
+               v.model,
+               v.color
+        FROM drivers d
+        LEFT JOIN vehicles v ON v.id = d.current_vehicle_id
+        WHERE d.user_id = $1
+        `,
+        [userId]
+      );
     }
 
     if (!driver) {
@@ -320,10 +349,12 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center']
         }
       } else {
         const normalizedRole = String(req.user?.role || '').toUpperCase();
-        const canCreateVehicle = normalizedRole === 'DEVELOPER' || normalizedRole === 'ADMIN';
-        if (!canCreateVehicle) {
-          // no-op: only admin/developer can create new vehicles via driver update
-        } else {
+        const canCreateVehicle =
+          normalizedRole === 'DEVELOPER' ||
+          normalizedRole === 'ADMIN' ||
+          normalizedRole === 'OFFICER' ||
+          normalizedRole === 'RADIO_CENTER';
+        if (canCreateVehicle) {
           const vehicleId = await generateVehicleId();
           await db.insert('vehicles', {
             id: vehicleId,
@@ -365,4 +396,3 @@ router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
 });
 
 export default router;
-

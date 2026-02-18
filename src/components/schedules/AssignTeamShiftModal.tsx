@@ -90,7 +90,7 @@ const AssignTeamShiftModal: React.FC<AssignTeamShiftModalProps> = ({ isOpen, onC
                             <select id="vehicleId" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)} className="mt-1 w-full" required>
                                 <option value="" disabled>-- เลือกรถที่ว่าง --</option>
                                 {availableVehicles.map(v => (
-                                    <option key={v.id} value={v.id}>{v.licensePlate} ({v.model})</option>
+                                    <option key={v.id} value={v.id}>{v.licensePlate}</option>
                                 ))}
                             </select>
                             {availableVehicles.length === 0 && <p className="text-xs text-red-600 mt-1">ไม่มีรถว่างในวันนี้</p>}

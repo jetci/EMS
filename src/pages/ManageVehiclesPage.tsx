@@ -91,16 +91,11 @@ const ManageVehiclesPage: React.FC = () => {
                 licensePlate: v.license_plate,
                 model: v.model || '',
                 brand: v.brand || '',
+                color: v.color || '',
                 vehicleTypeId: v.vehicle_type_id || '',
                 vehicleTypeName: typeMap[v.vehicle_type_id] || 'Unknown',
                 status: v.status as VehicleStatus,
-                assignedTeamId: v.assigned_team_id, // assuming backend sends assigned_team_id or similar? Schema says 'status' IN_USE but 'driver' table has current_vehicle_id. 
-                // Wait, 'vehicles' table does NOT have assigned_team_id column in schema!
-                // It has 'status'. 'teams' table has 'vehicleId' in 'TeamScheduleEntry' maybe?
-                // Actually mapped to 'status' only in schema.
-                // But Frontend interface has 'assignedTeamId'. 
-                // Let's check schema again. It DOES NOT have assigned_team_id.
-                // We'll leave it undefined for now or remove it from types later.
+                assignedTeamId: v.assigned_team_id,
                 nextMaintenanceDate: v.next_maintenance_date
             }));
 
@@ -147,6 +142,7 @@ const ManageVehiclesPage: React.FC = () => {
                 vehicle_type_id: vehicleData.vehicleTypeId,
                 brand: vehicleData.brand,
                 model: vehicleData.model,
+                color: vehicleData.color,
                 status: vehicleData.status,
                 next_maintenance_date: vehicleData.nextMaintenanceDate
             };
@@ -246,9 +242,23 @@ const ManageVehiclesPage: React.FC = () => {
                                     <td className="px-4 py-3"><CurrentStatusBadge vehicle={vehicle} teamsMap={teamsMap} /></td>
                                     <td className="px-4 py-3">{vehicle.nextMaintenanceDate ? formatDateToThai(vehicle.nextMaintenanceDate) : 'N/A'}</td>
                                     <td className="px-4 py-3">
-                                        <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => handleOpenEditModal(vehicle)} className="text-gray-500 hover:text-blue-600" title="แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleOpenDeleteConfirm(vehicle)} className="text-gray-500 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
+                                        <div className="flex items-center justify-between space-x-3">
+                                            <div className="flex items-center space-x-3">
+                                                <button
+                                                    onClick={() => handleOpenEditModal(vehicle)}
+                                                    className="icon-btn icon-btn-edit"
+                                                    title="แก้ไข"
+                                                >
+                                                    <EditIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => handleOpenDeleteConfirm(vehicle)}
+                                                className="icon-btn icon-btn-delete"
+                                                title="ลบ"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

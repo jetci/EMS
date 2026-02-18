@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS patients (
     id VARCHAR(255) PRIMARY KEY,
     title VARCHAR(50),
     full_name VARCHAR(255) NOT NULL,
-    national_id VARCHAR(50) UNIQUE,
+    national_id TEXT UNIQUE,
     dob VARCHAR(50),
     -- Keeping as string to match legacy app logic, or DATE if refactoring
     age INTEGER,
@@ -48,13 +48,13 @@ CREATE TABLE IF NOT EXISTS patients (
     blood_type VARCHAR(10),
     rh_factor VARCHAR(10),
     health_coverage VARCHAR(255),
-    contact_phone VARCHAR(50),
+    contact_phone TEXT,
     key_info TEXT,
     caregiver_name VARCHAR(255),
-    caregiver_phone VARCHAR(50),
+    caregiver_phone TEXT,
     -- Emergency Contact
     emergency_contact_name VARCHAR(255),
-    emergency_contact_phone VARCHAR(50),
+    emergency_contact_phone TEXT,
     emergency_contact_relation VARCHAR(100),
     -- Address (ID Card)
     id_card_house_number VARCHAR(100),
@@ -277,7 +277,53 @@ CREATE TABLE IF NOT EXISTS teams (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 -- ============================================
--- 10. NEWS TABLE
+-- 10. TEAM SHIFTS TABLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS team_shifts (
+    id VARCHAR(255) PRIMARY KEY,
+    team_id VARCHAR(255) NOT NULL,
+    shift_date VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    notes TEXT,
+    created_by VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(team_id, shift_date),
+    FOREIGN KEY (team_id) REFERENCES teams(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS team_shift_assignments (
+    id VARCHAR(255) PRIMARY KEY,
+    team_shift_id VARCHAR(255) NOT NULL,
+    vehicle_id VARCHAR(255),
+    driver_id VARCHAR(255),
+    helper_ids JSONB,
+    properties JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_shift_id) REFERENCES team_shifts(id),
+    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+    FOREIGN KEY (driver_id) REFERENCES drivers(id)
+);
+-- ============================================
+-- 11. DRIVER SHIFTS TABLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS driver_shifts (
+    id VARCHAR(255) PRIMARY KEY,
+    driver_id VARCHAR(255) NOT NULL,
+    shift_date VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    notes TEXT,
+    created_by VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(driver_id, shift_date),
+    FOREIGN KEY (driver_id) REFERENCES drivers(id),
+    FOREIGN KEY (created_by) REFERENCES users(id)
+);
+-- ============================================
+-- 12. NEWS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS news (
     id VARCHAR(255) PRIMARY KEY,
@@ -299,7 +345,7 @@ CREATE TABLE IF NOT EXISTS news (
 CREATE INDEX IF NOT EXISTS idx_news_published_date ON news(published_date);
 CREATE INDEX IF NOT EXISTS idx_news_is_published ON news(is_published);
 -- ============================================
--- 11. AUDIT LOGS TABLE
+-- 12. AUDIT LOGS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
@@ -324,7 +370,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_resource_type ON audit_logs(resource_type);
 -- ============================================
--- 12. SYSTEM SETTINGS TABLE
+-- 13. SYSTEM SETTINGS TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS system_settings (
     key VARCHAR(255) PRIMARY KEY,
@@ -335,7 +381,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
     FOREIGN KEY (updated_by) REFERENCES users(id)
 );
 -- ============================================
--- 13. MAP DATA TABLE
+-- 14. MAP DATA TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS map_data (
     id VARCHAR(255) PRIMARY KEY,

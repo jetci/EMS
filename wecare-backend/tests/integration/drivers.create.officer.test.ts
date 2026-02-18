@@ -3,7 +3,8 @@ import express from 'express';
 import authRoutes from '../../src/routes/auth';
 import usersRoutes from '../../src/routes/users';
 import driverRoutes from '../../src/routes/drivers';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
+import { initializeSchema, seedData } from '../../src/db/postgresDB';
+import { db } from '../../src/db';
 
 const app = express();
 app.use(express.json());
@@ -21,18 +22,19 @@ async function loginOfficer(): Promise<string> {
 
 describe('Drivers create (OFFICER)', () => {
   beforeAll(async () => {
-    await initializeDatabase();
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+    await initializeSchema();
+    await seedData();
   });
 
-  afterAll(() => {
-    try { sqliteDB.close(); } catch { }
+  afterAll(async () => {
   });
 
   test('OFFICER can create driver from candidate user', async () => {
     const token = await loginOfficer();
 
-    const userId = 'USR-TST-DRV-CAND';
-    sqliteDB.insert('users', {
+    const userId = `USR-TST-DRV-CAND-${Date.now()}`;
+    await db.insert('users', {
       id: userId,
       email: 'drv_candidate@wecare.test',
       password: 'x',
@@ -61,5 +63,59 @@ describe('Drivers create (OFFICER)', () => {
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
   });
-});
 
+  test('should reject driver creation when user_id does not exist', async () => {
+    const token = await loginOfficer();
+
+    const res = await request(app)
+      .post('/api/drivers')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        user_id: 'USR-NOT-EXIST',
+        full_name: 'Ghost User',
+        phone: '0800000001',
+        status: 'AVAILABLE',
+        license_plate: 'ทด-0001',
+        brand: 'Toyota',
+        model: 'Commuter',
+        color: 'ขาว',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'User not found');
+  });
+
+  test('should reject driver creation for ADMIN or DEVELOPER user', async () => {
+    const token = await loginOfficer();
+
+    const adminUserId = `USR-TST-ADMIN-DRV-${Date.now()}`;
+    await db.insert('users', {
+      id: adminUserId,
+      email: 'admin_driver@wecare.test',
+      password: 'x',
+      role: 'admin',
+      full_name: 'Admin As Driver',
+      date_created: new Date().toISOString(),
+      status: 'Active',
+      phone: '0800000002',
+      profile_image_url: null,
+    });
+
+    const res = await request(app)
+      .post('/api/drivers')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        user_id: adminUserId,
+        full_name: 'Admin As Driver',
+        phone: '0800000002',
+        status: 'AVAILABLE',
+        license_plate: 'ทด-0002',
+        brand: 'Toyota',
+        model: 'Commuter',
+        color: 'ขาว',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error', 'Invalid user role for driver');
+  });
+});

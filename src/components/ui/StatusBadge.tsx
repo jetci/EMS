@@ -14,6 +14,7 @@ const statusStyles: { [key in RideStatus]: { text: string; classes: string } } =
   [RideStatus.IN_PROGRESS]: { text: 'กำลังเดินทาง', classes: 'bg-green-100 text-green-800' },
   [RideStatus.COMPLETED]: { text: 'เสร็จสิ้น', classes: 'bg-gray-200 text-gray-800' },
   [RideStatus.CANCELLED]: { text: 'ยกเลิก', classes: 'bg-red-100 text-red-800' },
+  [RideStatus.REJECTED]: { text: 'ปฏิเสธ', classes: 'bg-red-100 text-red-800' },
 };
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {

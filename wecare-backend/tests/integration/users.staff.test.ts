@@ -1,6 +1,6 @@
 import request from 'supertest';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
 import app from '../../src/index';
+import { initializeSchema, seedData } from '../../src/db/postgresDB';
 
 async function login(email: string): Promise<string> {
   const passwords = ['password123', 'Admin@123', 'TestPassword123!'];
@@ -13,11 +13,12 @@ async function login(email: string): Promise<string> {
 
 describe('Users staff endpoint', () => {
   beforeAll(async () => {
-    await initializeDatabase();
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+    await initializeSchema();
+    await seedData();
   });
 
-  afterAll(() => {
-    try { sqliteDB.close(); } catch { }
+  afterAll(async () => {
   });
 
   test('OFFICER can list staff', async () => {

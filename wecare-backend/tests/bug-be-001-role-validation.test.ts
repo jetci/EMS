@@ -7,10 +7,10 @@
 
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
-import app from '../src/index'; // Assuming app is exported from index.ts
-import { initializeDatabase, sqliteDB } from '../src/db/sqliteDB';
+import app from '../src/index';
+import { initializeSchema, seedData } from '../src/db/postgresDB';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'test-secret-change-me-for-tests';
 
 // Helper function to generate JWT token for different roles
 function generateToken(userId: string, email: string, role: string): string {
@@ -35,11 +35,9 @@ const tokens = {
 };
 
 beforeAll(async () => {
-    await initializeDatabase();
-});
-
-afterAll(() => {
-    try { sqliteDB.close(); } catch {}
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+    await initializeSchema();
+    await seedData();
 });
 
 describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
@@ -131,7 +129,7 @@ describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
                 .expect(200);
         });
 
-        it('should DENY OFFICER access to user management', async () => {
+        it('should DENY OFFICER access to user management root', async () => {
             const response = await request(app)
                 .get('/api/users')
                 .set('Authorization', `Bearer ${tokens.officer}`)
@@ -140,17 +138,83 @@ describe('BUG-BE-001: Role-Based Access Control at Router Level', () => {
             expect(response.body.error).toBe('Insufficient permissions');
         });
 
-        it('should DENY COMMUNITY access to user management', async () => {
+        it('should DENY COMMUNITY access to user management root', async () => {
             await request(app)
                 .get('/api/users')
                 .set('Authorization', `Bearer ${tokens.community}`)
                 .expect(403);
         });
 
-        it('should DENY DRIVER access to user management', async () => {
+        it('should DENY DRIVER access to user management root', async () => {
             await request(app)
                 .get('/api/users')
                 .set('Authorization', `Bearer ${tokens.driver}`)
+                .expect(403);
+        });
+    });
+
+    describe('User Sub-Routes: staff and driver-candidates', () => {
+
+        it('should allow ADMIN to access staff list', async () => {
+            await request(app)
+                .get('/api/users/staff')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow DEVELOPER to access staff list', async () => {
+            await request(app)
+                .get('/api/users/staff')
+                .set('Authorization', `Bearer ${tokens.developer}`)
+                .expect(200);
+        });
+
+        it('should allow OFFICER to access staff list', async () => {
+            await request(app)
+                .get('/api/users/staff')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(200);
+        });
+
+        it('should allow radio_center to access staff list', async () => {
+            await request(app)
+                .get('/api/users/staff')
+                .set('Authorization', `Bearer ${tokens.radioCenter}`)
+                .expect(200);
+        });
+
+        it('should DENY COMMUNITY access to staff list', async () => {
+            await request(app)
+                .get('/api/users/staff')
+                .set('Authorization', `Bearer ${tokens.community}`)
+                .expect(403);
+        });
+
+        it('should allow ADMIN to access driver candidates', async () => {
+            await request(app)
+                .get('/api/users/driver-candidates')
+                .set('Authorization', `Bearer ${tokens.admin}`)
+                .expect(200);
+        });
+
+        it('should allow DEVELOPER to access driver candidates', async () => {
+            await request(app)
+                .get('/api/users/driver-candidates')
+                .set('Authorization', `Bearer ${tokens.developer}`)
+                .expect(200);
+        });
+
+        it('should allow OFFICER to access driver candidates', async () => {
+            await request(app)
+                .get('/api/users/driver-candidates')
+                .set('Authorization', `Bearer ${tokens.officer}`)
+                .expect(200);
+        });
+
+        it('should DENY COMMUNITY access to driver candidates', async () => {
+            await request(app)
+                .get('/api/users/driver-candidates')
+                .set('Authorization', `Bearer ${tokens.community}`)
                 .expect(403);
         });
     });

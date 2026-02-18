@@ -52,11 +52,11 @@ export const fetchLogoFromAPI = async (): Promise<string | undefined> => {
     try {
         // Try authenticated endpoint first (for logged-in users)
         try {
-            const response = await apiRequest<any>('/admin/settings', { method: 'GET' });
+            const response = await apiRequest('/admin/settings', { method: 'GET' });
             return response?.logoUrl || undefined;
         } catch (authError) {
             // Fall back to public endpoint if not authenticated
-            const response = await apiRequest<any>('/settings/public', { method: 'GET' });
+            const response = await apiRequest('/settings/public', { method: 'GET' });
             return response?.logoUrl || undefined;
         }
     } catch (error) {
@@ -70,11 +70,11 @@ export const fetchSettingsOptimized = async (userRole?: string): Promise<SystemS
     try {
         // If the role is not admin, use the public endpoint directly to avoid 401/403 spam
         if (!userRole || (userRole !== 'admin' && userRole !== 'superadmin')) {
-            const publicRes = await apiRequest<any>('/settings/public', { method: 'GET' });
+            const publicRes = await apiRequest('/settings/public', { method: 'GET' });
             return publicRes || null;
         }
         // Admin roles can access the admin endpoint
-        const adminRes = await apiRequest<any>('/admin/settings', { method: 'GET' });
+        const adminRes = await apiRequest('/admin/settings', { method: 'GET' });
         return adminRes || null;
     } catch (error) {
         console.error('Error fetching settings:', error);

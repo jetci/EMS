@@ -9,10 +9,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Patient } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
-import { patientsAPI } from '../services/api';
-import PatientListTable from '../components/patient/PatientListTable';
-import LoadingSpinner from '../components/LoadingSpinner';
-import Toast from '../components/Toast';
+import { patientsAPI } from '../../services/api';
+import PatientListTable from '../../components/patient/PatientListTable';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import Toast from '../../components/Toast';
 
 interface UnifiedPatientManagementPageProps {
     // Optional: สามารถ override role ได้ (สำหรับ testing)
@@ -46,9 +46,10 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
         try {
             // Get filter params based on role
             const filterParams = permissions.getFilterParams();
-
-            const response = await patientsAPI.getAll(filterParams);
-            setPatients(response.data || []);
+            const response = await patientsAPI.getPatients(filterParams);
+            const rawData = response?.data || response || [];
+            const list = Array.isArray(rawData) ? rawData : [];
+            setPatients(list);
         } catch (error) {
             console.error('Error loading patients:', error);
             showToast('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ป่วย');
@@ -116,7 +117,7 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
     // ✅ Handlers with permission checks
     const handleEdit = (patient: Patient) => {
         // Check if user can edit this patient
-        if (!permissions.canEdit(patient.created_by || '')) {
+        if (!permissions.canEdit(patient.registeredBy || '')) {
             showToast('คุณไม่มีสิทธิ์แก้ไขผู้ป่วยนี้');
             return;
         }
@@ -130,7 +131,7 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
         if (!patient) return;
 
         // Check if user can delete this patient
-        if (!permissions.canDelete(patient.created_by || '')) {
+        if (!permissions.canDelete(patient.registeredBy || '')) {
             showToast('คุณไม่มีสิทธิ์ลบผู้ป่วยนี้');
             return;
         }
@@ -140,7 +141,7 @@ const UnifiedPatientManagementPage: React.FC<UnifiedPatientManagementPageProps> 
         }
 
         try {
-            await patientsAPI.delete(patientId);
+            await patientsAPI.deletePatient(patientId);
             showToast('ลบผู้ป่วยสำเร็จ');
             loadPatients();
         } catch (error) {

@@ -13,6 +13,7 @@ interface AssignDriverModalProps {
   ride: Ride;
   allDrivers: Driver[];
   allRides: Ride[];
+  mode?: 'view' | 'assign' | 'change';
 }
 
 // Haversine formula to calculate distance in km
@@ -29,9 +30,9 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 };
 
 const checkOverlap = (rideA: Ride, rideB: Ride): boolean => {
-  const startA = dayjs(rideA.appointmentTime || rideA.appointment_time);
+  const startA = dayjs(rideA.appointmentTime);
   const endA = startA.add(1, 'hour');
-  const startB = dayjs(rideB.appointmentTime || rideB.appointment_time);
+  const startB = dayjs(rideB.appointmentTime);
   const endB = startB.add(1, 'hour');
   return startA.isBefore(endB) && endA.isAfter(startB);
 };
@@ -40,7 +41,7 @@ const isDriverOnDuty = (driver: any): boolean => {
   return driver.status !== 'INACTIVE' && driver.status !== 'OFFLINE';
 }
 
-const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, onAssign, ride, allDrivers, allRides }) => {
+const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, onAssign, ride, allDrivers, allRides, mode = 'assign' }) => {
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const getDriverName = (driver: any): string => {
     const raw =
@@ -60,10 +61,34 @@ const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, 
   };
 
   useEffect(() => {
-    if (isOpen) {
-      setSelectedDriverId(null);
+    if (isOpen && ride) {
+      let initialId: string | null = null;
+      const rawId = String((ride as any).driver_id || ride.driverInfo?.id || '').trim();
+      if (rawId) {
+        initialId = rawId;
+      } else if (ride.driverName) {
+        const match = allDrivers.find(d => getDriverName(d) === ride.driverName);
+        if (match) {
+          const mId = getDriverId(match);
+          initialId = mId || null;
+        }
+      }
+      setSelectedDriverId(initialId);
     }
-  }, [isOpen]);
+  }, [isOpen, ride, allDrivers]);
+
+  const currentDriverName = useMemo(() => {
+    if (!ride) return '';
+    if ((ride as any).driver_name) return (ride as any).driver_name;
+    if (ride.driverName) return ride.driverName;
+    if (ride.driverInfo?.fullName) return ride.driverInfo.fullName;
+    const rawId = String((ride as any).driver_id || ride.driverInfo?.id || '').trim();
+    if (rawId) {
+      const d = allDrivers.find(driver => getDriverId(driver) === rawId);
+      if (d) return getDriverName(d);
+    }
+    return '';
+  }, [ride, allDrivers]);
 
   const driverAvailability = useMemo(() => {
     if (!ride) return [];
@@ -118,7 +143,13 @@ const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, 
 
   if (!isOpen || !ride) return null;
 
+  const isReadOnly = mode === 'view';
+
   const handleConfirm = () => {
+    if (isReadOnly) {
+      onClose();
+      return;
+    }
     if (selectedDriverId) {
       onAssign(ride.id, selectedDriverId);
     }
@@ -135,61 +166,64 @@ const AssignDriverModal: React.FC<AssignDriverModalProps> = ({ isOpen, onClose, 
             <p><span className="font-semibold text-gray-600">เวลานัดหมาย:</span> {formatDateTimeToThai(ride.appointmentTime || (ride as any).appointment_time)}</p>
             <div className="flex items-start"><MapPinIcon className="w-4 h-4 mr-2 mt-0.5 text-green-500 flex-shrink-0" /><span className="font-semibold text-gray-600">รับ:</span>&nbsp;{ride.pickupLocation || (ride as any).pickup_location}</div>
             <div className="flex items-start"><MapPinIcon className="w-4 h-4 mr-2 mt-0.5 text-red-500 flex-shrink-0" /><span className="font-semibold text-gray-600">ส่ง:</span>&nbsp;{ride.destination}</div>
+            <p><span className="font-semibold text-gray-600">คนขับปัจจุบัน:</span> {currentDriverName || 'ยังไม่ได้มอบหมาย'}</p>
           </div>
         </div>
 
-        {/* Driver List */}
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold text-gray-700">เลือกคนขับที่พร้อมให้บริการ</h3>
-            <span className="text-xs text-gray-500 italic">* เรียงตามระยะทางที่ใกล้ที่สุด</span>
-          </div>
-          <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border-t border-b py-2">
-            {driverAvailability.map(({ driver, isAvailable, reason, distance }, index) => {
-              const driverId = getDriverId(driver);
-              const driverName = getDriverName(driver);
-              const badgeText = (driverName.charAt(0) || '?').toUpperCase();
-              const selected = selectedDriverId === driverId;
-              return (
-                <label
-                  key={driverId ? `driver-${driverId}` : `driver-${index}`}
-                  htmlFor={driverId}
-                  className={`flex items-center p-3 border rounded-lg transition-all ${!isAvailable ? 'bg-gray-100 text-gray-400' : 'cursor-pointer'} ${selected ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200' : isAvailable ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-200'}`}
-                >
-                  <input
-                    type="radio"
-                    id={driverId}
-                    name="driverSelection"
-                    value={driverId}
-                    checked={selected}
-                    onChange={(e) => setSelectedDriverId(e.target.value)}
-                    disabled={!isAvailable || !driverId}
-                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:bg-gray-200"
-                  />
-                  <div className="ml-3 flex-grow flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-600 font-bold text-xs">
-                      {badgeText}
+        {!isReadOnly && (
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-gray-700">เลือกคนขับที่พร้อมให้บริการ</h3>
+              <span className="text-xs text-gray-500 italic">* เรียงตามระยะทางที่ใกล้ที่สุด</span>
+            </div>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border-t border-b py-2">
+              {driverAvailability.map(({ driver, isAvailable, reason, distance }, index) => {
+                const driverId = getDriverId(driver);
+                const driverName = getDriverName(driver);
+                const badgeText = (driverName.charAt(0) || '?').toUpperCase();
+                const selected = selectedDriverId === driverId;
+                return (
+                  <label
+                    key={driverId ? `driver-${driverId}` : `driver-${index}`}
+                    htmlFor={driverId}
+                    className={`flex items-center p-3 border rounded-lg transition-all ${!isAvailable ? 'bg-gray-100 text-gray-400' : 'cursor-pointer'} ${selected ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200' : isAvailable ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-200'}`}
+                  >
+                    <input
+                      type="radio"
+                      id={driverId}
+                      name="driverSelection"
+                      value={driverId}
+                      checked={selected}
+                      onChange={(e) => setSelectedDriverId(e.target.value)}
+                      disabled={!isAvailable || !driverId}
+                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:bg-gray-200"
+                    />
+                    <div className="ml-3 flex-grow flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3 text-blue-600 font-bold text-xs">
+                        {badgeText}
+                      </div>
+                      <div>
+                        <div className={`font-semibold ${isAvailable ? 'text-gray-800' : 'text-gray-500'}`}>{driverName || 'ไม่ระบุชื่อ'}</div>
+                        {distance !== null && (
+                          <div className="text-[10px] text-gray-500">ห่างจากจุดรับ: {distance.toFixed(2)} กม.</div>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <div className={`font-semibold ${isAvailable ? 'text-gray-800' : 'text-gray-500'}`}>{driverName || 'ไม่ระบุชื่อ'}</div>
-                      {distance !== null && (
-                        <div className="text-[10px] text-gray-500">ห่างจากจุดรับ: {distance.toFixed(2)} กม.</div>
-                      )}
-                    </div>
-                  </div>
-                  <span className={`text-xs font-medium ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                    {isAvailable ? 'ว่าง' : reason}
-                  </span>
-                </label>
-              );
-            })}
+                    <span className={`text-xs font-medium ${isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                      {isAvailable ? 'ว่าง' : reason}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Footer Actions */}
         <div className="flex justify-end items-center gap-3">
-          <Button onClick={onClose} variant="outline" size="sm">ยกเลิก</Button>
-          <Button onClick={handleConfirm} disabled={!selectedDriverId} size="sm">ยืนยันการจ่ายงาน</Button>
+          <Button onClick={onClose} variant="outline" size="sm">ปิด</Button>
+          {!isReadOnly && (
+            <Button onClick={handleConfirm} disabled={!selectedDriverId} size="sm">ยืนยันการจ่ายงาน</Button>
+          )}
         </div>
       </div>
     </Modal>

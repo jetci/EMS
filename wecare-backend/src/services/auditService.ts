@@ -53,7 +53,15 @@ const getLastLog = async (): Promise<AuditLog | null> => {
 
         if (!log) return null;
 
-        // Parse JSON fields
+        // Parse JSON fields and ensure sequenceNumber is a safe number
+        const rawSequence = log.sequence_number;
+        const parsedSequence = typeof rawSequence === 'number'
+            ? rawSequence
+            : parseInt(rawSequence, 10);
+        const safeSequence = Number.isFinite(parsedSequence) && parsedSequence > 0 && parsedSequence < 1_000_000_000
+            ? parsedSequence
+            : 0;
+
         return {
             id: log.id.toString(),
             timestamp: log.timestamp,
@@ -65,7 +73,7 @@ const getLastLog = async (): Promise<AuditLog | null> => {
             dataPayload: log.details,
             hash: log.hash,
             previousHash: log.previous_hash,
-            sequenceNumber: log.sequence_number
+            sequenceNumber: safeSequence
         };
     } catch (error) {
         console.error('Error getting last log:', error);

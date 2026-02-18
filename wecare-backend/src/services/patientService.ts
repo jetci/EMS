@@ -215,11 +215,10 @@ export const decryptPatientData = (dbPatient: any): any => {
  * Generate next patient ID
  */
 export const generatePatientId = async (): Promise<string> => {
-  const result = await db.get<{ max_id: number }>(
-    "SELECT MAX(CAST(SUBSTR(id, 5) AS INTEGER)) as max_id FROM patients WHERE id LIKE 'PAT-%'"
-  );
-  const nextNum = (result?.max_id || 0) + 1;
-  return `PAT-${String(nextNum).padStart(3, '0')}`;
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  const uniqueNumber = `${timestamp}${String(random).padStart(3, '0')}`;
+  return `PAT-${uniqueNumber}`;
 };
 
 /**
@@ -229,10 +228,20 @@ export const createPatient = async (data: PatientData): Promise<any> => {
   const id = await generatePatientId();
   const encryptedData = encryptPatientData(data);
 
-  const patientRecord = {
+  const patientRecord: any = {
     id,
     ...encryptedData,
   };
+
+  if (patientRecord.patient_types !== undefined) {
+    patientRecord.patient_types = JSON.stringify(patientRecord.patient_types);
+  }
+  if (patientRecord.chronic_diseases !== undefined) {
+    patientRecord.chronic_diseases = JSON.stringify(patientRecord.chronic_diseases);
+  }
+  if (patientRecord.allergies !== undefined) {
+    patientRecord.allergies = JSON.stringify(patientRecord.allergies);
+  }
 
   await db.insert('patients', patientRecord);
 
@@ -347,23 +356,20 @@ export const updatePatient = async (id: string, data: Partial<PatientData>): Pro
     }
 
     if (data.patientTypes) {
-      updateData.patient_types = encryptArray(data.patientTypes);
+      updateData.patient_types = JSON.stringify(encryptArray(data.patientTypes));
     }
 
     if (data.chronicDiseases) {
-      updateData.chronic_diseases = encryptArray(data.chronicDiseases);
+      updateData.chronic_diseases = JSON.stringify(encryptArray(data.chronicDiseases));
     }
 
     if (data.allergies) {
-      updateData.allergies = encryptArray(data.allergies);
+      updateData.allergies = JSON.stringify(encryptArray(data.allergies));
     }
   } catch (error) {
     console.error('Encryption error during update:', error);
     throw new Error('Failed to encrypt patient data');
   }
-
-  // Update timestamp
-  updateData.updated_at = new Date().toISOString();
 
   await db.update('patients', id, updateData);
 

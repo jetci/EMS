@@ -8,6 +8,7 @@ import UserIcon from '../components/icons/UserIcon';
 import { formatFullDateToThai, formatDateTimeToThai } from '../utils/dateUtils';
 import Toast from '../components/Toast';
 import { dashboardService } from '../services/dashboardService';
+import { apiRequest } from '../services/api';
 
 interface OfficeDashboardProps {
     setActiveView: (view: OfficerView, context?: any) => void;
@@ -28,14 +29,39 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
     const loadDashboardData = async () => {
         try {
             setLoading(true);
-            const [statsData, vehiclesData, newsData] = await Promise.all([
+            const [statsData, vehiclesData, vehicleTypesData, newsData] = await Promise.all([
                 dashboardService.getOfficeDashboard(),
-                dashboardService.getVehicles(),
+                apiRequest('/vehicles'),
+                apiRequest('/vehicle-types'),
                 dashboardService.getNews(),
             ]);
 
             setStats(statsData);
-            setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+
+            const rawVehicles = Array.isArray(vehiclesData) ? vehiclesData : (vehiclesData?.vehicles || []);
+            const rawTypes = Array.isArray(vehicleTypesData) ? vehicleTypesData : (vehicleTypesData?.vehicleTypes || []);
+
+            const typeMap: Record<string, string> = {};
+            rawTypes.forEach((t: any) => {
+                if (t && t.id) {
+                    typeMap[t.id] = t.name;
+                }
+            });
+
+            const mappedVehicles: Vehicle[] = rawVehicles.map((v: any) => ({
+                id: v.id,
+                licensePlate: v.license_plate || v.licensePlate || '',
+                model: v.model || '',
+                brand: v.brand || '',
+                color: v.color || '',
+                vehicleTypeId: v.vehicle_type_id || v.vehicleTypeId || '',
+                vehicleTypeName: typeMap[v.vehicle_type_id] || v.vehicleTypeName || '-',
+                status: (v.status as VehicleStatus) || VehicleStatus.AVAILABLE,
+                assignedTeamId: v.assigned_team_id || v.assignedTeamId,
+                nextMaintenanceDate: v.next_maintenance_date || v.nextMaintenanceDate || null,
+            }));
+
+            setVehicles(mappedVehicles);
             setNews(Array.isArray(newsData) ? newsData.slice(0, 5) : []); // Get latest 5 news
         } catch (error) {
             console.error('Failed to load dashboard data:', error);
@@ -155,29 +181,50 @@ const OfficeDashboard: React.FC<OfficeDashboardProps> = ({ setActiveView }) => {
                         </div>
                     </div>
 
-                    {/* Internal News & Announcements */}
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-gray-800">ประกาศและข่าวสาร</h2>
-                            <button onClick={() => setActiveView('news')} className="text-sm text-blue-600 hover:underline">จัดการข่าวสาร</button>
+                            <button
+                                onClick={() => setActiveView('news')}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                                จัดการข่าวสาร
+                            </button>
                         </div>
-                        <div className="space-y-4">
-                            {news.map((item) => (
-                                <div key={item.id} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
-                                    <div>
-                                        <h3 className="font-semibold text-gray-800">{item.title}</h3>
-                                        <p className="text-sm text-gray-500 line-clamp-2">{item.content.replace(/<[^>]+>/g, '')}</p>
-                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                                            <span>โดย {item.author}</span>
-                                            <span>•</span>
-                                            <span>{item.publishedDate ? formatDateTimeToThai(item.publishedDate) : 'Draft'}</span>
+                        <div className="space-y-3">
+                            {news.map((item) => {
+                                const plainText = item.content.replace(/<[^>]+>/g, '');
+                                const isPublished = item.status === 'published';
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="rounded-lg border border-gray-100 bg-gray-50/80 hover:bg-gray-50 transition-colors p-4 flex flex-col md:flex-row md:items-start md:justify-between gap-3"
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-semibold text-gray-900 text-sm md:text-base leading-snug line-clamp-2">
+                                                {item.title}
+                                            </h3>
+                                            <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                                                {plainText}
+                                            </p>
+                                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                                                <span>โดย {item.author}</span>
+                                                <span>•</span>
+                                                <span>{item.publishedDate ? formatDateTimeToThai(item.publishedDate) : 'ยังไม่เผยแพร่'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex md:flex-col items-end md:items-end justify-between gap-2 md:gap-3">
+                                            <span
+                                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                    isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                                }`}
+                                            >
+                                                {isPublished ? 'เผยแพร่แล้ว' : 'ร่าง'}
+                                            </span>
                                         </div>
                                     </div>
-                                    <span className={`px-2 py-1 text-xs rounded-full ${item.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                        {item.status === 'published' ? 'เผยแพร่แล้ว' : 'ร่าง'}
-                                    </span>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {news.length === 0 && (
                                 <p className="text-center text-gray-500 py-4">ยังไม่มีประกาศข่าวสาร</p>
                             )}

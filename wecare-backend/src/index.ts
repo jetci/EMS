@@ -26,6 +26,7 @@ import teamRoutes from './routes/teams';
 import vehicleRoutes from './routes/vehicles';
 import vehicleTypeRoutes from './routes/vehicle-types';
 import newsRoutes from './routes/news';
+import facilitiesRoutes from './routes/facilities';
 import apiProxyRoutes from './routes/api-proxy';
 import auditLogRoutes from './routes/audit-logs';
 import dashboardRoutes from './routes/dashboard';
@@ -39,6 +40,8 @@ import systemRoutes from './routes/system';
 import healthRoutes from './routes/health';
 import backupRoutes from './routes/backup';
 import lockoutRoutes from './routes/lockout';
+import teamShiftRoutes from './routes/team-shifts';
+import driverShiftRoutes from './routes/driver-shifts';
 import { authenticateToken } from './middleware/auth';
 import { preventSQLInjection } from './middleware/sqlInjectionPrevention';
 import { csrfTokenMiddleware, getCsrfToken } from './middleware/csrfProtection';
@@ -356,18 +359,30 @@ app.use('/api/community/rides',
   rideRoutes
 );
 
-// User management - admin and developer only
 app.use('/api/users',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER]),
   userRoutes
 );
 
-// Team management - admin, developer, officer
+// Team management - admin, developer, officer, executive (view)
 app.use('/api/teams',
   authenticateToken,
-  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.EXECUTIVE]),
   teamRoutes
+);
+
+// Team shifts - admin, developer, officer, radio_center, executive (view)
+app.use('/api/team-shifts',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.EXECUTIVE]),
+  teamShiftRoutes
+);
+
+// Driver shifts - admin, developer, officer, radio_center, executive (view)
+app.use('/api/driver-shifts',
+  authenticateToken,
+  requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER, UserRole.EXECUTIVE]),
+  driverShiftRoutes
 );
 
 // Vehicle management - admin, developer, officer
@@ -382,6 +397,12 @@ app.use('/api/vehicle-types',
   authenticateToken,
   requireRole([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.OFFICER, UserRole.RADIO_CENTER]),
   vehicleTypeRoutes
+);
+
+// Facilities - healthcare destinations
+app.use('/api/facilities',
+  authenticateToken,
+  facilitiesRoutes
 );
 
 // News - public read, admin write (handled in route)
@@ -410,6 +431,8 @@ app.use('/api/admin/dashboard',
 
 // Settings - router handles internal protection for admin vs public
 app.use('/api/settings', settingsRoutes);
+// Backward-compatible admin-specific path for existing frontend calls
+app.use('/api/admin/settings', settingsRoutes);
 
 // Reports - officer and executive
 app.use('/api/office/reports',

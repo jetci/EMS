@@ -2,17 +2,7 @@
  * Integration Tests for Settings API
  */
 import request from 'supertest';
-import express from 'express';
-import authRoutes from '../../src/routes/auth';
-import settingsRoutes, { getPublicSettingsHandler } from '../../src/routes/settings';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
-
-// Create test app mounting only necessary routes
-const app = express();
-app.use(express.json());
-app.use('/api', authRoutes); // for /api/auth/login
-app.use('/api/admin/settings', settingsRoutes); // protected admin settings
-app.get('/api/settings/public', getPublicSettingsHandler); // public settings
+import app from '../../src/index';
 
 // Helper: robust admin login (tries multiple known passwords)
 async function loginAdmin(): Promise<string> {
@@ -36,30 +26,11 @@ describe('Settings API Integration Tests', () => {
   let adminToken: string | null = null;
 
   beforeAll(async () => {
-    // Ensure database schema and seed data are initialized for tests
-    await initializeDatabase();
-    // Cleanup any previous custom settings to start from a known state
-    try {
-      sqliteDB.db.prepare('DELETE FROM system_settings').run();
-    } catch (e) {
-      // ignore
-    }
+    // No special DB initialization needed; global setup should handle schema/seed
   });
 
   afterAll(() => {
-    // Cleanup settings to avoid side effects for other tests
-    try {
-      sqliteDB.db.prepare('DELETE FROM system_settings').run();
-    } catch (e) {
-      // ignore
-    } finally {
-      // Ensure database connection is closed to prevent open handles
-      try {
-        sqliteDB.close();
-      } catch (err) {
-        // ignore
-      }
-    }
+    // No explicit DB cleanup required for Postgres-based tests
   });
 
   describe('GET /api/settings/public', () => {
@@ -73,9 +44,9 @@ describe('Settings API Integration Tests', () => {
     });
   });
 
-  describe('GET /api/admin/settings (protected)', () => {
+  describe('GET /api/settings (protected)', () => {
     test('should require authentication (401 or 403)', async () => {
-      const res = await request(app).get('/api/admin/settings');
+      const res = await request(app).get('/api/settings');
       expect([401, 403]).toContain(res.status);
     });
 
@@ -84,7 +55,7 @@ describe('Settings API Integration Tests', () => {
       adminToken = await loginAdmin();
 
       const res = await request(app)
-        .get('/api/admin/settings')
+        .get('/api/settings')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(res.status).toBe(200);
@@ -93,7 +64,7 @@ describe('Settings API Integration Tests', () => {
     });
   });
 
-  describe('PUT /api/admin/settings (update settings)', () => {
+  describe('PUT /api/settings (update settings)', () => {
     beforeAll(async () => {
       if (!adminToken) {
         adminToken = await loginAdmin();
@@ -110,7 +81,7 @@ describe('Settings API Integration Tests', () => {
       };
 
       const putRes = await request(app)
-        .put('/api/admin/settings')
+        .put('/api/settings')
         .set('Authorization', `Bearer ${adminToken}`)
         .send(newSettings);
 
@@ -118,7 +89,7 @@ describe('Settings API Integration Tests', () => {
       expect(putRes.body.appName).toBe(newSettings.appName);
 
       const getRes = await request(app)
-        .get('/api/admin/settings')
+        .get('/api/settings')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(getRes.status).toBe(200);

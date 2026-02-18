@@ -43,14 +43,15 @@ const getButtonAction = (status: RideStatus) => {
 
 
 const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable = true }) => {
-  const { id, status, patientName, patientPhone, pickupLocation, destination, appointmentTime, village, specialNeeds, landmark, caregiverPhone } = ride;
+  const { id, status, patientName, patientPhone, pickupLocation, destination, appointmentTime, village, specialNeeds, landmark, caregiverPhone, pickupCoordinates, destinationCoordinates } = ride;
   const style = statusStyles[status] || statusStyles[RideStatus.PENDING];
   const buttonAction = getButtonAction(status);
 
   const hasMoreInfo = landmark || caregiverPhone;
 
   // Guided Navigation Logic
-  const isPickupNavActive = isActionable && (status === RideStatus.ASSIGNED || status === RideStatus.EN_ROUTE_TO_PICKUP);
+  const hasPickupCoordinates = !!pickupCoordinates;
+  const isPickupNavActive = isActionable && hasPickupCoordinates && (status === RideStatus.ASSIGNED || status === RideStatus.EN_ROUTE_TO_PICKUP);
   const isDestinationNavActive = isActionable && (status === RideStatus.ARRIVED_AT_PICKUP || status === RideStatus.IN_PROGRESS);
 
   const pickupNavClasses = isPickupNavActive
@@ -61,8 +62,23 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable 
     ? 'bg-[var(--wecare-green)] hover:bg-green-700'
     : 'bg-gray-300 cursor-not-allowed';
 
-  const handleNavigate = (address: string) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+  const handleNavigate = (mode: 'pickup' | 'destination') => {
+    let destinationParam: string;
+
+    if (mode === 'pickup') {
+      if (!pickupCoordinates) {
+        alert('ไม่พบพิกัดจุดรับผู้ป่วยในระบบ กรุณาให้เจ้าหน้าที่แก้ไขข้อมูลผู้ป่วย');
+        return;
+      }
+      destinationParam = `${pickupCoordinates.lat},${pickupCoordinates.lng}`;
+    } else if (mode === 'destination' && destinationCoordinates) {
+      destinationParam = `${destinationCoordinates.lat},${destinationCoordinates.lng}`;
+    } else {
+      const address = destination;
+      destinationParam = encodeURIComponent(address);
+    }
+
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destinationParam}`;
     window.open(url, '_blank');
   };
 
@@ -116,7 +132,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable 
               </div>
             </div>
             <button
-              onClick={() => handleNavigate(pickupLocation)}
+              onClick={() => handleNavigate('pickup')}
               disabled={!isPickupNavActive}
               className={`flex items-center gap-2 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${pickupNavClasses}`}
             >
@@ -133,7 +149,7 @@ const RideCard: React.FC<RideCardProps> = ({ ride, onUpdateStatus, isActionable 
               </div>
             </div>
             <button
-              onClick={() => handleNavigate(destination)}
+              onClick={() => handleNavigate('destination')}
               disabled={!isDestinationNavActive}
               className={`flex items-center gap-2 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${destinationNavClasses}`}
             >

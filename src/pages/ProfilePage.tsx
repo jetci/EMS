@@ -18,6 +18,7 @@ interface UserProfile {
     phone?: string;
     role: string;
     profile_image_url?: string;
+    profileImageUrl?: string;
 }
 
 const ProfilePage: React.FC = () => {
@@ -48,7 +49,7 @@ const ProfilePage: React.FC = () => {
                 name: data.name || '',
                 phone: data.phone || ''
             });
-            setProfileImage(data.profile_image_url || null);
+            setProfileImage(data.profileImageUrl || data.profile_image_url || null);
         } catch (error: any) {
             console.error('Failed to load profile:', error);
             showToast('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้');
@@ -145,7 +146,7 @@ const ProfilePage: React.FC = () => {
 
     const handleRemoveImage = () => {
         setImageFile(null);
-        setProfileImage(profile?.profile_image_url || null);
+        setProfileImage(profile?.profileImageUrl || profile?.profile_image_url || null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

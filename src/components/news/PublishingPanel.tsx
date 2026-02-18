@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { NewsArticle } from '../../types';
 import UploadIcon from '../icons/UploadIcon';
 import ModernDatePicker from '../ui/ModernDatePicker';
@@ -12,7 +12,7 @@ interface PublishingPanelProps {
 }
 
 const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleChange, onSave, isNew }) => {
-
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const handleFeaturedImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
@@ -33,8 +33,11 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
         onArticleChange({ ...article, scheduledDate: currentScheduled.toISOString() });
     };
 
-
-
+    const handleFeaturedClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-6">
 
@@ -77,7 +80,7 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
                 <h3 className="font-semibold text-gray-800 mb-2">สถานะ</h3>
                 <div className="flex items-center">
                     <input type="radio" id="status_published" name="status" value="published" checked={article.status === 'published'} onChange={() => onArticleChange({ ...article, status: 'published' })} />
-                    <label htmlFor="status_published" className="ml-2">เผยแพร่แล้ว</label>
+                    <label htmlFor="status_published" className="ml-2">เผยแพร่</label>
                 </div>
                 <div className="flex items-center">
                     <input type="radio" id="status_draft" name="status" value="draft" checked={article.status === 'draft'} onChange={() => onArticleChange({ ...article, status: 'draft' })} />
@@ -88,16 +91,23 @@ const PublishingPanel: React.FC<PublishingPanelProps> = ({ article, onArticleCha
             {/* Featured Image */}
             <div>
                 <h3 className="font-semibold text-gray-800 mb-2">รูปภาพหน้าปก</h3>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer" onClick={handleFeaturedClick}>
                     {article.featuredImageUrl ? (
                         <img src={article.featuredImageUrl} alt="Featured" className="w-full h-auto rounded-md mb-2" />
                     ) : (
                         <UploadIcon className="mx-auto h-10 w-10 text-gray-400" />
                     )}
-                    <label htmlFor="featuredImage" className="mt-2 block text-sm font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
+                    <span className="mt-2 block text-sm font-medium text-blue-600 hover:text-blue-500">
                         {article.featuredImageUrl ? 'เปลี่ยนรูปภาพ' : 'อัปโหลดรูปภาพ'}
-                        <input type="file" id="featuredImage" accept="image/*" onChange={handleFeaturedImageChange} className="sr-only" />
-                    </label>
+                    </span>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        id="featuredImage"
+                        accept="image/*"
+                        onChange={handleFeaturedImageChange}
+                        className="sr-only"
+                    />
                 </div>
             </div>
 

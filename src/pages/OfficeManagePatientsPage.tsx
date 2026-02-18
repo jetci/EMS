@@ -40,10 +40,11 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
         setLoadingRemote(true);
         setRemoteError(null);
         try {
-            const response = await patientsAPI.getPatients();
-            // Backward compatible: support both old (array) and new (object) formats
-            const data = response?.data || response || [];
-            const patientsData = Array.isArray(data) ? data : [];
+            const response = await patientsAPI.getPatients({ limit: 100, page: 1 });
+            const rawData = response as any;
+            const patientsData = Array.isArray(rawData)
+                ? rawData
+                : (rawData.data || rawData.patients || rawData.items || rawData.results || []);
             const normalizeAddress = (v: any) => {
                 const fallback = { houseNumber: '', village: '', tambon: '', amphoe: '', changwat: '' };
                 if (!v || typeof v !== 'object') return fallback;
@@ -67,7 +68,9 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                 return '';
             };
 
-            const mapped: Patient[] = patientsData.map((p: any) => {
+            const source: any[] = Array.isArray(patientsData) ? patientsData : [];
+
+            const mapped: Patient[] = source.map((p: any) => {
                 const fullName = coerceString(p.fullName ?? p.full_name).trim();
                 const dob = coerceString(p.dob ?? p.dateOfBirth ?? p.date_of_birth ?? '');
                 const registeredDate = coerceString(p.registeredDate ?? p.registered_date ?? new Date().toISOString());
@@ -218,6 +221,7 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
         try {
             const backendData = {
                 fullName: updatedPatient.fullName,
+                profileImageUrl: updatedPatient.profileImageUrl,
                 title: updatedPatient.title,
                 gender: updatedPatient.gender,
                 nationalId: updatedPatient.nationalId,
@@ -403,11 +407,37 @@ const OfficeManagePatientsPage: React.FC<OfficeManagePatientsPageProps> = ({ set
                                     <td className="px-4 py-3">{patient.registeredBy}</td>
                                     <td className="px-4 py-3 whitespace-nowrap">{formatDateToThai(patient.registeredDate)}</td>
                                     <td className="px-4 py-3">
-                                        <div className="flex items-center justify-center space-x-3">
-                                            <button onClick={() => handleOpenEditModal(patient)} className="p-2 rounded-full text-gray-400 hover:text-blue-600" title="ดู/แก้ไข"><EditIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => handleDeletePatient(patient.id)} className="p-2 rounded-full text-gray-400 hover:text-red-600" title="ลบ"><TrashIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => setActiveView && setActiveView('request_ride', { patientId: patient.id })} className="p-2 rounded-full text-gray-400 hover:text-green-600" title="ร้องขอการเดินทาง"><RidesIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => showToast('Feature: Print Card coming soon')} className="p-2 rounded-full text-gray-400 hover:text-gray-800" title="พิมพ์บัตรข้อมูล"><PrintIcon className="w-5 h-5" /></button>
+                                        <div className="flex items-center justify-between space-x-3">
+                                            <div className="flex items-center space-x-3">
+                                                <button
+                                                    onClick={() => handleOpenEditModal(patient)}
+                                                    className="p-2 rounded-full text-blue-600 hover:bg-blue-50"
+                                                    title="ดู/แก้ไข"
+                                                >
+                                                    <EditIcon className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setActiveView && setActiveView('request_ride', { patientId: patient.id })}
+                                                    className="p-2 rounded-full text-green-600 hover:bg-green-50"
+                                                    title="ร้องขอการเดินทาง"
+                                                >
+                                                    <RidesIcon className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => showToast('Feature: Print Card coming soon')}
+                                                    className="p-2 rounded-full text-gray-600 hover:bg-gray-100"
+                                                    title="พิมพ์บัตรข้อมูล"
+                                                >
+                                                    <PrintIcon className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeletePatient(patient.id)}
+                                                className="p-2 rounded-full text-red-600 hover:bg-red-50"
+                                                title="ลบ"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

@@ -24,7 +24,7 @@ const generateTeamId = async (): Promise<string> => {
 router.use(authenticateToken);
 
 // GET /api/teams
-router.get('/', requireRole(['admin', 'DEVELOPER', 'OFFICER', 'radio_center', 'EXECUTIVE']), async (_req, res) => {
+router.get('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER', 'EXECUTIVE']), async (_req, res) => {
   try {
     const teams = await db.all<Team>('SELECT * FROM teams ORDER BY name');
     const parsed = teams.map(t => ({
@@ -54,15 +54,40 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/teams
-router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
+router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER']), async (req, res) => {
   try {
+    const incomingLeaderId: string | null = req.body.leader_id || null;
+    const incomingMemberIds: string[] = Array.isArray(req.body.member_ids) ? req.body.member_ids : [];
+
+    const existingTeams = await db.all<Team>('SELECT id, leader_id, member_ids FROM teams');
+
+    if (incomingLeaderId) {
+      const leaderInUse = existingTeams.some(t => t.leader_id === incomingLeaderId);
+      if (leaderInUse) {
+        return res.status(400).json({ error: 'Leader already assigned to another team' });
+      }
+    }
+
+    if (incomingMemberIds.length > 0) {
+      const memberInUse = existingTeams.some(t => {
+        const members: string[] =
+          typeof t.member_ids === 'string'
+            ? JSON.parse(t.member_ids)
+            : (t.member_ids as any[]) || [];
+        return members.some(id => incomingMemberIds.includes(id));
+      });
+      if (memberInUse) {
+        return res.status(400).json({ error: 'One or more staff already assigned to another team' });
+      }
+    }
+
     const newId = await generateTeamId();
     const newTeam = {
       id: newId,
       name: req.body.name,
       description: req.body.description || null,
-      leader_id: req.body.leader_id || null,
-      member_ids: JSON.stringify(req.body.member_ids || []),
+      leader_id: incomingLeaderId,
+      member_ids: JSON.stringify(incomingMemberIds),
       status: req.body.status || 'Active'
     };
     await db.insert('teams', newTeam);
@@ -75,8 +100,40 @@ router.post('/', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res
 });
 
 // PUT /api/teams/:id
-router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, res) => {
+router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER']), async (req, res) => {
   try {
+    const teamId = req.params.id;
+
+    const incomingLeaderId: string | null =
+      req.body.leader_id !== undefined ? req.body.leader_id : null;
+    const incomingMemberIds: string[] =
+      req.body.member_ids !== undefined && Array.isArray(req.body.member_ids)
+        ? req.body.member_ids
+        : [];
+
+    const existingTeams = await db.all<Team>('SELECT id, leader_id, member_ids FROM teams');
+
+    if (incomingLeaderId) {
+      const leaderInUse = existingTeams.some(t => t.id !== teamId && t.leader_id === incomingLeaderId);
+      if (leaderInUse) {
+        return res.status(400).json({ error: 'Leader already assigned to another team' });
+      }
+    }
+
+    if (incomingMemberIds.length > 0) {
+      const memberInUse = existingTeams.some(t => {
+        if (t.id === teamId) return false;
+        const members: string[] =
+          typeof t.member_ids === 'string'
+            ? JSON.parse(t.member_ids)
+            : (t.member_ids as any[]) || [];
+        return members.some(id => incomingMemberIds.includes(id));
+      });
+      if (memberInUse) {
+        return res.status(400).json({ error: 'One or more staff already assigned to another team' });
+      }
+    }
+
     const updateData: any = {};
     if (req.body.name) updateData.name = req.body.name;
     if (req.body.description !== undefined) updateData.description = req.body.description;
@@ -84,8 +141,8 @@ router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, r
     if (req.body.member_ids) updateData.member_ids = JSON.stringify(req.body.member_ids);
     if (req.body.status) updateData.status = req.body.status;
 
-    await db.update('teams', req.params.id, updateData);
-    const updated = await db.get<Team>('SELECT * FROM teams WHERE id = $1', [req.params.id]);
+    await db.update('teams', teamId, updateData);
+    const updated = await db.get<Team>('SELECT * FROM teams WHERE id = $1', [teamId]);
     if (!updated) return res.status(404).json({ error: 'Team not found' });
     res.json(updated);
   } catch (err: any) {
@@ -95,7 +152,7 @@ router.put('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER']), async (req, r
 });
 
 // DELETE /api/teams/:id
-router.delete('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
+router.delete('/:id', requireRole(['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER']), async (req, res) => {
   try {
     await db.delete('teams', req.params.id);
     res.status(204).send();

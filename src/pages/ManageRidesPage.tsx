@@ -278,29 +278,35 @@ const ManageRidesPage: React.FC<ManageRidesPageProps> = ({ setActiveView, initia
                                     <TableCell><StatusBadge status={ride.status} /></TableCell>
                                     <TableCell className="whitespace-nowrap">{ride.driverName || 'N/A'}</TableCell>
                                     <TableCell>
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <button onClick={() => handleViewDetails(ride)} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด" aria-label={`ดูรายละเอียดของ ${ride.patientName}`}><EyeIcon className="w-5 h-5" /></button>
+                                        <div className={`flex items-center ${ride.status === RideStatus.PENDING ? 'justify-between' : 'justify-start'} space-x-2`}>
+                                            <div className="flex items-center space-x-2">
+                                                <button onClick={() => handleViewDetails(ride)} className="p-2 rounded-full hover:bg-blue-100 text-blue-600" title="ดูรายละเอียด" aria-label={`ดูรายละเอียดของ ${ride.patientName}`}><EyeIcon className="w-5 h-5" /></button>
+                                                {ride.status === RideStatus.COMPLETED && (
+                                                    <button
+                                                        onClick={() => handleOpenRatingModal(ride)}
+                                                        disabled={!!ride.rating}
+                                                        className="p-2 rounded-full disabled:text-gray-400 disabled:cursor-not-allowed disabled:bg-transparent enabled:hover:bg-yellow-100 enabled:text-yellow-600 transition-colors"
+                                                        title={ride.rating ? `ให้คะแนนแล้ว: ${ride.rating} ดาว` : "ให้คะแนนการเดินทาง"}
+                                                    >
+                                                        {ride.rating ? (
+                                                            <div className="flex items-center text-yellow-500">
+                                                                <StarIcon className="w-5 h-5" />
+                                                                <span className="text-sm font-bold ml-1">{ride.rating}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <StarIcon className="w-5 h-5 fill-none" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
                                             {ride.status === RideStatus.PENDING && (
-                                                <>
-                                                    <button onClick={() => handleClickCancel(ride)} className="p-2 rounded-full hover:bg-red-100 text-red-600" title="ยกเลิก" aria-label={`ยกเลิกรายการของ ${ride.patientName}`}><TrashIcon className="w-5 h-5" /></button>
-
-                                                </>
-                                            )}
-                                            {ride.status === RideStatus.COMPLETED && (
                                                 <button
-                                                    onClick={() => handleOpenRatingModal(ride)}
-                                                    disabled={!!ride.rating}
-                                                    className="p-2 rounded-full disabled:text-gray-400 disabled:cursor-not-allowed disabled:bg-transparent enabled:hover:bg-yellow-100 enabled:text-yellow-600 transition-colors"
-                                                    title={ride.rating ? `ให้คะแนนแล้ว: ${ride.rating} ดาว` : "ให้คะแนนการเดินทาง"}
+                                                    onClick={() => handleClickCancel(ride)}
+                                                    className="p-2 rounded-full hover:bg-red-100 text-red-600"
+                                                    title="ยกเลิก"
+                                                    aria-label={`ยกเลิกรายการของ ${ride.patientName}`}
                                                 >
-                                                    {ride.rating ? (
-                                                        <div className="flex items-center text-yellow-500">
-                                                            <StarIcon className="w-5 h-5" />
-                                                            <span className="text-sm font-bold ml-1">{ride.rating}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <StarIcon className="w-5 h-5 fill-none" />
-                                                    )}
+                                                    <TrashIcon className="w-5 h-5" />
                                                 </button>
                                             )}
                                         </div>

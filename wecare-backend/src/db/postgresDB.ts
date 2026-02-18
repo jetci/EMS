@@ -40,19 +40,19 @@ CREATE TABLE IF NOT EXISTS patients (
     id VARCHAR(255) PRIMARY KEY,
     title VARCHAR(50),
     full_name VARCHAR(255) NOT NULL,
-    national_id VARCHAR(50) UNIQUE,
+    national_id TEXT UNIQUE,
     dob VARCHAR(50),
     age INTEGER,
     gender VARCHAR(20),
     blood_type VARCHAR(10),
     rh_factor VARCHAR(10),
     health_coverage VARCHAR(255),
-    contact_phone VARCHAR(50),
+    contact_phone TEXT,
     key_info TEXT,
     caregiver_name VARCHAR(255),
-    caregiver_phone VARCHAR(50),
+    caregiver_phone TEXT,
     emergency_contact_name VARCHAR(255),
-    emergency_contact_phone VARCHAR(50),
+    emergency_contact_phone TEXT,
     emergency_contact_relation VARCHAR(100),
     id_card_house_number VARCHAR(100),
     id_card_village VARCHAR(100),
@@ -78,6 +78,12 @@ CREATE TABLE IF NOT EXISTS patients (
     deleted_at TIMESTAMP WITH TIME ZONE,
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
+
+-- Ensure encrypted/textual patient fields have sufficient capacity
+ALTER TABLE patients ALTER COLUMN national_id TYPE TEXT;
+ALTER TABLE patients ALTER COLUMN contact_phone TYPE TEXT;
+ALTER TABLE patients ALTER COLUMN caregiver_phone TYPE TEXT;
+ALTER TABLE patients ALTER COLUMN emergency_contact_phone TYPE TEXT;
 
 CREATE TABLE IF NOT EXISTS patient_attachments (
     id VARCHAR(255) PRIMARY KEY,
@@ -310,6 +316,28 @@ export const seedData = async () => {
             console.log('✅ Initial users seeded');
         }
 
+        const testUsers = [
+            { id: 'USR-ADMIN', email: 'admin@wecare.ems', role: 'admin', full_name: 'System Administrator' },
+            { id: 'USR-DEV', email: 'dev@wecare.ems', role: 'DEVELOPER', full_name: 'System Developer' },
+            { id: 'USR-RADIO', email: 'office1@wecare.dev', role: 'radio_center', full_name: 'Radio Center Operator' },
+            { id: 'USR-RADIO-CENTER', email: 'radio_center@wecare.dev', role: 'radio_center', full_name: 'Radio Center Chief' },
+            { id: 'USR-OFFICER', email: 'officer1@wecare.dev', role: 'OFFICER', full_name: 'EMS Officer' },
+            { id: 'USR-DRIVER', email: 'driver1@wecare.dev', role: 'driver', full_name: 'Ambulance Driver' },
+            { id: 'USR-COMMUNITY', email: 'community1@wecare.dev', role: 'community', full_name: 'Community Volunteer' },
+            { id: 'USR-EXEC', email: 'executive1@wecare.dev', role: 'EXECUTIVE', full_name: 'Hospital Executive' }
+        ];
+
+        for (const user of testUsers) {
+            await pool.query(
+                "INSERT INTO users (id, email, password, role, full_name, date_created, status) VALUES ($1, $2, $3, $4, $5, NOW(), 'Active') ON CONFLICT (email) DO NOTHING",
+                [user.id, user.email, hashedPassword, user.role, user.full_name]
+            );
+            await pool.query(
+                "UPDATE users SET password = $1, status = 'Active' WHERE email = $2",
+                [hashedPassword, user.email]
+            );
+        }
+
         const driverCount = await pool.query('SELECT COUNT(*) as count FROM drivers');
         if (parseInt(driverCount.rows[0].count) === 0) {
             await pool.query(
@@ -334,6 +362,8 @@ export const initializeDatabase = async () => {
         const client = await pool.connect();
         console.log('✅ Connected to PostgreSQL');
         client.release();
+        await initializeSchema();
+        await seedData();
     } catch (error) {
         console.error('❌ Database connection failed:', error);
         // Don't throw here to allow app to start and show specific errors on routes

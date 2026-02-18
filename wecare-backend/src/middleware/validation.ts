@@ -128,9 +128,8 @@ export const checkDuplicateEmail = async (req: Request, res: Response, next: Nex
             return next();
         }
 
-        const users = await db.all<User>('SELECT * FROM users WHERE email = ?', [email]);
+        const users = await db.all<User>('SELECT * FROM users WHERE email = $1', [email]);
 
-        // For updates, exclude the current user from duplicate check
         const duplicate = users.find(u => u.id !== userId);
 
         if (duplicate) {

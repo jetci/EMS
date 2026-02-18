@@ -23,7 +23,6 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom icons for different driver statuses
 const createDriverIcon = (status: string) => {
     const color = status === 'AVAILABLE' ? '#22c55e' : status === 'ON_TRIP' ? '#f97316' : '#6b7280';
     return L.divIcon({
@@ -37,6 +36,42 @@ const createDriverIcon = (status: string) => {
         iconAnchor: [16, 16]
     });
 };
+
+const emsBaseIcon = L.divIcon({
+    className: 'ems-base-marker',
+    html: `<div style="background-color: #1d4ed8; width: 32px; height: 32px; border-radius: 9999px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2L3 7v7c0 5 4 8 9 8s9-3 9-8V7l-9-5zm0 2.18L18.09 8H5.91L12 4.18zM12 20c-3.87 0-7-2.13-7-6v-4l2 1.11V14c0 2.33 2.24 4 5 4s5-1.67 5-4v-2.89L19 10v4c0 3.87-3.13 6-7 6zm1-9h3v2h-3v3h-2v-3H8v-2h3V8h2v3z"/>
+        </svg>
+    </div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+});
+
+const fangHospitalIcon = L.divIcon({
+    className: 'fang-hospital-marker',
+    html: `<div style="background-color: #dc2626; width: 28px; height: 28px; border-radius: 9999px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="white">
+            <path d="M19 3H5C3.9 3 3 3.9 3 5v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 11h-2v2h-2v-2H9v-2h2V10h2v2h2v2z"/>
+        </svg>
+    </div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
+});
+
+const wiangOfficeIcon = L.divIcon({
+    className: 'wiang-office-marker',
+    html: `<div style="background-color: #16a34a; width: 26px; height: 26px; border-radius: 9999px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="white">
+            <path d="M12 2L3 9h3v9h6v-6h2v6h4V9h3L12 2z"/>
+        </svg>
+    </div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+});
+
+const EMS_BASE_LAT = 19.931517;
+const EMS_BASE_LNG = 99.22502;
 
 interface MapShape {
     id: string;
@@ -68,13 +103,13 @@ interface MapCommandEditorProps {
 }
 
 // Component to handle map resize issues
-const MapController = () => {
+const MapController: React.FC<{ isFullScreen: boolean }> = ({ isFullScreen }) => {
     const map = useMap();
     useEffect(() => {
         setTimeout(() => {
             map.invalidateSize();
-        }, 100);
-    }, [map]);
+        }, 150);
+    }, [map, isFullScreen]);
     return null;
 };
 
@@ -151,12 +186,18 @@ const MapCommandEditor: React.FC<MapCommandEditorProps> = ({
 
     const fetchPendingRides = async () => {
         try {
-            const data = await apiRequest('/rides');
-            // Filter only pending or active rides
-            const active = data.filter((r: any) => ['PENDING', 'ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS'].includes(r.status));
+            const data = await apiRequest('/rides?limit=200&page=1');
+            const list = Array.isArray(data)
+                ? data
+                : (data?.data || data?.rides || data?.items || data?.results || []);
+            const source = Array.isArray(list) ? list : [];
+            const active = source.filter((r: any) =>
+                ['PENDING', 'ASSIGNED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP', 'IN_PROGRESS'].includes(r.status)
+            );
             setPendingRides(active);
         } catch (error) {
             console.error('Failed to fetch rides:', error);
+            setPendingRides([]);
         }
     };
 
@@ -321,6 +362,16 @@ const MapCommandEditor: React.FC<MapCommandEditorProps> = ({
     const availableDrivers = driverLocations.filter(d => d.status === 'AVAILABLE').length;
     const onTripDrivers = driverLocations.filter(d => d.status === 'ON_TRIP').length;
 
+    const baseDrivers = driverLocations.filter(d =>
+        Math.abs(d.latitude - EMS_BASE_LAT) < 0.0001 &&
+        Math.abs(d.longitude - EMS_BASE_LNG) < 0.0001
+    );
+
+    const otherDrivers = driverLocations.filter(d =>
+        Math.abs(d.latitude - EMS_BASE_LAT) >= 0.0001 ||
+        Math.abs(d.longitude - EMS_BASE_LNG) >= 0.0001
+    );
+
     return (
         <div className={`flex flex-col space-y-4 ${isFullScreen ? 'fixed inset-0 z-50 bg-white p-4' : ''}`}>
             <div className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 ${isFullScreen ? 'h-full flex flex-col' : ''}`}>
@@ -372,8 +423,8 @@ const MapCommandEditor: React.FC<MapCommandEditorProps> = ({
                 </div>
 
                 <div className={`w-full border rounded-lg overflow-hidden relative z-0 ${isFullScreen ? 'flex-grow' : 'h-[600px]'}`}>
-                    <MapContainer center={[19.904394846183447, 99.19735149982482]} zoom={13} style={{ height: '100%', width: '100%' }}>
-                        <MapController />
+                    <MapContainer center={[19.931517, 99.22502]} zoom={13} style={{ height: '100%', width: '100%' }}>
+                        <MapController isFullScreen={isFullScreen} />
                         <LayersControl position="topright">
                             <LayersControl.BaseLayer checked name="Street Map (OSM)">
                                 <TileLayer
@@ -432,28 +483,93 @@ const MapCommandEditor: React.FC<MapCommandEditorProps> = ({
                             </React.Fragment>
                         ))}
 
+                        <Marker position={[EMS_BASE_LAT, EMS_BASE_LNG]} icon={emsBaseIcon} zIndexOffset={1200}>
+                            <Popup>
+                                <div className="p-2 text-sm">
+                                    <div className="font-bold text-[var(--wecare-blue)] mb-1">ศูนย์ EMS</div>
+                                    <div className="text-xs text-gray-600">
+                                        พิกัด: 19.931517, 99.225020
+                                    </div>
+                                </div>
+                            </Popup>
+                        </Marker>
+
+                        <Marker position={[19.91336307690342, 99.20647658973466]} icon={fangHospitalIcon}>
+                            <Popup>
+                                <div className="p-2 text-sm">
+                                    <div className="font-bold text-red-600 mb-1">โรงพยาบาลฝาง</div>
+                                    <div className="text-xs text-gray-600">
+                                        พิกัด: 19.91336307690342, 99.20647658973466
+                                    </div>
+                                </div>
+                            </Popup>
+                        </Marker>
+
+                        <Marker position={[19.94210771104159, 99.2194524959292]} icon={wiangOfficeIcon}>
+                            <Popup>
+                                <div className="p-2 text-sm">
+                                    <div className="font-bold text-green-700 mb-1">สำนักงานองค์การบริหารส่วนตำบลเวียง</div>
+                                    <div className="text-xs text-gray-600">
+                                        พิกัด: 19.94210771104159, 99.2194524959292
+                                    </div>
+                                </div>
+                            </Popup>
+                        </Marker>
+
                         {/* Render driver locations */}
-                        {showDriverTracking && showDrivers && driverLocations.map(driver => (
-                            <Marker
-                                key={driver.driverId}
-                                position={[driver.latitude, driver.longitude]}
-                                icon={createDriverIcon(driver.status)}
-                            >
-                                <Popup>{renderDriverPopup(driver)}</Popup>
-                            </Marker>
-                        ))}
+                        {showDriverTracking && showDrivers && (
+                            <>
+                                {otherDrivers.map(driver => (
+                                    <Marker
+                                        key={driver.driverId}
+                                        position={[driver.latitude, driver.longitude]}
+                                        icon={createDriverIcon(driver.status)}
+                                        zIndexOffset={1500}
+                                    >
+                                        <Popup>{renderDriverPopup(driver)}</Popup>
+                                    </Marker>
+                                ))}
+                                {baseDrivers.map((driver, index) => {
+                                    const radius = 0.0007;
+                                    const angle = (2 * Math.PI * index) / Math.max(baseDrivers.length, 1);
+                                    const lat = EMS_BASE_LAT + radius * Math.cos(angle);
+                                    const lng = EMS_BASE_LNG + radius * Math.sin(angle);
+                                    return (
+                                        <Marker
+                                            key={driver.driverId}
+                                            position={[lat, lng]}
+                                            icon={createDriverIcon(driver.status)}
+                                            zIndexOffset={1500}
+                                        >
+                                            <Popup>{renderDriverPopup(driver)}</Popup>
+                                        </Marker>
+                                    );
+                                })}
+                            </>
+                        )}
 
                         {/* Render pending rides / patient locations */}
                         {showPatients && pendingRides.map(ride => {
-                            // Correctly resolve coordinates (DB field vs API field)
-                            const lat = ride.pickup_lat || ride.pickupCoordinates?.lat;
-                            const lng = ride.pickup_lng || ride.pickupCoordinates?.lng;
+                            // Resolve coordinates from multiple possible fields (snake_case + camelCase + patient coords)
+                            const rawLat =
+                                ride.pickup_lat ||
+                                ride.pickupLat ||
+                                ride.latitude ||
+                                ride.pickupCoordinates?.lat;
+                            const rawLng =
+                                ride.pickup_lng ||
+                                ride.pickupLng ||
+                                ride.longitude ||
+                                ride.pickupCoordinates?.lng;
 
-                            if (!lat || !lng) return null;
+                            const lat = rawLat != null ? parseFloat(String(rawLat)) : NaN;
+                            const lng = rawLng != null ? parseFloat(String(rawLng)) : NaN;
+
+                            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
                             const patientIcon = L.divIcon({
                                 className: 'patient-marker',
-                                html: `<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                html: `<div style="background-color: #f97316; width: 24px; height: 24px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                                     <div style="width: 8px; height: 8px; background-color: white; border-radius: 50%;"></div>
                                 </div>`,
                                 iconSize: [24, 24],
@@ -463,7 +579,7 @@ const MapCommandEditor: React.FC<MapCommandEditorProps> = ({
                             return (
                                 <Marker
                                     key={ride.id}
-                                    position={[parseFloat(lat), parseFloat(lng)]}
+                                    position={[lat, lng]}
                                     icon={patientIcon}
                                 >
                                     <Popup>

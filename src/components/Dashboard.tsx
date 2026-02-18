@@ -23,6 +23,7 @@ interface DashboardProps {
 const mockRides: Ride[] = [
   {
     id: 'RIDE-001',
+    patientId: 'P-001',
     patientName: 'สมชาย ใจดี',
     pickupLocation: '123 ถนนสุขุมวิท, กรุงเทพฯ',
     destination: 'โรงพยาบาลกรุงเทพ',
@@ -31,6 +32,7 @@ const mockRides: Ride[] = [
   },
   {
     id: 'RIDE-002',
+    patientId: 'P-002',
     patientName: 'สมหญิง มีสุข',
     pickupLocation: '456 ถนนพหลโยธิน, กรุงเทพฯ',
     destination: 'โรงพยาบาลบำรุงราษฎร์',
@@ -39,6 +41,7 @@ const mockRides: Ride[] = [
   },
   {
     id: 'RIDE-003',
+    patientId: 'P-003',
     patientName: 'อาทิตย์ แจ่มใส',
     pickupLocation: '789 ถนนพระราม 4, กรุงเทพฯ',
     destination: 'โรงพยาบาลสมิติเวช',
@@ -47,6 +50,7 @@ const mockRides: Ride[] = [
   },
   {
     id: 'RIDE-004',
+    patientId: 'P-004',
     patientName: 'จันทรา งามวงศ์วาน',
     pickupLocation: '101 ถนนรัชดาภิเษก, กรุงเทพฯ',
     destination: 'โรงพยาบาลรามาธิบดี',
@@ -55,6 +59,7 @@ const mockRides: Ride[] = [
   },
     {
     id: 'RIDE-005',
+    patientId: 'P-005',
     patientName: 'มานี รักเรียน',
     pickupLocation: '222 ถนนเพชรบุรี, กรุงเทพฯ',
     destination: 'โรงพยาบาลพญาไท',

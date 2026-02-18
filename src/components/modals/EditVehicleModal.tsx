@@ -15,9 +15,10 @@ interface EditVehicleModalProps {
 
 const emptyVehicle: Omit<Vehicle, 'id'> = {
     licensePlate: '',
-    vehicleTypeId: '', // Changed to empty string to force selection
+    vehicleTypeId: '',
     brand: '',
     model: '',
+    color: '',
     status: VehicleStatus.AVAILABLE,
     nextMaintenanceDate: '',
 };
@@ -64,6 +65,10 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
             setError('รุ่นต้องไม่เป็นช่องว่าง');
             return;
         }
+        if (formData.color && !formData.color.trim()) {
+            setError('สีรถต้องไม่เป็นช่องว่าง');
+            return;
+        }
 
         const finalData: Vehicle = {
             id: isEditing ? vehicle!.id : `VEH-${Date.now()}`,
@@ -71,9 +76,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
             licensePlate: formData.licensePlate.trim(),
             brand: formData.brand.trim(),
             model: formData.model.trim(),
-            // Ensure vehicleTypeName is not overwritten or handled if needed, but Modal mainly sets ID.
-            // ManageVehiclesPage will re-fetch or we can let it restart.
-            // Ideally we shouldn't send vehicleTypeName to onSave if not needed, but Vehicle interface has it as optional.
+            color: formData.color?.trim() || '',
         };
         onSave(finalData);
     };
@@ -108,7 +111,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
                                 </select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label htmlFor="brand" className="block text-sm font-medium text-gray-700">ยี่ห้อ</label>
                                 <input type="text" name="brand" id="brand" value={formData.brand} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="ยี่ห้อ (เช่น Toyota, Isuzu)" />
@@ -116,6 +119,10 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ isOpen, onClose, on
                             <div>
                                 <label htmlFor="model" className="block text-sm font-medium text-gray-700">รุ่น</label>
                                 <input type="text" name="model" id="model" value={formData.model} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="รุ่น (เช่น Commuter, D-Max)" />
+                            </div>
+                            <div>
+                                <label htmlFor="color" className="block text-sm font-medium text-gray-700">สีรถ</label>
+                                <input type="text" name="color" id="color" value={formData.color || ''} onChange={handleChange} className="mt-1 w-full border-gray-300 rounded-md shadow-sm" placeholder="สีรถ (เช่น ขาว, เหลือง, แดง)" />
                             </div>
                         </div>
                         <div>

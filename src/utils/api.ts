@@ -8,8 +8,8 @@
  */
 const getApiBase = (): string => {
   const viteEnv = (import.meta as any).env?.VITE_API_BASE_URL;
-  // Prefer runtime window value, then Vite env, then relative '/api' to use platform proxy.
-  return (window as any).__API_BASE__ || viteEnv || '/api';
+  const runtime = (window as any).__API_BASE__ || viteEnv || '/api';
+  return runtime.replace(/\/api\/?$/i, '');
 };
 
 /**

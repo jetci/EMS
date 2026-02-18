@@ -4,41 +4,27 @@
  */
 
 import request from 'supertest';
-import express from 'express';
-import authRoutes from '../../src/routes/auth';
-import { sqliteDB } from '../../src/db/sqliteDB';
-
-// Create test app
-const app = express();
-app.use(express.json());
-app.use('/api', authRoutes);
+import app from '../../src/index';
+import { db } from '../../src/db';
+import { initializeSchema, seedData } from '../../src/db/postgresDB';
 
 describe('Auth API Integration Tests', () => {
-    // Test data
     const testUser = {
         email: 'test@wecare.test',
         password: 'TestPassword123!',
         name: 'Test User'
     };
+    let authToken: string;
 
-    // Cleanup before tests
-    beforeAll(() => {
-        // Delete test user if exists
-        try {
-            sqliteDB.db.prepare('DELETE FROM users WHERE email = ?').run(testUser.email);
-        } catch (error) {
-            // Ignore if user doesn't exist
-        }
+    beforeAll(async () => {
+        process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+        await initializeSchema();
+        await seedData();
+        await db.run('DELETE FROM users WHERE email = $1', [testUser.email]);
     });
 
-    // Cleanup after tests
-    afterAll(() => {
-        // Delete test user
-        try {
-            sqliteDB.db.prepare('DELETE FROM users WHERE email = ?').run(testUser.email);
-        } catch (error) {
-            // Ignore errors
-        }
+    afterAll(async () => {
+        await db.run('DELETE FROM users WHERE email = $1', [testUser.email]);
     });
 
     describe('POST /api/auth/register', () => {
@@ -118,6 +104,7 @@ describe('Auth API Integration Tests', () => {
             expect(response.body).toHaveProperty('token');
             expect(response.body.user.email).toBe(testUser.email);
             expect(response.body.token).toBeValidJWT();
+            authToken = response.body.token;
         });
 
         test('should reject login with wrong password', async () => {
@@ -179,24 +166,10 @@ describe('Auth API Integration Tests', () => {
     });
 
     describe('POST /api/auth/change-password', () => {
-        let authToken: string;
-
-        beforeAll(async () => {
-            // Login to get token
-            const response = await request(app)
-                .post('/api/auth/login')
-                .send({
-                    email: testUser.email,
-                    password: testUser.password
-                });
-
-            authToken = response.body.token;
-        });
-
         test('should change password with valid data', async () => {
             const newPassword = 'NewPassword123!';
 
-            const user = sqliteDB.get<any>('SELECT id FROM users WHERE email = ?', [testUser.email]);
+            const user = await db.get<any>('SELECT id FROM users WHERE email = $1', [testUser.email]);
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -221,7 +194,7 @@ describe('Auth API Integration Tests', () => {
         });
 
         test('should reject weak new password', async () => {
-            const user = sqliteDB.get<any>('SELECT id FROM users WHERE email = ?', [testUser.email]);
+            const user = await db.get<any>('SELECT id FROM users WHERE email = $1', [testUser.email]);
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -237,7 +210,7 @@ describe('Auth API Integration Tests', () => {
         });
 
         test('should reject wrong current password', async () => {
-            const user = sqliteDB.get<any>('SELECT id FROM users WHERE email = ?', [testUser.email]);
+            const user = await db.get<any>('SELECT id FROM users WHERE email = $1', [testUser.email]);
 
             const response = await request(app)
                 .post('/api/auth/change-password')
@@ -253,20 +226,6 @@ describe('Auth API Integration Tests', () => {
     });
 
     describe('GET /api/auth/me', () => {
-        let authToken: string;
-
-        beforeAll(async () => {
-            // Login to get token
-            const response = await request(app)
-                .post('/api/auth/login')
-                .send({
-                    email: testUser.email,
-                    password: testUser.password
-                });
-
-            authToken = response.body.token;
-        });
-
         test('should get current user with valid token', async () => {
             const response = await request(app)
                 .get('/api/auth/me')

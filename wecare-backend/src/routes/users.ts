@@ -29,7 +29,7 @@ const excludePassword = (user: User): Omit<User, 'password'> => {
 };
 
 // Helper to generate next user ID
-const generateUserId = async (): Promise<string> => {
+export const generateUserId = async (): Promise<string> => {
   const users = await db.all<User>('SELECT id FROM users WHERE id LIKE \'USR-%\'');
   if (users.length === 0) return 'USR-001';
 

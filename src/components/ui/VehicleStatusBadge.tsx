@@ -8,7 +8,7 @@ interface VehicleStatusBadgeProps {
 const statusStyles: { [key in VehicleStatus]: { text: string; classes: string } } = {
   [VehicleStatus.AVAILABLE]: { text: 'พร้อมใช้งาน', classes: 'bg-green-100 text-green-800' },
   [VehicleStatus.MAINTENANCE]: { text: 'ซ่อมบำรุง', classes: 'bg-yellow-100 text-yellow-800' },
-  [VehicleStatus.ASSIGNED]: { text: 'ผูกกับทีมแล้ว', classes: 'bg-blue-100 text-blue-800' },
+  [VehicleStatus.IN_USE]: { text: 'กำลังใช้งาน', classes: 'bg-blue-100 text-blue-800' },
 };
 
 const VehicleStatusBadge: React.FC<VehicleStatusBadgeProps> = ({ status }) => {

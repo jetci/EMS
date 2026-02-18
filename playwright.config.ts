@@ -1,9 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-/**
- * Playwright Configuration for EMS WeCare E2E Tests
- * See https://playwright.dev/docs/test-configuration
- */
+const shouldStartWebServer = !!process.env.CI && !process.env.SKIP_WEBSERVER;
 export default defineConfig({
   testDir: './e2e',
 
@@ -81,22 +78,22 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  /* Set SKIP_WEBSERVER=1 to skip starting servers (when already running) */
-  webServer: process.env.SKIP_WEBSERVER ? undefined : [
-    {
-      command: 'npm run dev',
-      cwd: './wecare-backend',
-      url: 'http://localhost:3000/api/csrf-token',
-      reuseExistingServer: true,
-      timeout: 60000,
-    },
-    {
-      command: 'npm run dev',
-      url: process.env.BASE_URL || 'http://localhost:5173',
-      reuseExistingServer: true,
-      timeout: 120000,
-    }
-  ],
+  webServer: shouldStartWebServer
+    ? [
+        {
+          command: 'npm run dev',
+          cwd: './wecare-backend',
+          url: 'http://localhost:3000/api/csrf-token',
+          reuseExistingServer: true,
+          timeout: 60000,
+        },
+        {
+          command: 'npm run dev',
+          url: process.env.BASE_URL || 'http://localhost:5173',
+          reuseExistingServer: true,
+          timeout: 120000,
+        },
+      ]
+    : undefined,
 });
 

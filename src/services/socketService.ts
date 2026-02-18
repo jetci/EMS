@@ -226,6 +226,11 @@ async function processQueue(): Promise<void> {
     processing = true;
 
     while (messageQueue.length > 0) {
+        if (!socketConnected) {
+            processing = false;
+            return;
+        }
+
         const message = messageQueue[0];
 
         try {

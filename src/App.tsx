@@ -70,6 +70,10 @@ const App: React.FC = () => {
                 role: userRole,
             };
 
+            if ((loggedInUser as any)?.driver_id) {
+                (mappedUser as any).driver_id = (loggedInUser as any).driver_id;
+            }
+
             try {
                 localStorage.setItem('wecare_token', token);
                 localStorage.setItem('wecare_user', JSON.stringify(mappedUser));

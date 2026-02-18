@@ -54,7 +54,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/vehicle-types
-router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.post('/', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const newId = await generateVehicleTypeId();
     const newType = {
@@ -75,7 +75,7 @@ router.post('/', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
 });
 
 // PUT /api/vehicle-types/:id
-router.put('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.put('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     const updateData: any = {};
     if (req.body.name) updateData.name = req.body.name;
@@ -95,7 +95,7 @@ router.put('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
 });
 
 // DELETE /api/vehicle-types/:id
-router.delete('/:id', requireRole(['admin', 'DEVELOPER']), async (req, res) => {
+router.delete('/:id', requireRole(['admin', 'DEVELOPER', 'OFFICER']), async (req, res) => {
   try {
     await db.delete('vehicle_types', req.params.id);
     res.status(204).send();

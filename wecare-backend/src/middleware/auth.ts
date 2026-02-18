@@ -13,7 +13,7 @@ export interface AuthRequest extends Request {
   user?: AuthUser;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'dev-jwt-secret-change-me' : undefined);
 if (!JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET must be set in environment variables');
 }
@@ -44,9 +44,9 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       console.error('Error checking token blacklist:', err);
     }
 
-    // Load user metadata from SQLite if needed (email/role)
+    // Load user metadata from database if needed (email/role)
     try {
-      const user = await db.get<any>('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = await db.get<any>('SELECT * FROM users WHERE id = $1', [userId]);
       if (user) {
         decoded.email = decoded.email || user.email;
         decoded.role = decoded.role || user.role;
@@ -60,11 +60,11 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     if (!decoded.driver_id) {
       try {
         // Try to find driver by user_id first
-        let driver = await db.get<any>('SELECT * FROM drivers WHERE user_id = ?', [userId]);
+        let driver = await db.get<any>('SELECT * FROM drivers WHERE user_id = $1', [userId]);
 
         // If not found and email available, try by email
         if (!driver && decoded.email) {
-          driver = await db.get<any>('SELECT * FROM drivers WHERE email = ?', [decoded.email]);
+          driver = await db.get<any>('SELECT * FROM drivers WHERE email = $1', [decoded.email]);
         }
 
         if (driver) {

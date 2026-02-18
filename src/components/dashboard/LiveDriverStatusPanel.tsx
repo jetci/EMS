@@ -1,20 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { driversAPI } from '../../services/api';
 import { onDriverStatusUpdated, onLocationUpdated } from '../../services/socketService';
-import { Driver } from '../../types';
+import { Driver, DriverStatus } from '../../types';
 import DriverStatusBadge from '../ui/DriverStatusBadge';
 import { defaultProfileImage } from '../../assets/defaultProfile';
+
+const normalizeDriver = (d: any): Driver => {
+    return {
+        id: String(d?.id || ''),
+        fullName: String(d?.fullName || d?.full_name || '').trim(),
+        phone: String(d?.phone || ''),
+        licensePlate: String(d?.licensePlate || d?.license_plate || ''),
+        status: (d?.status as DriverStatus) || DriverStatus.OFFLINE,
+        profileImageUrl: String(d?.profileImageUrl || d?.profile_image_url || ''),
+        email: String(d?.email || ''),
+        address: String(d?.address || ''),
+        vehicleBrand: String(d?.vehicleBrand || d?.brand || ''),
+        vehicleModel: String(d?.vehicleModel || d?.model || ''),
+        vehicleColor: String(d?.vehicleColor || d?.color || ''),
+        tripsThisMonth: Number(d?.tripsThisMonth ?? d?.trips_this_month ?? 0),
+        vehicleType: String(d?.vehicleType || ''),
+        totalTrips: Number(d?.totalTrips ?? d?.total_trips ?? 0),
+        avgReviewScore: Number(d?.avgReviewScore ?? d?.avg_review_score ?? 0),
+        dateCreated: d?.dateCreated,
+        totalDistance: d?.totalDistance,
+        topCompliments: d?.topCompliments,
+        password: undefined,
+    };
+};
 
 const LiveDriverStatusPanel: React.FC = () => {
     const [drivers, setDrivers] = useState<Driver[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Initial fetch
     useEffect(() => {
         const loadDrivers = async () => {
             try {
                 const data = await driversAPI.getDrivers();
-                setDrivers(Array.isArray(data) ? data : (data?.drivers || []));
+                const raw = Array.isArray(data) ? data : (data?.drivers || []);
+                setDrivers((Array.isArray(raw) ? raw : []).map(normalizeDriver));
             } catch (err) {
                 console.error('Failed to load drivers:', err);
             } finally {

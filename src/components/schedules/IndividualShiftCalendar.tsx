@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import buddhistEra from 'dayjs/plugin/buddhistEra';
 import { ShiftStatus, Driver } from '../../types';
+import { driverShiftsAPI } from '../../services/api';
 import ChevronLeftIcon from '../icons/ChevronLeftIcon';
 import ChevronRightIcon from '../icons/ChevronRightIcon';
 import ShiftStatusSelector from './ShiftStatusSelector';
@@ -50,14 +51,52 @@ const IndividualShiftCalendar: React.FC<IndividualShiftCalendarProps> = ({ drive
         });
     };
 
-    const handleStatusSelect = (status: ShiftStatus) => {
+    const handleStatusSelect = async (status: ShiftStatus) => {
         if (popoverState && popoverState.key) {
-            setSchedule(prev => ({ ...prev, [popoverState.key]: status }));
+            const [driverId, date] = popoverState.key.split('-');
+            try {
+                if (!status) {
+                    await driverShiftsAPI.delete(driverId, date);
+                    setSchedule(prev => {
+                        const next = { ...prev };
+                        delete next[popoverState.key];
+                        return next;
+                    });
+                } else {
+                    await driverShiftsAPI.upsert({
+                        driverId,
+                        date,
+                        status,
+                    });
+                    setSchedule(prev => ({ ...prev, [popoverState.key]: status }));
+                }
+            } catch (err) {
+                console.error('Failed to save driver shift:', err);
+            }
         }
         setPopoverState(null);
     };
 
-    // ... useEffect ...
+    useEffect(() => {
+        const fetchShifts = async () => {
+            try {
+                const weekStartStr = currentWeek.format('YYYY-MM-DD');
+                const data = await driverShiftsAPI.getByWeekStart(weekStartStr);
+                const mapped: Record<string, ShiftStatus> = {};
+                if (Array.isArray(data)) {
+                    data.forEach((item: any) => {
+                        if (!item || !item.driverId || !item.date || !item.status) return;
+                        const key = `${item.driverId}-${item.date}`;
+                        mapped[key] = item.status as ShiftStatus;
+                    });
+                }
+                setSchedule(mapped);
+            } catch (err) {
+                console.error('Failed to load driver shifts:', err);
+            }
+        };
+        fetchShifts();
+    }, [currentWeek]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

@@ -26,6 +26,7 @@ import ManageTeamsPage from '../../pages/ManageTeamsPage';
 import ManageSchedulePage from '../../pages/ManageSchedulePage';
 import ManageVehiclesPage from '../../pages/ManageVehiclesPage';
 import ManageVehicleTypesPage from '../../pages/ManageVehicleTypesPage';
+import ManageFacilitiesPage from '../../pages/ManageFacilitiesPage';
 import AuthenticatedBottomNav from './AuthenticatedBottomNav';
 import ManageNewsPage from '../../pages/ManageNewsPage';
 import NewsEditorPage from '../../pages/NewsEditorPage';
@@ -222,8 +223,9 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
             }
             return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'drivers': return <OfficeManageDriversPage />;
-          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_teams': return <ManageTeamsPage setActiveView={handleSetView} />;
           case 'manage_schedules': return <ManageSchedulePage />;
+          case 'manage_facilities': return <ManageFacilitiesPage />;
           case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
           case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
           case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
@@ -251,8 +253,9 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
             }
             return <OfficeManagePatientsPage setActiveView={handleSetView} />;
           case 'drivers': return <OfficeManageDriversPage />;
-          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_teams': return <ManageTeamsPage setActiveView={handleSetView} />;
           case 'manage_schedules': return <ManageSchedulePage />;
+          case 'manage_facilities': return <ManageFacilitiesPage />;
           case 'news': return <ManageNewsPage setActiveView={handleSetView} />;
           case 'edit_news': return <NewsEditorPage setActiveView={handleSetView} articleId={viewContext?.articleId} />;
           case 'view_news': return <PublicSingleNewsPage articleId={viewContext?.articleId} onBackToList={() => handleSetView('news')} />;
@@ -285,8 +288,9 @@ const AuthenticatedLayout: React.FC<AuthenticatedLayoutProps> = ({ user, onLogou
         switch (activeView as AdminView) {
           case 'dashboard': return <AdminDashboardPage setActiveView={handleSetView} />;
           case 'users': return <AdminUserManagementPage currentUser={user} />;
+          case 'manage_facilities': return <ManageFacilitiesPage />;
 
-          case 'manage_teams': return <ManageTeamsPage />;
+          case 'manage_teams': return <ManageTeamsPage setActiveView={handleSetView} />;
           case 'manage_schedules': return <ManageSchedulePage />;
           case 'manage_vehicles': return <ManageVehiclesPage />;
           case 'manage_vehicle_types': return <ManageVehicleTypesPage />;

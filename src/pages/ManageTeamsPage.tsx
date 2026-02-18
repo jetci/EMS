@@ -10,7 +10,11 @@ import { teamsAPI } from '../services/api';
 import SearchIcon from '../components/icons/SearchIcon';
 import { useAuth } from '../contexts/AuthContext';
 
-const ManageTeamsPage: React.FC = () => {
+interface ManageTeamsPageProps {
+    setActiveView?: (view: any, context?: any) => void;
+}
+
+const ManageTeamsPage: React.FC<ManageTeamsPageProps> = ({ setActiveView }) => {
     const { user } = useAuth();
     const [teams, setTeams] = useState<Team[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -29,9 +33,9 @@ const ManageTeamsPage: React.FC = () => {
     }, []);
 
     const normalizedRole = String(user?.role || '').trim().toUpperCase();
-    const canCreate = ['ADMIN', 'DEVELOPER', 'OFFICER'].includes(normalizedRole);
-    const canEdit = ['ADMIN', 'DEVELOPER', 'OFFICER'].includes(normalizedRole);
-    const canDelete = ['ADMIN', 'DEVELOPER', 'OFFICER'].includes(normalizedRole);
+    const canCreate = ['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER'].includes(normalizedRole);
+    const canEdit = ['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER'].includes(normalizedRole);
+    const canDelete = ['ADMIN', 'DEVELOPER', 'OFFICER', 'RADIO_CENTER'].includes(normalizedRole);
 
     const loadAllData = async () => {
         try {
@@ -167,6 +171,40 @@ const ManageTeamsPage: React.FC = () => {
         setTeamToDelete(null);
     };
 
+    const usedDriverIds = useMemo(() => {
+        const ids = new Set<string>();
+        teams.forEach(team => {
+            if (team.driverId) ids.add(team.driverId);
+        });
+        return ids;
+    }, [teams]);
+
+    const usedStaffIds = useMemo(() => {
+        const ids = new Set<string>();
+        teams.forEach(team => {
+            (team.staffIds || []).forEach(id => {
+                if (id) ids.add(id);
+            });
+        });
+        return ids;
+    }, [teams]);
+
+    const availableDriversForSelectedTeam = useMemo(() => {
+        return drivers.filter(d => {
+            if (!d.id) return false;
+            if (selectedTeam && selectedTeam.driverId === d.id) return true;
+            return !usedDriverIds.has(d.id);
+        });
+    }, [drivers, selectedTeam, usedDriverIds]);
+
+    const availableStaffForSelectedTeam = useMemo(() => {
+        return staff.filter(s => {
+            if (!s.id) return false;
+            if (selectedTeam && (selectedTeam.staffIds || []).includes(s.id)) return true;
+            return !usedStaffIds.has(s.id);
+        });
+    }, [staff, selectedTeam, usedStaffIds]);
+
     const filteredTeams = useMemo(() => {
         if (!searchTerm) return teams;
         return teams.filter(team => team.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -174,18 +212,27 @@ const ManageTeamsPage: React.FC = () => {
 
     return (
         <div>
-            {/* Page Header */}
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-gray-800">จัดการชุดเวร (Team Management)</h1>
-                {canCreate && (
-                    <button
-                        onClick={handleOpenCreateModal}
-                        className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[#005A9C] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
-                    >
-                        <PlusCircleIcon className="w-5 h-5 mr-2" />
-                        <span>สร้างทีมใหม่</span>
-                    </button>
-                )}
+                <div className="flex flex-wrap gap-3">
+                    {setActiveView && (
+                        <button
+                            onClick={() => setActiveView('manage_schedules')}
+                            className="flex items-center justify-center px-4 py-2 font-semibold text-[#005A9C] bg-white border border-[#005A9C] rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                        >
+                            <span>จัดการตารางเวร</span>
+                        </button>
+                    )}
+                    {canCreate && (
+                        <button
+                            onClick={handleOpenCreateModal}
+                            className="flex items-center justify-center px-4 py-2 font-semibold text-white bg-[#005A9C] rounded-lg shadow-sm hover:bg-blue-800 transition-colors"
+                        >
+                            <PlusCircleIcon className="w-5 h-5 mr-2" />
+                            <span>สร้างทีมใหม่</span>
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Toolbar */}
@@ -243,8 +290,8 @@ const ManageTeamsPage: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSaveTeam}
                 team={selectedTeam}
-                availableDrivers={drivers}
-                availableStaff={staff}
+                availableDrivers={availableDriversForSelectedTeam}
+                availableStaff={availableStaffForSelectedTeam}
             />
 
             <ConfirmationModal

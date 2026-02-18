@@ -2,7 +2,8 @@ import request from 'supertest';
 import express from 'express';
 import authRoutes from '../../src/routes/auth';
 import reportsRoutes from '../../src/routes/reports';
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB';
+import { initializeSchema, seedData } from '../../src/db/postgresDB';
+import { db } from '../../src/db';
 import { authenticateToken, requireRole } from '../../src/middleware/auth';
 
 const app = express();
@@ -25,16 +26,18 @@ async function loginOfficer(): Promise<string> {
 
 describe('Office reports villages filter', () => {
   beforeAll(async () => {
-    await initializeDatabase();
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test';
+    await initializeSchema();
+    await seedData();
   });
 
-  afterAll(() => {
-    try { sqliteDB.close(); } catch { }
+  afterAll(async () => {
   });
 
   test('accepts JSON villages list with commas in value', async () => {
-    sqliteDB.insert('patients', {
-      id: 'PAT-VLG-001',
+    const patientId = `PAT-VLG-${Date.now()}`;
+    await db.insert('patients', {
+      id: patientId,
       full_name: 'ผู้ป่วย A',
       registered_date: '2026-02-01T00:00:00',
       current_village: 'หมู่ 3 เต๋าดิน, เวียงสุทโธ',
@@ -53,6 +56,6 @@ describe('Office reports villages filter', () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body.some((p: any) => p.id === 'PAT-VLG-001')).toBe(true);
+    expect(res.body.some((p: any) => p.id === patientId)).toBe(true);
   });
 });

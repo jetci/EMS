@@ -5,7 +5,7 @@ import ModernDatePicker from '../components/ui/ModernDatePicker';
 import ThaiTimePicker from '../components/ui/ThaiTimePicker';
 import SuccessModal from '../components/modals/SuccessModal';
 import TagInput from '../components/ui/TagInput';
-import { patientsAPI, ridesAPI } from '../services/api';
+import { patientsAPI, ridesAPI, facilitiesAPI } from '../services/api';
 import { validateThaiPhoneNumber, validateRequired, validateLength } from '../utils/validation';
 import ValidationErrorDisplay from '../components/ui/ValidationErrorDisplay';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -61,6 +61,14 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
     const [loadingPatients, setLoadingPatients] = useState<boolean>(false);
 
     const [specialNeeds, setSpecialNeeds] = useState<string[]>([]);
+
+    const [facilities, setFacilities] = useState<Array<{ id: string; name: string; lat: number; lng: number }>>([]);
+    const [loadingFacilities, setLoadingFacilities] = useState<boolean>(false);
+    const [selectedFacilityId, setSelectedFacilityId] = useState<string>('');
+
+    const destinationCoordinatesMap: Record<string, { lat: number; lng: number }> = {
+        'โรงพยาบาลฝาง': { lat: 19.91336307690342, lng: 99.20647658973466 },
+    };
     const [minTime, setMinTime] = useState<string | null>(null);
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,6 +134,30 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             }
         };
         loadPatients();
+    }, []);
+
+    useEffect(() => {
+        const loadFacilities = async () => {
+            setLoadingFacilities(true);
+            try {
+                const data = await facilitiesAPI.getFacilities();
+                const raw = Array.isArray(data) ? data : (data?.data || []);
+                const mapped = (raw || [])
+                    .map((f: any) => ({
+                        id: String(f.id),
+                        name: f.name || '',
+                        lat: typeof f.lat === 'number' ? f.lat : Number(f.lat),
+                        lng: typeof f.lng === 'number' ? f.lng : Number(f.lng),
+                    }))
+                    .filter(f => f.name && Number.isFinite(f.lat) && Number.isFinite(f.lng));
+                setFacilities(mapped);
+            } catch (e: any) {
+                handleApiError(e, 'loadFacilities');
+            } finally {
+                setLoadingFacilities(false);
+            }
+        };
+        loadFacilities();
     }, []);
 
     useEffect(() => {
@@ -195,6 +227,18 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         }));
     };
 
+    const handleFacilityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const { value } = e.target;
+        setSelectedFacilityId(value);
+        const facility = facilities.find(f => f.id === value);
+        if (facility) {
+            setFormData(prev => ({
+                ...prev,
+                destination: facility.name,
+            }));
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setValidationErrors([]);
@@ -223,6 +267,10 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             errors.push('จุดรับผู้ป่วยต้องมีความยาวอย่างน้อย 10 ตัวอักษร');
         }
 
+        if (!formData.pickupLat || !formData.pickupLng) {
+            errors.push('ผู้ป่วยรายนี้ยังไม่มีพิกัดบ้าน กรุณาแก้ไขข้อมูลผู้ป่วยให้มีพิกัดก่อนส่งคำขอเดินทาง');
+        }
+
         if (formData.destination && formData.destination.length < 5) {
             errors.push('จุดหมายปลายทางต้องมีความยาวอย่างน้อย 5 ตัวอักษร');
         }
@@ -240,6 +288,14 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
         }
 
         const apptIso = new Date(`${formData.appointmentDate}T${formData.appointmentTime}:00`).toISOString();
+        const destKey = (formData.destination || '').trim();
+        let destCoords = destinationCoordinatesMap[destKey];
+        if ((!destCoords || !Number.isFinite(destCoords.lat) || !Number.isFinite(destCoords.lng)) && selectedFacilityId) {
+            const selectedFacility = facilities.find(f => f.id === selectedFacilityId);
+            if (selectedFacility) {
+                destCoords = { lat: selectedFacility.lat, lng: selectedFacility.lng };
+            }
+        }
         const selectedPatient = patients.find(p => p.id === formData.patientId);
         const payload = {
             patient_id: formData.patientId,
@@ -249,6 +305,8 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
             pickup_lat: formData.pickupLat,
             pickup_lng: formData.pickupLng,
             destination: formData.destination,
+            destination_lat: destCoords ? String(destCoords.lat) : undefined,
+            destination_lng: destCoords ? String(destCoords.lng) : undefined,
             special_needs: specialNeeds,
             caregiver_count: formData.caregiverCount === '' ? 0 : formData.caregiverCount,
             contact_phone: formData.contactPhone,
@@ -353,6 +411,23 @@ const CommunityRequestRidePage: React.FC<CommunityRequestRidePageProps> = ({ set
                                 required
                             />
                         </div>
+
+                        {facilities.length > 0 && (
+                            <div>
+                                <label htmlFor="facility" className="block text-sm font-medium text-gray-700 mb-1">เลือกโรงพยาบาล/สถานพยาบาล</label>
+                                <select
+                                    id="facility"
+                                    value={selectedFacilityId}
+                                    onChange={handleFacilityChange}
+                                    disabled={loadingFacilities}
+                                >
+                                    <option value="">{loadingFacilities ? 'กำลังโหลดสถานพยาบาล...' : '-- กรุณาเลือกสถานพยาบาล --'}</option>
+                                    {facilities.map(f => (
+                                        <option key={f.id} value={f.id}>{f.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div>
                             <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">จุดหมายปลายทาง</label>

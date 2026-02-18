@@ -52,6 +52,7 @@ const getNavItems = (role: User['role']) => {
         { id: 'rides', label: 'ประวัติการเดินทาง', icon: RidesIcon },
         { id: 'news', label: 'จัดการข่าวสาร', icon: NewspaperIcon },
         { id: 'reports', label: 'ศูนย์กลางรายงาน', icon: DocumentReportIcon },
+        { id: 'manage_facilities', label: 'จัดการสถานพยาบาล', icon: MapIcon },
         { id: 'map_command', label: 'แผนที่ (Monitor)', icon: MapIcon },
       ];
     case 'radio_center':
@@ -65,6 +66,7 @@ const getNavItems = (role: User['role']) => {
         { id: 'manage_schedules', label: 'จัดการตารางเวร', icon: CalendarCheckIcon },
         { id: 'news', label: 'จัดการข่าวสาร', icon: NewspaperIcon },
         { id: 'reports', label: 'รายงานประจำวัน', icon: DocumentReportIcon },
+        { id: 'manage_facilities', label: 'จัดการสถานพยาบาล', icon: MapIcon },
       ];
     case 'EXECUTIVE':
       return [
@@ -84,6 +86,7 @@ const getNavItems = (role: User['role']) => {
         { id: 'users', label: 'จัดการบัญชีผู้ใช้', icon: UsersIcon },
         { id: 'manage_vehicles', label: 'จัดการยานพาหนะ', icon: TruckIcon },
         { id: 'manage_vehicle_types', label: 'จัดการประเภทรถ', icon: TagIcon },
+        { id: 'manage_facilities', label: 'จัดการสถานพยาบาล', icon: MapIcon },
         { id: 'news', label: 'จัดการข่าวสาร', icon: NewspaperIcon },
         { id: 'reports', label: 'ศูนย์กลางรายงาน', icon: DocumentReportIcon },
         { id: 'logs', label: 'บันทึกการใช้งาน', icon: FileTextIcon },

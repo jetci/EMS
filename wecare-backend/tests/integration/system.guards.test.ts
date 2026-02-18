@@ -2,7 +2,7 @@ import request from 'supertest'
 import express from 'express'
 import systemRoutes from '../../src/routes/system'
 import authRoutes from '../../src/routes/auth'
-import { initializeDatabase, sqliteDB } from '../../src/db/sqliteDB'
+import { initializeSchema, seedData } from '../../src/db/postgresDB'
 
 const app = express()
 app.use(express.json())
@@ -29,12 +29,13 @@ describe('System routes guards (production blocking)', () => {
     process.env.NODE_ENV = 'production'
     process.env.ENABLE_DEV_DB_RESET = 'false'
     process.env.ENABLE_DEV_DB_SEED = 'false'
-    await initializeDatabase()
+    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/wecare_test'
+    await initializeSchema()
+    await seedData()
     adminToken = await loginAdmin()
   })
 
   afterAll(() => {
-    try { sqliteDB.close() } catch {}
   })
 
   test('POST /api/admin/system/reset-db should be blocked in production', async () => {

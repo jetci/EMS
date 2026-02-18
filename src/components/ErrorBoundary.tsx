@@ -6,18 +6,21 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 
-interface Props {
+type Props = {
   children: ReactNode;
   fallback?: ReactNode;
-}
+};
 
-interface State {
+type State = {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
-}
+};
 
 class ErrorBoundary extends Component<Props, State> {
+  declare state: State;
+  declare props: Props;
+  declare setState: (state: Partial<State>) => void;
   constructor(props: Props) {
     super(props);
     this.state = {

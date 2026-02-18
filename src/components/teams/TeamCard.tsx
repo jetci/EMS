@@ -50,14 +50,16 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, driverName, driverProfileImag
                     </div>
                 </div>
             </div>
-            <div className="p-3 bg-gray-50 border-t flex justify-end items-center space-x-2">
-                {canEdit && (
-                    <button onClick={onEdit} className="p-2 rounded-full text-gray-500 hover:bg-blue-100 hover:text-blue-700" title="แก้ไข">
-                        <EditIcon className="w-5 h-5" />
-                    </button>
-                )}
+            <div className="p-3 bg-gray-50 border-t flex justify-between items-center space-x-2">
+                <div className="flex items-center space-x-2">
+                    {canEdit && (
+                        <button onClick={onEdit} className="icon-btn icon-btn-edit" title="แก้ไข">
+                            <EditIcon className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
                 {canDelete && (
-                    <button onClick={onDelete} className="p-2 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-700" title="ลบ">
+                    <button onClick={onDelete} className="icon-btn icon-btn-delete" title="ลบ">
                         <TrashIcon className="w-5 h-5" />
                     </button>
                 )}

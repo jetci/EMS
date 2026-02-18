@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '../db';
 import { optionalAuth, AuthRequest, authenticateToken, requireRole } from '../middleware/auth';
 import { auditService } from '../services/auditService';
-import { logRideEvent } from './ride-events';
+import { logRideEvent, RideEvent } from './ride-events';
 import { checkDuplicateRide } from '../middleware/idempotency';
 import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { transformResponse } from '../utils/caseConverter';
@@ -304,6 +304,7 @@ router.post('/', checkDuplicateRide, async (req: AuthRequest, res) => {
 router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { status, driver_id, driver_name, ...otherUpdates } = req.body;
+
   try {
     const rawRole = String(req.user?.role || '').trim().toUpperCase();
     const role = rawRole === 'OFFICE' ? 'OFFICER' : rawRole === 'RADIO' ? 'RADIO_CENTER' : rawRole;
@@ -313,39 +314,30 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Ride not found' });
     }
 
-    const assignmentChanged = driver_id && driver_id !== existing.driver_id;
-    const statusChanged = status && status !== existing.status;
+    const assignmentChanged = !!driver_id && driver_id !== existing.driver_id;
+    const statusChanged = typeof status === 'string' && status.length > 0 && status !== existing.status;
 
-    // Community users can only update their own rides
     if (role === 'COMMUNITY' && existing.created_by && existing.created_by !== req.user?.id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Drivers can only update rides assigned to them
     if (role === 'DRIVER' && existing.driver_id && existing.driver_id !== req.user?.driver_id) {
       return res.status(403).json({ error: 'Access denied: This ride is not assigned to you' });
     }
 
-    // Only OFFICER, RADIO_CENTER, ADMIN can assign drivers
     if (assignmentChanged) {
       const allowedRoles = new Set(['OFFICER', 'RADIO_CENTER', 'ADMIN', 'DEVELOPER']);
       if (!allowedRoles.has(role)) {
         return res.status(403).json({ error: 'Access denied: Only officers can assign drivers' });
       }
 
-      // Check driver exists (outside transaction for early validation)
       const driverRecord = await db.get<any>('SELECT * FROM drivers WHERE id = $1', [driver_id]);
       if (!driverRecord) {
         return res.status(404).json({ error: 'Driver not found' });
       }
-    }
 
-    // Check for driver conflict if assigning a new driver
-    // Use transaction to prevent race conditions
-    if (assignmentChanged) {
       try {
-        const conflict = await db.transaction(async (client) => {
-          // Check driver availability first
+        await db.transaction(async (client) => {
           const driverRes = await client.query('SELECT status FROM drivers WHERE id = $1', [driver_id]);
           const driver = driverRes.rows[0];
 
@@ -353,15 +345,16 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
             throw new Error(`คนขับไม่ว่าง (สถานะ: ${driver.status})`);
           }
 
-          // Check for conflicts within transaction
-          // PG: Use EXTRACT(EPOCH FROM ...) for timestamp diff
-          const conflictRes = await client.query(`
+          const conflictRes = await client.query(
+            `
             SELECT * FROM rides 
             WHERE driver_id = $1 
               AND id != $2 
               AND status NOT IN ('COMPLETED', 'CANCELLED', 'REJECTED')
-              AND ABS(EXTRACT(EPOCH FROM (appointment_time - $3::timestamp))) < 3600
-          `, [driver_id, id, existing.appointment_time]);
+              AND ABS(EXTRACT(EPOCH FROM (appointment_time::timestamp - $3::timestamp))) < 3600
+          `,
+            [driver_id, id, existing.appointment_time]
+          );
 
           const conflict = conflictRes.rows[0];
 
@@ -369,26 +362,21 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
             throw new Error(`คนขับติดงานอื่นในช่วงเวลาใกล้เคียงกัน (Ride ID: ${conflict.id})`);
           }
 
-          // Update driver status to ON_DUTY (prevents concurrent assignments)
           await client.query('UPDATE drivers SET status = $1 WHERE id = $2', ['ON_DUTY', driver_id]);
 
-          // Update ride with driver assignment
           const updateData: any = {
             ...otherUpdates,
             status,
-            driver_id: driver_id || null,
+            driver_id: driver_id || null
           };
 
           if (driver_name) {
             updateData.driver_name = driver_name;
           }
 
-          // For transaction update, we need to construct the SQL manually or use db.update logic BUT inside client
-          // Since db.update uses pool, not client. We should use client.query directly here for atomic update.
           const keys = Object.keys(updateData);
           const values = Object.values(updateData);
           const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
-          // Add ID as last param
           const sql = `UPDATE rides SET ${setClause}, updated_at = NOW() WHERE id = $${keys.length + 1}`;
           await client.query(sql, [...values, id]);
         });
@@ -396,12 +384,17 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
         return res.status(409).json({ error: error.message });
       }
     } else {
-      // No driver assignment, just update normally
       const updateData: any = {
-        ...otherUpdates,
-        status,
-        driver_id: driver_id || null,
+        ...otherUpdates
       };
+
+      if (typeof status === 'string' && status.length > 0) {
+        updateData.status = status;
+      }
+
+      if (typeof driver_id !== 'undefined') {
+        updateData.driver_id = driver_id || null;
+      }
 
       if (driver_name) {
         updateData.driver_name = driver_name;
@@ -410,9 +403,9 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
       await db.update('rides', id, updateData);
     }
 
-    // Audit Log
     if (req.user) {
       const isAssignment = assignmentChanged;
+
       auditService.log(
         req.user.email || 'unknown',
         req.user.role || 'unknown',
@@ -423,7 +416,6 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
           : { status, ...otherUpdates }
       );
 
-      // Ride Event Timeline
       if (isAssignment) {
         await logRideEvent(
           id,
@@ -434,24 +426,28 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
         );
       }
 
-      // Log status change events
       if (statusChanged) {
-        const eventTypeMap: Record<string, any> = {
-          'EN_ROUTE_TO_PICKUP': 'EN_ROUTE',
-          'ARRIVED_AT_PICKUP': 'ARRIVED',
-          'IN_PROGRESS': 'IN_PROGRESS',
-          'COMPLETED': 'COMPLETED',
-          'CANCELLED': 'CANCELLED'
+        const eventTypeMap: Record<string, RideEvent['eventType']> = {
+          EN_ROUTE_TO_PICKUP: 'EN_ROUTE',
+          ARRIVED_AT_PICKUP: 'ARRIVED',
+          IN_PROGRESS: 'IN_PROGRESS',
+          COMPLETED: 'COMPLETED',
+          CANCELLED: 'CANCELLED'
         };
 
-        const eventType = eventTypeMap[status];
+        const eventType = eventTypeMap[status as keyof typeof eventTypeMap];
+
         if (eventType) {
-          const descriptions: Record<string, string> = {
-            'EN_ROUTE': 'คนขับกำลังเดินทางไปรับผู้ป่วย',
-            'ARRIVED': 'คนขับถึงจุดรับผู้ป่วยแล้ว',
-            'IN_PROGRESS': 'กำลังเดินทางไปจุดหมาย',
-            'COMPLETED': 'เสร็จสิ้นการเดินทาง',
-            'CANCELLED': 'ยกเลิกการเดินทาง'
+          const descriptions: Record<RideEvent['eventType'], string> = {
+            CREATED: 'สร้างคำขอเดินทางใหม่',
+            ASSIGNED: 'จ่ายงานให้คนขับ',
+            EN_ROUTE: 'คนขับกำลังเดินทางไปรับผู้ป่วย',
+            ARRIVED: 'คนขับถึงจุดรับผู้ป่วยแล้ว',
+            IN_PROGRESS: 'กำลังเดินทางไปจุดหมาย',
+            COMPLETED: 'เสร็จสิ้นการเดินทาง',
+            CANCELLED: 'ยกเลิกการเดินทาง',
+            NOTE: 'บันทึกเพิ่มเติม',
+            LOCATION_UPDATE: 'อัปเดตตำแหน่ง'
           };
 
           await logRideEvent(
@@ -462,15 +458,21 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
             descriptions[eventType]
           );
 
-          // Update driver performance metrics if COMPLETED
-          if (status === 'COMPLETED' && existing.driver_id) {
+          const shouldReleaseDriver = (status === 'COMPLETED' || status === 'CANCELLED') && existing.driver_id;
+
+          if (shouldReleaseDriver) {
             const driver = await db.get<any>('SELECT * FROM drivers WHERE id = $1', [existing.driver_id]);
             if (driver) {
-              await db.update('drivers', driver.id, {
-                total_trips: (driver.total_trips || 0) + 1,
-                trips_this_month: (driver.trips_this_month || 0) + 1,
-                status: 'AVAILABLE' // Set back to available after completion
-              });
+              const updatePayload: any = {
+                status: 'AVAILABLE'
+              };
+
+              if (status === 'COMPLETED') {
+                updatePayload.total_trips = (driver.total_trips || 0) + 1;
+                updatePayload.trips_this_month = (driver.trips_this_month || 0) + 1;
+              }
+
+              await db.update('drivers', driver.id, updatePayload);
             }
           }
         }
@@ -479,7 +481,6 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
 
     const updated = await db.get<any>('SELECT * FROM rides WHERE id = $1', [id]);
 
-    // ✅ FIX BUG-005: Use socket notification utility
     try {
       const io = (req as any).app?.get?.('io');
       if (io && (assignmentChanged || statusChanged)) {
@@ -497,14 +498,16 @@ router.put('/:id', assignDriverLimiter, async (req: AuthRequest, res) => {
         };
         notifyOperationalRoles(ns, payload);
       }
-    } catch { }
+    } catch {
+    }
 
-    // Transform to camelCase
     const camelCaseRide = transformResponse(updated);
     if (typeof camelCaseRide.specialNeeds === 'string') {
       try {
         camelCaseRide.specialNeeds = JSON.parse(camelCaseRide.specialNeeds);
-      } catch { camelCaseRide.specialNeeds = []; }
+      } catch {
+        camelCaseRide.specialNeeds = [];
+      }
     }
 
     res.json(camelCaseRide);
@@ -550,4 +553,3 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 export default router;
-

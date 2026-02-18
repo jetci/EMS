@@ -6,7 +6,7 @@ interface NewsStatusBadgeProps {
 }
 
 const statusStyles: { [key in NewsArticle['status']]: { text: string; classes: string } } = {
-  published: { text: 'เผยแพร่แล้ว', classes: 'bg-green-100 text-green-800' },
+  published: { text: 'เผยแพร่', classes: 'bg-green-100 text-green-800' },
   draft: { text: 'ฉบับร่าง', classes: 'bg-gray-200 text-gray-700' },
 };
 
