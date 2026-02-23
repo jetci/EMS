@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm run build:backend && vite build",
+    "build:backend": "cd wecare-backend && tsc",
     "preview": "vite preview",
     "mock-server": "node dev-tools/mock-server/index.js",
     "test:community": "node dev-tools/tests/run_tests.js",

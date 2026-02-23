@@ -1,5 +1,5 @@
-import app from '../wecare-backend/src/index';
-import { initializeDatabase } from '../wecare-backend/src/db/postgresDB';
+import app from '../wecare-backend/dist/index';
+import { initializeDatabase } from '../wecare-backend/dist/db/postgresDB';
 
 let isInitialized = false;
 
