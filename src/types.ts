@@ -73,6 +73,7 @@ export interface User {
     role: UserRole;
     phone?: string;
     profileImageUrl?: string;
+    address?: Address;
 }
 
 export type UserStatus = 'Active' | 'Inactive';

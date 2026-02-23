@@ -25,7 +25,11 @@ jest.mock('../../src/components/executive/KPICard', () => ({ title, value }: any
 describe('OperationalReportPage', () => {
     const mockData = {
         stats: {
-            totalRides: 5432
+            totalRides: 5432,
+            efficiency: 87,
+            avgDistance: 12,
+            totalDrivers: 5,
+            ridesTrend: 10
         },
         monthlyRideData: [
             { label: 'Jan', value: 100 }
@@ -55,10 +59,11 @@ describe('OperationalReportPage', () => {
 
         // Check KPICards
         expect(screen.getByText('อัตราการทำงานสำเร็จ')).toBeInTheDocument();
-        expect(screen.getByText('98.5')).toBeInTheDocument();
-        expect(screen.getByText('เวลาตอบโต้วิธีการลัด')).toBeInTheDocument();
-
-        // Check Data-driven KPI
+        expect(screen.getByText('87')).toBeInTheDocument();
+        expect(screen.getByText('ระยะทางเฉลี่ยต่อเที่ยว')).toBeInTheDocument();
+        expect(screen.getByText('12')).toBeInTheDocument();
+        expect(screen.getByText('จำนวนคนขับทั้งหมด')).toBeInTheDocument();
+        expect(screen.getByText('5')).toBeInTheDocument();
         expect(screen.getByText('จำนวนเที่ยววิ่งสะสม')).toBeInTheDocument();
         expect(screen.getByText('5432')).toBeInTheDocument();
 

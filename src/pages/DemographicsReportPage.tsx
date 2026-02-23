@@ -5,18 +5,148 @@ import HorizontalBarChart from '../components/charts/HorizontalBarChart';
 import UsersIcon from '../components/icons/UsersIcon';
 import KPICard from '../components/executive/KPICard';
 
+const AGE_BUCKETS = [
+    { label: '0-15 ปี', min: 0, max: 15, color: '#3B82F6' },
+    { label: '16-40 ปี', min: 16, max: 40, color: '#6366F1' },
+    { label: '41-60 ปี', min: 41, max: 60, color: '#10B981' },
+    { label: '60+ ปี', min: 61, max: 200, color: '#F59E0B' },
+];
+
 const DemographicsReportPage: React.FC = () => {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [demographics, setDemographics] = useState<{
+        ageDistribution: { label: string; value: number; color: string }[];
+        chronicDiseases: { label: string; value: number }[];
+        avgAge: number;
+        bedriddenPercent: number;
+        serviceCoveragePercent: number;
+    } | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
-                const res = await apiRequest('/dashboard/executive');
-                setData(res);
+                const [dashboardRes, patientsRes] = await Promise.all([
+                    apiRequest('/dashboard/executive'),
+                    apiRequest('/patients')
+                ]);
+
+                const patients: any[] = Array.isArray(patientsRes?.data || patientsRes) ? (patientsRes.data || patientsRes) : [];
+
+                let totalAge = 0;
+                let ageCount = 0;
+                const ageBucketsCount: Record<string, number> = {};
+                AGE_BUCKETS.forEach(b => { ageBucketsCount[b.label] = 0; });
+
+                const diseaseCounts: Record<string, number> = {};
+                let bedriddenCount = 0;
+
+                patients.forEach(p => {
+                    const age = typeof p.age === 'number' ? p.age : parseInt(p.age || '0', 10);
+                    if (!isNaN(age) && age > 0) {
+                        totalAge += age;
+                        ageCount += 1;
+                        const bucket = AGE_BUCKETS.find(b => age >= b.min && age <= b.max);
+                        if (bucket) {
+                            ageBucketsCount[bucket.label] += 1;
+                        }
+                    }
+
+                    const chronic = p.chronicDiseases || p.chronic_diseases;
+                    let chronicList: string[] = [];
+                    if (Array.isArray(chronic)) {
+                        chronicList = chronic;
+                    } else if (typeof chronic === 'string' && chronic.trim()) {
+                        try {
+                            const parsed = JSON.parse(chronic);
+                            if (Array.isArray(parsed)) {
+                                chronicList = parsed;
+                            }
+                        } catch {
+                            chronicList = [chronic];
+                        }
+                    }
+
+                    chronicList.forEach((d: string) => {
+                        const key = d.trim();
+                        if (!key) return;
+                        diseaseCounts[key] = (diseaseCounts[key] || 0) + 1;
+                        if (key.includes('ติดเตียง')) {
+                            bedriddenCount += 1;
+                        }
+                    });
+                });
+
+                const totalPatients = patients.length || dashboardRes.stats?.totalPatients || 0;
+                const avgAge = ageCount > 0 ? Math.round(totalAge / ageCount) : 0;
+
+                const ageDistribution = AGE_BUCKETS.map(b => ({
+                    label: b.label,
+                    value: ageBucketsCount[b.label] || 0,
+                    color: b.color
+                }));
+
+                const rawChronicDiseases = Object.keys(diseaseCounts).map(label => ({
+                    label,
+                    value: diseaseCounts[label]
+                }));
+
+                rawChronicDiseases.sort((a, b) => b.value - a.value);
+
+                const looksLikeHash = (label: string) => {
+                    const compact = label.replace(/\s+/g, '');
+                    if (compact.length < 12) return false;
+                    return /^[0-9A-Fa-f-]+$/.test(compact);
+                };
+
+                const cleaned: { label: string; value: number }[] = [];
+                let othersCount = 0;
+
+                rawChronicDiseases.forEach(item => {
+                    if (looksLikeHash(item.label)) {
+                        othersCount += item.value;
+                    } else {
+                        cleaned.push(item);
+                    }
+                });
+
+                cleaned.sort((a, b) => b.value - a.value);
+
+                const MAX_ITEMS = 7;
+                let chronicDiseases: { label: string; value: number }[] = [];
+
+                if (cleaned.length > MAX_ITEMS) {
+                    const top = cleaned.slice(0, MAX_ITEMS);
+                    const rest = cleaned.slice(MAX_ITEMS);
+                    const restTotal = rest.reduce((sum, item) => sum + item.value, 0) + othersCount;
+                    chronicDiseases = restTotal > 0 ? [...top, { label: 'อื่นๆ', value: restTotal }] : top;
+                } else {
+                    chronicDiseases = [...cleaned];
+                    if (othersCount > 0) {
+                        chronicDiseases.push({ label: 'อื่นๆ', value: othersCount });
+                    }
+                }
+
+                const bedriddenPercent = totalPatients > 0 ? Math.round((bedriddenCount / totalPatients) * 100) : 0;
+
+                const serviceCoveragePercent =
+                    dashboardRes.stats && dashboardRes.stats.totalRides && totalPatients
+                        ? Math.min(100, Math.round((dashboardRes.stats.totalRides / totalPatients) * 100))
+                        : 0;
+
+                setData(dashboardRes);
+                setDemographics({
+                    ageDistribution,
+                    chronicDiseases,
+                    avgAge,
+                    bedriddenPercent,
+                    serviceCoveragePercent
+                });
             } catch (err) {
                 console.error('Failed to load demographics report:', err);
+                setData(null);
+                setDemographics(null);
             } finally {
                 setLoading(false);
             }
@@ -25,22 +155,7 @@ const DemographicsReportPage: React.FC = () => {
     }, []);
 
     if (loading) return <div className="flex items-center justify-center h-64"><p className="text-gray-500 animate-pulse">กำลังวิเคราะห์ข้อมูลประชากร...</p></div>;
-    if (!data) return <div className="p-8 text-center text-red-500">ไม่สามารถโหลดข้อมูลได้</div>;
-
-    const chronicDiseasesData = [
-        { name: 'เบาหวาน', value: 45 },
-        { name: 'ความดันโลหิตสูง', value: 62 },
-        { name: 'โรคหัวใจ', value: 18 },
-        { name: 'โรคไต', value: 12 },
-        { name: 'อื่นๆ', value: 15 },
-    ];
-
-    const ageDistributionData = [
-        { name: '0-15 ปี', value: 5 },
-        { name: '16-40 ปี', value: 12 },
-        { name: '41-60 ปี', value: 28 },
-        { name: '60+ ปี', value: 55 },
-    ];
+    if (!data || !demographics) return <div className="p-8 text-center text-red-500">ไม่สามารถโหลดข้อมูลได้</div>;
 
     return (
         <div className="space-y-10 animate-fadeIn">
@@ -58,31 +173,31 @@ const DemographicsReportPage: React.FC = () => {
                     unit="คน"
                     color="blue"
                     icon={<UsersIcon />}
-                    trend={{ value: '8.2%', isUp: true }}
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
                     title="อายุเฉลี่ย"
-                    value="68"
+                    value={demographics.avgAge || 0}
                     unit="ปี"
                     color="orange"
                     icon={<UsersIcon />}
-                    trend={{ value: 'Elderly focus', isUp: true }} // Using isUp true for neutral/informative
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
                     title="ผู้ป่วยกลุ่มติดเตียง"
-                    value="12"
+                    value={demographics.bedriddenPercent || 0}
                     unit="%"
                     color="red"
                     icon={<UsersIcon />}
-                    trend={{ value: '2 Cases', isUp: true }} // Increase in bedridden might be 'bad' contextually but 'up' numerically. Keeping generic.
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
                     title="อัตราการเข้าถึงบริการ"
-                    value="94"
+                    value={demographics.serviceCoveragePercent || 0}
                     unit="%"
                     color="emerald"
                     icon={<UsersIcon />}
-                    trend={{ value: '3.1%', isUp: true }}
+                    trend={{ value: '', isUp: true }}
                 />
             </div>
 
@@ -90,13 +205,13 @@ const DemographicsReportPage: React.FC = () => {
                 <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-200">
                     <h3 className="text-2xl font-black text-gray-900 mb-8">สัดส่วนตามกลุ่มอายุ</h3>
                     <div className="h-[400px]">
-                        <DonutChart data={ageDistributionData} />
+                        <DonutChart data={demographics.ageDistribution} />
                     </div>
                 </div>
                 <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-slate-200">
                     <h3 className="text-2xl font-black text-gray-900 mb-8">สถิติโรคประจำตัว</h3>
-                    <div className="h-[400px]">
-                        <HorizontalBarChart data={chronicDiseasesData} />
+                    <div className="max-h-[420px] overflow-y-auto pr-1">
+                        <HorizontalBarChart data={demographics.chronicDiseases} />
                     </div>
                 </div>
             </div>

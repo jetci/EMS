@@ -33,15 +33,7 @@ const PatientDrillDownPage: React.FC = () => {
         (p.village && p.village.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    // Calculate Stats
     const totalPatients = data.patientLocations.length;
-    // Assuming 'type' or another field correlates to verification. For now simulating based on 'type' presence as a proxy, 
-    // or we can count all as verified if not specified, but the table shows "Verification Pending" vs "Authenticated".
-    // Let's use a mock logic: IDs starting with 'P' are pending (just for demo if no real status field), 
-    // BUT the table hardcodes "Authenticated" in the status column currently. 
-    // Let's assume 85% certified for the visual metric.
-    const verifiedCount = Math.floor(totalPatients * 0.85);
-    const pendingCount = totalPatients - verifiedCount;
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -63,20 +55,24 @@ const PatientDrillDownPage: React.FC = () => {
                     trend={{ value: 'Total Record', isUp: true }}
                 />
                 <KPICard
-                    title="ตรวจสอบแล้ว"
-                    value={verifiedCount.toLocaleString()}
+                    title="มีพิกัดบ้าน"
+                    value={data.patientLocations.length.toLocaleString()}
                     unit="ราย"
                     color="emerald"
                     icon={<EfficiencyIcon />}
-                    trend={{ value: 'Verified', isUp: true }}
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
-                    title="รอการตรวจสอบ"
-                    value={pendingCount.toLocaleString()}
-                    unit="ราย"
+                    title="สัดส่วนมีพิกัด"
+                    value={
+                        data.stats && data.stats.totalPatients
+                            ? Math.round((data.patientLocations.length / data.stats.totalPatients) * 100).toString()
+                            : '0'
+                    }
+                    unit="%"
                     color="orange"
                     icon={<HistoryIcon />}
-                    trend={{ value: 'Pending', isUp: false }}
+                    trend={{ value: '', isUp: true }}
                 />
             </div>
 
@@ -134,7 +130,9 @@ const PatientDrillDownPage: React.FC = () => {
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="font-black text-gray-800 text-lg group-hover:text-indigo-600 transition-colors">{patient.name}</span>
-                                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">รอการตรวจสอบ</span>
+                                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                                                    หมู่บ้าน: {patient.village || 'ไม่ระบุ'}
+                                                </span>
                                             </div>
                                         </div>
                                     </td>
@@ -155,10 +153,9 @@ const PatientDrillDownPage: React.FC = () => {
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-center">
-                                        <div className="inline-flex items-center justify-center px-5 py-2 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 shadow-sm shadow-emerald-50/50">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 mr-3 animate-pulse"></div>
-                                            <span className="text-xs font-bold uppercase tracking-wider">ยืนยันตัวตนแล้ว</span>
-                                        </div>
+                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                            ID: {patient.id}
+                                        </span>
                                     </td>
                                 </tr>
                             ))}
@@ -192,10 +189,9 @@ const PatientDrillDownPage: React.FC = () => {
                                         <p className="text-xs text-slate-500 font-bold uppercase">#{patient.id.slice(0, 8)}</p>
                                     </div>
                                 </div>
-                                <div className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></div>
-                                    <span className="text-xs font-bold uppercase tracking-wider">ยืนยันแล้ว</span>
-                                </div>
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                    ID: {patient.id}
+                                </span>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -210,7 +206,9 @@ const PatientDrillDownPage: React.FC = () => {
                             </div>
 
                             <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                                <span className="text-xs text-slate-400 font-bold uppercase">พื้นที่: เชียงใหม่</span>
+                                <span className="text-xs text-slate-400 font-bold uppercase">
+                                    พื้นที่: {patient.village || 'ไม่ระบุ'}
+                                </span>
                                 <button className="text-indigo-600 text-xs font-black uppercase tracking-wider">ดูรายละเอียด →</button>
                             </div>
                         </div>
@@ -225,7 +223,7 @@ const PatientDrillDownPage: React.FC = () => {
 
                 <footer className="p-10 bg-gray-50/30 border-t border-gray-50 flex justify-between items-center">
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-                        ตรวจสอบความสมบูรณ์ข้อมูล: <span className="text-emerald-500">ผ่านเกณฑ์</span>
+                        แหล่งข้อมูล: ฐานข้อมูลผู้ป่วย WeCare (พิกัดบ้าน)
                     </p>
                     <div className="flex gap-4">
                         <button className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-xs font-black uppercase tracking-wider text-gray-500 hover:bg-gray-50 transition-colors">ก่อนหน้า</button>

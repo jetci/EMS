@@ -63,6 +63,9 @@ const OfficeReportsPage: React.FC = () => {
     const [patientData, setPatientData] = useState({ startDate: '', endDate: '' });
     const [selectedVillages, setSelectedVillages] = useState<string[]>([]);
 
+    // 5. Volunteer Distribution Report State
+    const [volunteerFilter, setVolunteerFilter] = useState({});
+
     const handleStateChange = (setter: React.Dispatch<React.SetStateAction<any>>, e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: string } }) => {
         setter((prev: any) => ({ ...prev, [e.target.name]: e.target.value }));
     };
@@ -99,6 +102,10 @@ const OfficeReportsPage: React.FC = () => {
                 data = await apiRequest(`/office/reports/patients?${params}`);
                 exportType = 'patient_by_village';
                 exportParams = { startDate: patientData.startDate, endDate: patientData.endDate, villages };
+            } else if (reportName === 'รายงานอาสาสมัครตามหมู่บ้าน') {
+                data = await apiRequest('/office/reports/volunteers-by-area');
+                exportType = 'volunteers_by_area';
+                exportParams = {};
             }
 
             setReportResult(data);
@@ -152,6 +159,7 @@ const OfficeReportsPage: React.FC = () => {
     const isRosterDisabled = !rosterData.startDate || !rosterData.endDate;
     const isPersonnelDisabled = !personnelData.startDate || !personnelData.endDate;
     const isPatientDataDisabled = !patientData.startDate || !patientData.endDate || selectedVillages.length === 0;
+    const isVolunteerReportDisabled = false;
 
     return (
         <div>
@@ -269,6 +277,22 @@ const OfficeReportsPage: React.FC = () => {
                                 placeholder="เลือกหมู่บ้าน (อย่างน้อย 1)..."
                             />
                         </div>
+                    </div>
+                </ReportCard>
+
+                {/* Card 5: Volunteer Distribution Report */}
+                <ReportCard
+                    title="5. รายงานอาสาสมัครตามหมู่บ้าน"
+                    description="จำนวนอาสาสมัครแยกตามตำบล/หมู่บ้าน (จากโปรไฟล์ผู้ใช้)"
+                    actionButtonText="สร้างรายงาน"
+                    onActionClick={() => handleCreateReport('รายงานอาสาสมัครตามหมู่บ้าน')}
+                    isLoading={loadingReport === 'รายงานอาสาสมัครตามหมู่บ้าน'}
+                    disabled={isVolunteerReportDisabled}
+                >
+                    <div className="space-y-4">
+                        <p className="text-sm text-gray-600">
+                            รายงานนี้ใช้ข้อมูลจากที่อยู่ในโปรไฟล์ของผู้ใช้อาสาสมัคร
+                        </p>
                     </div>
                 </ReportCard>
             </div>

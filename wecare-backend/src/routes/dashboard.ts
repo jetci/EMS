@@ -83,8 +83,28 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
       color: colors[idx % colors.length]
     }));
 
+    // Volunteer Distribution by Tambon/Village (derived from patients created by community volunteers)
+    const rawVolunteerDistribution = await db.all<any>(`
+      SELECT 
+        COALESCE(NULLIF(TRIM(p.current_tambon), ''), 'เวียง') as tambon,
+        COALESCE(p.current_village, 'ไม่ระบุหมู่บ้าน') as village,
+        COUNT(DISTINCT u.id) as value
+      FROM users u
+      JOIN patients p ON p.created_by = u.id
+      WHERE u.role = 'community'
+        AND p.deleted_at IS NULL
+      GROUP BY p.current_tambon, p.current_village
+      ORDER BY value DESC
+    `);
+
+    const volunteerDistributionData = rawVolunteerDistribution.map((item, idx) => ({
+      label: `${item.tambon} - ${item.village}`,
+      value: item.value,
+      color: colors[idx % colors.length]
+    }));
+
     // Top Trip Types
-    const topTripTypesData = await db.all<any>(`
+    const rawTopTripTypes = await db.all<any>(`
       SELECT 
         COALESCE(trip_type, 'ทั่วไป') as label,
         COUNT(*) as value
@@ -95,13 +115,18 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
       LIMIT 5
     `, params);
 
-    // Stats
+    const topTripTypesData = rawTopTripTypes.map((item, idx) => ({
+      ...item,
+      color: colors[idx % colors.length]
+    }));
+
+    // Stats with basic trend window (last 30 days vs previous 30 days)
     const stats = await db.get<any>(`
       SELECT 
         COUNT(*) as "totalRides",
         SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as "completedRides",
         AVG(CASE WHEN distance_km IS NOT NULL THEN distance_km ELSE 0 END) as "avgDistance",
-        (SELECT COUNT(*) FROM patients) as "totalPatients",
+        (SELECT COUNT(*) FROM patients WHERE deleted_at IS NULL) as "totalPatients",
         (SELECT COUNT(*) FROM drivers) as "totalDrivers"
       FROM rides
       ${dateFilter}
@@ -110,6 +135,41 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     const efficiency = stats.totalRides > 0 ? Math.round((stats.completedRides / stats.totalRides) * 100) : 0;
     stats.efficiency = efficiency;
     stats.avgDistance = Math.round(stats.avgDistance || 0);
+
+    const trendWindowDays = 30;
+    const trendStats = await db.get<any>(`
+      WITH current_period AS (
+        SELECT 
+          COUNT(*) AS rides,
+          COUNT(DISTINCT patient_id) AS patients
+        FROM rides
+        WHERE appointment_time::date >= CURRENT_DATE - INTERVAL '${trendWindowDays} days'
+      ),
+      previous_period AS (
+        SELECT 
+          COUNT(*) AS rides,
+          COUNT(DISTINCT patient_id) AS patients
+        FROM rides
+        WHERE appointment_time::date >= CURRENT_DATE - INTERVAL '${trendWindowDays * 2} days'
+          AND appointment_time::date < CURRENT_DATE - INTERVAL '${trendWindowDays} days'
+      )
+      SELECT
+        current_period.rides AS "currentRides",
+        previous_period.rides AS "previousRides",
+        current_period.patients AS "currentPatients",
+        previous_period.patients AS "previousPatients"
+      FROM current_period, previous_period
+    `);
+
+    const calcTrend = (current: number, previous: number) => {
+      if (!previous || previous === 0) {
+        return current > 0 ? 100 : 0;
+      }
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    stats.ridesTrend = calcTrend(trendStats.currentRides || 0, trendStats.previousRides || 0);
+    stats.patientsTrend = calcTrend(trendStats.currentPatients || 0, trendStats.previousPatients || 0);
 
     // Patient Locations
     const rawPatientLocations = await db.all<any>(`
@@ -121,7 +181,8 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
         CAST(longitude AS REAL) as lng,
         patient_types as type
       FROM patients
-      WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+      WHERE deleted_at IS NULL
+        AND latitude IS NOT NULL AND longitude IS NOT NULL
     `);
 
     const patientLocations = rawPatientLocations.map((p: any) => {
@@ -148,6 +209,7 @@ router.get('/executive', authenticateToken, requireRole(['EXECUTIVE', 'admin', '
     res.json({
       monthlyRideData,
       patientDistributionData,
+      volunteerDistributionData,
       topTripTypesData,
       patientLocations,
       stats

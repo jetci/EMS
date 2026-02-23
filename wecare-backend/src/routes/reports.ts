@@ -19,6 +19,47 @@ const normalizeVillageList = (villages: any): string[] => {
     return [];
 };
 
+// GET /api/office/reports/volunteers-by-area
+router.get('/volunteers-by-area', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEVELOPER', 'OFFICER', 'radio_center']), async (req, res) => {
+    try {
+        const rows = await db.all<any>(`
+            SELECT 
+                COALESCE(NULLIF(TRIM(p.current_tambon), ''), 'เวียง') AS tambon,
+                COALESCE(p.current_village, 'ไม่ระบุหมู่บ้าน') AS village,
+                COUNT(DISTINCT u.id) AS total
+            FROM users u
+            JOIN patients p ON p.created_by = u.id
+            WHERE u.role = 'community'
+              AND p.deleted_at IS NULL
+            GROUP BY p.current_tambon, p.current_village
+            ORDER BY tambon, village
+        `);
+
+        const summaryByTambonMap: Record<string, number> = {};
+        for (const row of rows) {
+            const key = row.tambon || 'ไม่ระบุตำบล';
+            summaryByTambonMap[key] = (summaryByTambonMap[key] || 0) + Number(row.total || 0);
+        }
+
+        const summaryByTambon = Object.entries(summaryByTambonMap).map(([label, value]) => ({
+            label,
+            value,
+        }));
+
+        res.json({
+            byVillage: rows.map((r: any) => ({
+                tambon: r.tambon,
+                village: r.village,
+                total: Number(r.total || 0),
+            })),
+            byTambon: summaryByTambon,
+        });
+    } catch (err: any) {
+        console.error('Volunteers by area report error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/office/reports/roster
 router.get('/roster', authenticateToken, async (req, res) => {
     try {
@@ -225,6 +266,19 @@ router.get('/export', authenticateToken, requireRole(['EXECUTIVE', 'admin', 'DEV
             sql += ' ORDER BY next_maintenance_date ASC';
             data = await db.all(sql, params);
             filename = `maintenance_report_${new Date().toISOString().split('T')[0]}`;
+        } else if (type === 'volunteers_by_area') {
+            const rows = await db.all<any>(`
+                SELECT 
+                    COALESCE(NULLIF(TRIM(home_tambon), ''), 'เวียง') AS tambon,
+                    COALESCE(home_village, 'ไม่ระบุหมู่บ้าน') AS village,
+                    COUNT(*) AS total
+                FROM users
+                WHERE role = 'community'
+                GROUP BY home_tambon, home_village
+                ORDER BY home_tambon, home_village
+            `);
+            data = rows;
+            filename = `volunteers_by_area_${new Date().toISOString().split('T')[0]}`;
         } else {
             // Summary
             const ridesCount = await db.get<{ c: number }>('SELECT COUNT(*) as c FROM rides');

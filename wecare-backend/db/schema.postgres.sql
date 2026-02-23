@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS users (
     status VARCHAR(50) DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
     phone VARCHAR(50),
     profile_image_url TEXT,
+    home_house_number VARCHAR(100),
+    home_village VARCHAR(100),
+    home_tambon VARCHAR(100),
+    home_amphoe VARCHAR(100),
+    home_changwat VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

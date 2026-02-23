@@ -47,12 +47,12 @@ const DensityHeatmapPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Concentration Index - Replaced with KPICard */}
                 <KPICard
-                    title="ดัชนีการกระจุกตัว"
-                    value="4.2"
-                    unit="pts"
+                    title="จำนวนผู้ป่วยมีพิกัด"
+                    value={data.patientLocations.length}
+                    unit="ราย"
                     color="blue"
-                    icon={<EfficiencyIcon />}
-                    trend={{ value: 'Active', isUp: true }}
+                    icon={<UsersIcon />}
+                    trend={{ value: '', isUp: true }}
                 />
 
                 {/* Legend Card - Standardized Container */}
@@ -90,7 +90,7 @@ const DensityHeatmapPage: React.FC = () => {
                         บทวิเคราะห์ AI
                     </p>
                     <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                        พบพื้นที่หนาแน่นสูงบริเวณ <span className="text-white font-black">บ้านเวียง</span> และ <span className="text-blue-400 font-black">ม่อนปิ่น</span>
+                        แผนที่แสดงความหนาแน่นของผู้ป่วยจากข้อมูลพิกัดจริงในระบบ
                     </p>
                 </div>
             </div>
@@ -102,9 +102,11 @@ const DensityHeatmapPage: React.FC = () => {
                         <div className="p-3 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-200">
                             <UsersIcon className="w-5 h-5" />
                         </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">อาสาสมัครชุมชน</p>
-                            <p className="text-lg font-black text-slate-900">128 กำลังปฏิบัติงาน</p>
+                        <div className="flex flex-col">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">จำนวนคนขับทั้งหมด</p>
+                            <p className="text-lg font-black text-slate-900">
+                                {data.stats?.totalDrivers ?? '-'} คน
+                            </p>
                         </div>
                     </div>
                     <div className="hidden md:flex -space-x-2">

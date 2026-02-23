@@ -68,6 +68,11 @@ interface User {
   status: string;
   profile_image_url?: string;
   phone?: string;
+  home_house_number?: string | null;
+  home_village?: string | null;
+  home_tambon?: string | null;
+  home_amphoe?: string | null;
+  home_changwat?: string | null;
 }
 
 // Driver interface for lookup
@@ -200,13 +205,32 @@ router.post('/auth/login', async (req, res) => {
     // Audit successful login
     auditService.log(email, user.role, 'LOGIN', user.id, undefined, clientIp);
 
-    // Exclude password from response
-    const { password: _omit, ...userWithoutPassword } = user;
+    const {
+      password: _omit,
+      home_house_number,
+      home_village,
+      home_tambon,
+      home_amphoe,
+      home_changwat,
+      ...userWithoutPassword
+    } = user;
 
-    // Add driver_id to response if found
+    const address = {
+      houseNumber: home_house_number || '',
+      village: home_village || '',
+      tambon: home_tambon || '',
+      amphoe: home_amphoe || '',
+      changwat: home_changwat || '',
+    };
+
+    const baseUser = {
+      ...userWithoutPassword,
+      address,
+    };
+
     const responseUser = driver_id
-      ? { ...userWithoutPassword, driver_id }
-      : userWithoutPassword;
+      ? { ...baseUser, driver_id }
+      : baseUser;
 
     res.json({ user: responseUser, token });
   } catch (err: any) {
@@ -367,13 +391,33 @@ router.get('/auth/me', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Convert snake_case to camelCase for frontend
-    const { password: _omit, full_name, profile_image_url, date_created, ...rest } = user;
+    const {
+      password: _omit,
+      full_name,
+      profile_image_url,
+      date_created,
+      home_house_number,
+      home_village,
+      home_tambon,
+      home_amphoe,
+      home_changwat,
+      ...rest
+    } = user;
+
+    const address = {
+      houseNumber: home_house_number || '',
+      village: home_village || '',
+      tambon: home_tambon || '',
+      amphoe: home_amphoe || '',
+      changwat: home_changwat || '',
+    };
+
     const userResponse = {
       ...rest,
       name: full_name,
       profileImageUrl: profile_image_url,
       dateCreated: date_created,
+      address,
     };
     res.json(userResponse);
   } catch (err: any) {
@@ -409,7 +453,7 @@ router.put('/auth/profile', async (req, res) => {
   }
 
   try {
-    const { password, role, ...updates } = req.body; // Don't allow password/role changes here
+    const { password, role, ...updates } = req.body;
     console.log('📦 Updates:', updates);
 
     const updateData: any = {};
@@ -419,6 +463,22 @@ router.put('/auth/profile', async (req, res) => {
     if (updates.phone) updateData.phone = updates.phone;
     if (updates.profileImageUrl !== undefined) {
       updateData.profile_image_url = updates.profileImageUrl;
+    }
+
+    if (updates.address && typeof updates.address === 'object') {
+      const address = updates.address as {
+        houseNumber?: string;
+        village?: string;
+        tambon?: string;
+        amphoe?: string;
+        changwat?: string;
+      };
+
+      if (address.houseNumber !== undefined) updateData.home_house_number = address.houseNumber;
+      if (address.village !== undefined) updateData.home_village = address.village;
+      if (address.tambon !== undefined) updateData.home_tambon = address.tambon;
+      if (address.amphoe !== undefined) updateData.home_amphoe = address.amphoe;
+      if (address.changwat !== undefined) updateData.home_changwat = address.changwat;
     }
     console.log('💾 Update data:', Object.keys(updateData));
 

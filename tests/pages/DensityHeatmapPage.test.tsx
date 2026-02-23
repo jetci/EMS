@@ -50,22 +50,13 @@ describe('DensityHeatmapPage', () => {
         // Check Header
         expect(screen.getByText('แผนที่วิเคราะห์ความหนาแน่น')).toBeInTheDocument();
 
-        // Check KPIs
-        expect(screen.getByText('ดัชนีการกระจุกตัว')).toBeInTheDocument();
-        expect(screen.getByText('4.2')).toBeInTheDocument();
-
-        // Check Legend Card Content (Critical, High, Med)
+        // Legend Card Content (Critical, High, Med)
         expect(screen.getByText('วิกฤต')).toBeInTheDocument();
         expect(screen.getByText('สูง')).toBeInTheDocument();
         expect(screen.getByText('ปานกลาง')).toBeInTheDocument();
 
         // Check AI Insights
         expect(screen.getByText('บทวิเคราะห์ AI')).toBeInTheDocument();
-        expect(screen.getByText(/บ้านเวียง/i)).toBeInTheDocument();
-
-        // Check Relocated Overlay (Volunteers)
-        expect(screen.getByText('อาสาสมัครชุมชน')).toBeInTheDocument();
-        expect(screen.getByText('128 กำลังปฏิบัติงาน')).toBeInTheDocument();
 
         // Check Map Mock
         expect(screen.getByTestId('executive-map')).toBeInTheDocument();

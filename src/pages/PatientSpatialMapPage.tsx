@@ -72,10 +72,12 @@ const PatientSpatialMapPage: React.FC = () => {
                         <MapIcon className="w-5 h-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">ความครอบคลุม</p>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">หมู่บ้านที่มีพิกัด</p>
                         <div className="flex items-baseline gap-2">
-                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">100</h3>
-                            <span className="text-xs font-bold text-slate-500">%</span>
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                                {new Set(data.patientLocations.map((p: any) => p.village)).size}
+                            </h3>
+                            <span className="text-xs font-bold text-slate-500">แห่ง</span>
                         </div>
                     </div>
                 </div>
@@ -85,9 +87,14 @@ const PatientSpatialMapPage: React.FC = () => {
                         <EfficiencyIcon className="w-5 h-5" />
                     </div>
                     <div>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">ความแม่นยำข้อมูล</p>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">สัดส่วนผู้ป่วยมีพิกัด</p>
                         <div className="flex items-baseline gap-2">
-                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">สูง</h3>
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                                {data.stats && data.stats.totalPatients
+                                    ? Math.round((data.patientLocations.length / data.stats.totalPatients) * 100)
+                                    : 0}
+                            </h3>
+                            <span className="text-xs font-bold text-slate-500">%</span>
                         </div>
                     </div>
                 </div>

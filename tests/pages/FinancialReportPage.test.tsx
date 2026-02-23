@@ -23,10 +23,11 @@ jest.mock('../../src/components/executive/KPICard', () => ({ title, value }: any
 describe('FinancialReportPage', () => {
     const mockData = {
         stats: {
-            totalRides: 100
+            totalRides: 100,
+            totalPatients: 0
         },
         topTripTypesData: [
-            { label: 'Type A', value: 100 }
+            { label: 'Type A', value: 100, color: '#3B82F6' }
         ]
     };
 
@@ -52,18 +53,16 @@ describe('FinancialReportPage', () => {
         expect(screen.getByText('รายงานสถานะการเงิน')).toBeInTheDocument();
 
         // Check KPICards
-        expect(screen.getByText('มูลค่าบริการรวม')).toBeInTheDocument();
-        // 100 rides * 450 = 45,000
-        expect(screen.getByText('45,000')).toBeInTheDocument();
-        expect(screen.getByText('ค่าเฉลี่ยต่อเที่ยววิ่ง')).toBeInTheDocument();
+        expect(screen.getByText('จำนวนเที่ยววิ่งทั้งหมด')).toBeInTheDocument();
+        expect(screen.getByText('100')).toBeInTheDocument();
+        expect(screen.getByText('จำนวนผู้ป่วยทั้งหมด')).toBeInTheDocument();
 
         // Check Chart
         expect(screen.getByTestId('donut-chart')).toBeInTheDocument();
 
         // Check Analysis Section
-        expect(screen.getByText('การวิเคราะห์ความคุ้มค่า')).toBeInTheDocument();
-        expect(screen.getByText('45k')).toBeInTheDocument();
-        expect(screen.getByText('1.2M')).toBeInTheDocument();
+        expect(screen.getByText('คำอธิบายข้อมูล')).toBeInTheDocument();
+        expect(screen.getByText(/\/api\/dashboard\/executive/)).toBeInTheDocument();
     });
 
     it('handles error state', async () => {

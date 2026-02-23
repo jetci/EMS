@@ -49,27 +49,27 @@ const OperationalReportPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
                     title="อัตราการทำงานสำเร็จ"
-                    value="98.5"
+                    value={data.stats.efficiency || 0}
                     unit="%"
                     color="emerald"
                     icon={<EfficiencyIcon />}
-                    trend={{ value: '1.2%', isUp: true }}
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
-                    title="เวลาตอบโต้วิธีการลัด"
-                    value="12"
-                    unit="นาที"
+                    title="ระยะทางเฉลี่ยต่อเที่ยว"
+                    value={data.stats.avgDistance || 0}
+                    unit="กม."
                     color="blue"
                     icon={<HistoryIcon />}
-                    trend={{ value: '2 นาที', isUp: false }} // Assuming decrease in time is good, but KPICard logic might show red for down. Let's assume context implies 'improvement' so maybe green? Standard KPICard uses isUp for green/red. If time went down (good), but isUp is false (red), might be visually confusing. However, isUp usually means numeric increase. Let's stick to simple mapping for now.
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
-                    title="ความพร้อมใช้งานยานพาหนะ"
-                    value="92"
-                    unit="%"
+                    title="จำนวนคนขับทั้งหมด"
+                    value={data.stats.totalDrivers || 0}
+                    unit="คน"
                     color="indigo"
                     icon={<TruckIcon />}
-                    trend={{ value: 'คงที่', isUp: true }}
+                    trend={{ value: '', isUp: true }}
                 />
                 <KPICard
                     title="จำนวนเที่ยววิ่งสะสม"
@@ -77,7 +77,7 @@ const OperationalReportPage: React.FC = () => {
                     unit="เที่ยว"
                     color="orange"
                     icon={<HistoryIcon />}
-                    trend={{ value: '14%', isUp: true }}
+                    trend={{ value: `${data.stats.ridesTrend ?? 0}%`, isUp: (data.stats.ridesTrend ?? 0) >= 0 }}
                 />
             </div>
 

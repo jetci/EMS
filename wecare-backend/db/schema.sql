@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS users (
     status TEXT DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
     phone TEXT,
     profile_image_url TEXT,
+    home_house_number TEXT,
+    home_village TEXT,
+    home_tambon TEXT,
+    home_amphoe TEXT,
+    home_changwat TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

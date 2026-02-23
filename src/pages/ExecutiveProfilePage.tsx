@@ -9,6 +9,16 @@ import ConfirmationModal from '../components/modals/ConfirmationModal';
 import Toast from '../components/Toast';
 import { defaultProfileImage } from '../assets/defaultProfile';
 
+const splitName = (name?: string) => {
+    if (!name) {
+        return { firstName: '', lastName: '' };
+    }
+    const parts = name.trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ');
+    return { firstName, lastName };
+};
+
 interface ExecutiveProfilePageProps {
     user?: User; // Optional as it might be fetched or passed from layout
     onLogout?: () => void;
@@ -41,9 +51,14 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [formData, setFormData] = useState({
-        name: user?.name || '',
-        phone: user?.phone || '',
+        firstName: '',
+        lastName: '',
+        phone: '',
     });
+    const [profileImage, setProfileImage] = useState<string>(user?.profileImageUrl || defaultProfileImage);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
@@ -53,10 +68,13 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
 
     useEffect(() => {
         if (user) {
+            const { firstName, lastName } = splitName(user.name);
             setFormData({
-                name: user.name || '',
+                firstName,
+                lastName,
                 phone: user.phone || '',
             });
+            setProfileImage(user.profileImageUrl || defaultProfileImage);
         }
     }, [user]);
 
@@ -75,12 +93,14 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
     const handleConfirmSave = async () => {
         setIsConfirmModalOpen(false);
         try {
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
             await authAPI.updateProfile({
-                name: formData.name,
+                name: fullName,
                 phone: formData.phone,
             });
 
-            const updatedUser = { ...user, ...formData };
+            const updatedUser = { ...user, name: fullName, phone: formData.phone } as User;
+            setUser(updatedUser);
             if (onUpdateUser) onUpdateUser(updatedUser);
 
             localStorage.setItem('wecare_user', JSON.stringify(updatedUser));
@@ -88,6 +108,58 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
             showToast("✅ บันทึกข้อมูลสำเร็จแล้ว");
         } catch (error: any) {
             showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`);
+        }
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            showToast('❌ กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WEBP)');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('❌ ขนาดไฟล์ต้องไม่เกิน 5MB');
+            return;
+        }
+
+        setImageFile(file);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setProfileImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
+        uploadImage(file);
+    };
+
+    const uploadImage = async (file: File) => {
+        try {
+            setUploadingImage(true);
+            await authAPI.uploadProfileImage(file);
+
+            const latest = await authAPI.getProfile();
+            const imageUrl = latest.profileImageUrl || latest.profile_image_url || user?.profileImageUrl || defaultProfileImage;
+
+            setProfileImage(imageUrl);
+
+            const updatedUser = { ...(user as User), profileImageUrl: imageUrl };
+            setUser(updatedUser);
+            if (onUpdateUser) onUpdateUser(updatedUser);
+            localStorage.setItem('wecare_user', JSON.stringify(updatedUser));
+
+            showToast('✅ อัพโหลดรูปภาพเรียบร้อยแล้ว');
+            setImageFile(null);
+        } catch (error: any) {
+            console.error('❌ Upload error:', error);
+            showToast('❌ ไม่สามารถอัพโหลดรูปภาพได้: ' + error.message);
+            setProfileImage(user?.profileImageUrl || defaultProfileImage);
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -122,13 +194,26 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
                     <div className="relative group">
                         <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity rounded-full"></div>
                         <img
-                            src={user.profileImageUrl || defaultProfileImage}
+                            src={profileImage}
                             alt="Profile"
                             className="w-32 h-32 rounded-full border-4 border-white/20 shadow-2xl relative z-10 object-cover"
                         />
+                        {uploadingImage && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        )}
                         <div className="absolute bottom-2 right-2 z-20">
                             <RoleBadge role={UserRole.EXECUTIVE} />
                         </div>
+                        <input
+                            ref={fileInputRef}
+                            id="executive-profile-image-input"
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            onChange={handleImageSelect}
+                            className="hidden"
+                        />
                     </div>
 
                     <div className="text-center md:text-left space-y-2">
@@ -146,6 +231,13 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
 
                     <div className="md:ml-auto">
                         {onLogout && (
+                            <div className="flex flex-col items-stretch gap-3">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all text-white rounded-2xl flex items-center gap-2 font-bold backdrop-blur-md border border-white/10 shadow-xl"
+                                >
+                                    <span>เปลี่ยนรูปภาพ</span>
+                                </button>
                             <button
                                 onClick={onLogout}
                                 className="px-6 py-3 bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all text-white rounded-2xl flex items-center gap-2 font-bold backdrop-blur-md border border-white/10 shadow-xl"
@@ -153,6 +245,7 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
                                 <LogoutIcon className="w-5 h-5" />
                                 <span>ออกจากระบบ</span>
                             </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -197,16 +290,29 @@ const ExecutiveProfilePage: React.FC<ExecutiveProfilePageProps> = ({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">ชื่อ-นามสกุล</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">ชื่อ</label>
                                 {isEditing ? (
                                     <input
                                         type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                         className="w-full text-lg font-bold text-slate-800 border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 bg-transparent transition-colors"
                                     />
                                 ) : (
-                                    <p className="text-xl font-bold text-slate-800">{formData.name}</p>
+                                    <p className="text-xl font-bold text-slate-800">{formData.firstName || '-'}</p>
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">นามสกุล</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                        className="w-full text-lg font-bold text-slate-800 border-b-2 border-slate-200 focus:border-blue-500 outline-none py-2 bg-transparent transition-colors"
+                                    />
+                                ) : (
+                                    <p className="text-xl font-bold text-slate-800">{formData.lastName || '-'}</p>
                                 )}
                             </div>
                             <div className="space-y-2">

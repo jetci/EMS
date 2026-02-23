@@ -42,16 +42,16 @@ const CommunityRegisterPatientPage: React.FC<CommunityRegisterPatientPageProps> 
         idCardAddress: {
             houseNumber: '',
             village: '',
-            tambon: '',
-            amphoe: '',
-            changwat: '',
+            tambon: 'เวียง',
+            amphoe: 'ฝาง',
+            changwat: 'เชียงใหม่',
         },
         currentAddress: {
             houseNumber: '',
             village: '',
-            tambon: '',
-            amphoe: '',
-            changwat: '',
+            tambon: 'เวียง',
+            amphoe: 'ฝาง',
+            changwat: 'เชียงใหม่',
         },
         addressOption: 'same', // 'same' or 'new'
         contactPhone: '',

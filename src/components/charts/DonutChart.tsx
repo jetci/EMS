@@ -1,17 +1,24 @@
 import React from 'react';
 
 interface DonutChartProps {
-    data: { label: string; value: number; color: string }[];
+    data: { label: string; value: number | string; color?: string }[];
 }
 
 const DonutChart: React.FC<DonutChartProps> = ({ data }) => {
-    const total = data.reduce((sum, item) => sum + item.value, 0);
+    const defaultColors = ['#3B82F6', '#6366F1', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+    const normalized = data.map((item, index) => {
+        const numericValue = typeof item.value === 'number' ? item.value : Number(item.value) || 0;
+        const color = item.color || defaultColors[index % defaultColors.length];
+        return { ...item, value: numericValue, color };
+    });
+
+    const total = normalized.reduce((sum, item) => sum + item.value, 0);
     const radius = 70;
     const strokeWidth = 14;
     const circumference = 2 * Math.PI * radius;
     let accumulatedAngle = -90; // Start from top
 
-    if (total === 0 || data.length === 0) {
+    if (total === 0 || normalized.length === 0) {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
                 <div className="relative group">
@@ -32,7 +39,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data }) => {
         );
     }
 
-    const segments = data.map(item => {
+    const segments = normalized.map(item => {
         const percentage = (item.value / total) * 100;
         const strokeDashoffset = circumference - (percentage / 100) * circumference;
         const rotate = `rotate(${accumulatedAngle} 100 100)`;
@@ -76,7 +83,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data }) => {
                             strokeDasharray={circumference}
                             strokeDashoffset={segment.strokeDashoffset}
                             transform={segment.rotate}
-                            strokeLinecap={data.length === 1 ? 'butt' : 'round'}
+                            strokeLinecap={normalized.length === 1 ? 'butt' : 'round'}
                             className="transition-all duration-1000 ease-out"
                             style={{
                                 filter: `drop-shadow(0 0 4px ${segment.color}33)`,
@@ -92,7 +99,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ data }) => {
             </div>
 
             <div className="flex flex-col gap-4 min-w-[180px]">
-                {data.map((item, index) => (
+                {normalized.map((item, index) => (
                     <div key={index} className="flex items-center group/item cursor-pointer">
                         <div
                             className="w-10 h-1 rounded-full mr-4 transition-all duration-300 group-hover/item:w-14"

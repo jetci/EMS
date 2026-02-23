@@ -207,7 +207,7 @@ const AdminUserManagementPage: React.FC<AdminUserManagementPageProps> = ({ curre
                             <option value="office">Office</option>
                             <option value="OFFICER">Officer</option>
                             <option value="driver">Driver</option>
-                            <option value="community">Community</option>
+                            <option value="community">อาสาสมัคร</option>
                             <option value="EXECUTIVE">Executive</option>
                         </select>
                     </div>

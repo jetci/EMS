@@ -16,6 +16,7 @@ const ExecutiveDashboardPage: React.FC = () => {
     const [dashboardData, setDashboardData] = useState<any>({
         monthlyRideData: [],
         patientDistributionData: [],
+        volunteerDistributionData: [],
         topTripTypesData: [],
         patientLocations: [],
         stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0 }
@@ -45,6 +46,7 @@ const ExecutiveDashboardPage: React.FC = () => {
             setDashboardData(data || {
                 monthlyRideData: [],
                 patientDistributionData: [],
+                volunteerDistributionData: [],
                 topTripTypesData: [],
                 patientLocations: [],
                 stats: { totalRides: 0, totalPatients: 0, avgDistance: 0, efficiency: 0 }
@@ -87,7 +89,10 @@ const ExecutiveDashboardPage: React.FC = () => {
                     unit="คน"
                     color="blue"
                     icon={<UsersIcon />}
-                    trend={{ value: '12%', isUp: true }}
+                    trend={{
+                        value: `${dashboardData.stats.patientsTrend ?? 0}%`,
+                        isUp: (dashboardData.stats.patientsTrend ?? 0) >= 0
+                    }}
                 />
                 <KPICard
                     title="เที่ยววิ่งสะสม"
@@ -95,7 +100,10 @@ const ExecutiveDashboardPage: React.FC = () => {
                     unit="ครั้ง"
                     color="indigo"
                     icon={<HistoryIcon />}
-                    trend={{ value: '5%', isUp: true }}
+                    trend={{
+                        value: `${dashboardData.stats.ridesTrend ?? 0}%`,
+                        isUp: (dashboardData.stats.ridesTrend ?? 0) >= 0
+                    }}
                 />
                 <KPICard
                     title="ประสิทธิภาพการตอบสนอง"
@@ -115,9 +123,9 @@ const ExecutiveDashboardPage: React.FC = () => {
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
                 {/* Main Trends Chart */}
-                <div className="lg:col-span-2 bg-white p-10 rounded-[2rem] shadow-xl border border-slate-200">
+                <div className="xl:col-span-2 bg-white p-10 rounded-[2rem] shadow-xl border border-slate-200">
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h2 className="text-2xl font-black text-gray-900">แนวโน้มเที่ยววิ่งรายเดือน</h2>
@@ -135,6 +143,14 @@ const ExecutiveDashboardPage: React.FC = () => {
                     <div className="h-[400px]">
                         <DonutChart data={dashboardData.patientDistributionData.slice(0, 5)} title="Top 5 Villages" />
                     </div>
+                </div>
+            </div>
+
+            {/* Volunteer Distribution */}
+            <div className="bg-white p-10 rounded-[2rem] shadow-xl border border-slate-200">
+                <h2 className="text-2xl font-black text-gray-900 mb-8">สัดส่วนอาสาสมัครตามหมู่บ้าน/ตำบล</h2>
+                <div className="h-[400px]">
+                    <DonutChart data={dashboardData.volunteerDistributionData || []} />
                 </div>
             </div>
 

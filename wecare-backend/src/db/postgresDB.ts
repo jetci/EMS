@@ -297,15 +297,15 @@ export const seedData = async () => {
         if (userCount === 0) {
             console.log('🌱 Seeding initial data...');
             const users = [
-                { id: 'USR-ADMIN', email: 'admin@wecare.ems', role: 'admin', full_name: 'System Administrator' },
-                { id: 'USR-DEV', email: 'dev@wecare.ems', role: 'DEVELOPER', full_name: 'System Developer' },
-                { id: 'USR-RADIO', email: 'office1@wecare.dev', role: 'radio_center', full_name: 'Radio Center Operator' },
-                { id: 'USR-RADIO-CENTER', email: 'radio_center@wecare.dev', role: 'radio_center', full_name: 'Radio Center Chief' },
-                { id: 'USR-OFFICER', email: 'officer1@wecare.dev', role: 'OFFICER', full_name: 'EMS Officer' },
-                { id: 'USR-DRIVER', email: 'driver1@wecare.dev', role: 'driver', full_name: 'Ambulance Driver' },
-                { id: 'USR-COMMUNITY', email: 'community1@wecare.dev', role: 'community', full_name: 'Community Volunteer' },
-                { id: 'USR-EXEC', email: 'executive1@wecare.dev', role: 'EXECUTIVE', full_name: 'Hospital Executive' }
-            ];
+                    { id: 'USR-ADMIN', email: 'admin@wecare.ems', role: 'admin', full_name: 'System Administrator' },
+                    { id: 'USR-DEV', email: 'dev@wecare.ems', role: 'DEVELOPER', full_name: 'System Developer' },
+                    { id: 'USR-RADIO', email: 'office1@wecare.dev', role: 'radio_center', full_name: 'Radio Center Operator' },
+                    { id: 'USR-RADIO-CENTER', email: 'radio_center@wecare.dev', role: 'radio_center', full_name: 'Radio Center Chief' },
+                    { id: 'USR-OFFICER', email: 'officer1@wecare.dev', role: 'OFFICER', full_name: 'EMS Officer' },
+                    { id: 'USR-DRIVER', email: 'driver1@wecare.dev', role: 'driver', full_name: 'Ambulance Driver' },
+                    { id: 'USR-COMMUNITY', email: 'community1@wecare.dev', role: 'community', full_name: 'อาสาสมัครตัวอย่าง' },
+                    { id: 'USR-EXEC', email: 'executive1@wecare.dev', role: 'EXECUTIVE', full_name: 'Hospital Executive' }
+                ];
 
             for (const user of users) {
                 await pool.query(
@@ -317,15 +317,15 @@ export const seedData = async () => {
         }
 
         const testUsers = [
-            { id: 'USR-ADMIN', email: 'admin@wecare.ems', role: 'admin', full_name: 'System Administrator' },
-            { id: 'USR-DEV', email: 'dev@wecare.ems', role: 'DEVELOPER', full_name: 'System Developer' },
-            { id: 'USR-RADIO', email: 'office1@wecare.dev', role: 'radio_center', full_name: 'Radio Center Operator' },
-            { id: 'USR-RADIO-CENTER', email: 'radio_center@wecare.dev', role: 'radio_center', full_name: 'Radio Center Chief' },
-            { id: 'USR-OFFICER', email: 'officer1@wecare.dev', role: 'OFFICER', full_name: 'EMS Officer' },
-            { id: 'USR-DRIVER', email: 'driver1@wecare.dev', role: 'driver', full_name: 'Ambulance Driver' },
-            { id: 'USR-COMMUNITY', email: 'community1@wecare.dev', role: 'community', full_name: 'Community Volunteer' },
-            { id: 'USR-EXEC', email: 'executive1@wecare.dev', role: 'EXECUTIVE', full_name: 'Hospital Executive' }
-        ];
+                { id: 'USR-ADMIN', email: 'admin@wecare.ems', role: 'admin', full_name: 'System Administrator' },
+                { id: 'USR-DEV', email: 'dev@wecare.ems', role: 'DEVELOPER', full_name: 'System Developer' },
+                { id: 'USR-RADIO', email: 'office1@wecare.dev', role: 'radio_center', full_name: 'Radio Center Operator' },
+                { id: 'USR-RADIO-CENTER', email: 'radio_center@wecare.dev', role: 'radio_center', full_name: 'Radio Center Chief' },
+                { id: 'USR-OFFICER', email: 'officer1@wecare.dev', role: 'OFFICER', full_name: 'EMS Officer' },
+                { id: 'USR-DRIVER', email: 'driver1@wecare.dev', role: 'driver', full_name: 'Ambulance Driver' },
+                { id: 'USR-COMMUNITY', email: 'community1@wecare.dev', role: 'community', full_name: 'อาสาสมัครตัวอย่าง' },
+                { id: 'USR-EXEC', email: 'executive1@wecare.dev', role: 'EXECUTIVE', full_name: 'Hospital Executive' }
+            ];
 
         for (const user of testUsers) {
             await pool.query(

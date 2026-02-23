@@ -10,6 +10,8 @@ jest.mock('../../src/services/api', () => ({
     authAPI: {
         updateProfile: jest.fn(),
         changePassword: jest.fn(),
+        uploadProfileImage: jest.fn(),
+        getProfile: jest.fn().mockResolvedValue({}),
     }
 }));
 
@@ -41,18 +43,15 @@ describe('ExecutiveProfilePage', () => {
 
         // Header check
         expect(screen.getByRole('heading', { level: 1, name: 'Executive User' })).toBeInTheDocument();
-        const emailElements = screen.getAllByText('exec@wecare.app');
-        expect(emailElements.length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('exec@wecare.app').length).toBeGreaterThanOrEqual(1);
 
         expect(screen.getByText('Executive Access')).toBeInTheDocument();
         expect(screen.getByText('System Online')).toBeInTheDocument();
 
         // Personal Info section
         expect(screen.getByText('ข้อมูลส่วนตัว')).toBeInTheDocument();
-        // The name appears again in the details section, so we just check it exists in the document generally or use getAll
-        const nameElements = screen.getAllByText('Executive User');
-        expect(nameElements.length).toBeGreaterThanOrEqual(2); // Header + Details
-
+        expect(screen.getByText('Executive')).toBeInTheDocument();
+        expect(screen.getByText('User')).toBeInTheDocument();
         expect(screen.getByText('0812345678')).toBeInTheDocument();
 
         // Logout button
@@ -66,11 +65,13 @@ describe('ExecutiveProfilePage', () => {
         fireEvent.click(screen.getByTestId('edit-icon').closest('button')!);
 
         // Inputs should appear - assume values are pre-filled
-        const nameInput = screen.getByDisplayValue('Executive User');
+        const firstNameInput = screen.getByDisplayValue('Executive');
+        const lastNameInput = screen.getByDisplayValue('User');
         const phoneInput = screen.getByDisplayValue('0812345678');
 
         // Update fields
-        fireEvent.change(nameInput, { target: { value: 'Updated Executive' } });
+        fireEvent.change(firstNameInput, { target: { value: 'Updated' } });
+        fireEvent.change(lastNameInput, { target: { value: 'Executive' } });
         fireEvent.change(phoneInput, { target: { value: '0999999999' } });
 
         // Click Save

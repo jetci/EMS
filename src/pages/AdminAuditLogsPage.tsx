@@ -87,7 +87,7 @@ const AdminAuditLogsPage: React.FC = () => {
                         <option value="admin">Admin</option>
                         <option value="office">Office</option>
                         <option value="driver">Driver</option>
-                        <option value="community">Community</option>
+                        <option value="community">อาสาสมัคร</option>
                     </select>
                     <select name="actionType" value={filters.actionType} onChange={handleFilterChange}>
                         <option value="All">All Action Types</option>

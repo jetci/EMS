@@ -308,7 +308,7 @@ const quickLoginUsers = {
   'office1@wecare.dev': { id: 'radio-wecare', full_name: 'Radio Office 1', email: 'office1@wecare.dev', role: 'radio', token: 'radio-wecare-token' },
   'officer1@wecare.dev': { id: 'officer-wecare', full_name: 'Officer 1', email: 'officer1@wecare.dev', role: 'OFFICER', token: 'officer-wecare-token' },
   'driver1@wecare.dev': { id: 'driver1', full_name: 'Driver One', email: 'driver1@wecare.dev', role: 'driver', token: 'driver1-token' },
-  'community1@wecare.dev': { id: 'community1', full_name: 'Community User', email: 'community1@wecare.dev', role: 'community', token: 'community1-token' },
+  'community1@wecare.dev': { id: 'community1', full_name: 'อาสาสมัครตัวอย่าง', email: 'community1@wecare.dev', role: 'community', token: 'community1-token' },
   'executive1@wecare.dev': { id: 'exec1', full_name: 'Executive User', email: 'executive1@wecare.dev', role: 'EXECUTIVE', token: 'exec1-token' },
 };
 

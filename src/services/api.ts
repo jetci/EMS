@@ -243,7 +243,7 @@ export const authAPI = {
       body: JSON.stringify(data),
     }),
   getProfile: () => apiRequest('/auth/me'),
-  updateProfile: (data: { name?: string; phone?: string; profileImageUrl?: string }) =>
+    updateProfile: (data: { name?: string; phone?: string; profileImageUrl?: string; address?: Address }) =>
     apiRequest('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(data),

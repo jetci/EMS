@@ -36,6 +36,11 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
         firstName: initialUser.name.split(' ')[0] || '',
         lastName: initialUser.name.split(' ')[1] || '',
         phone: initialUser.phone || '',
+        houseNumber: initialUser.address?.houseNumber || '',
+        village: initialUser.address?.village || '',
+        tambon: initialUser.address?.tambon || 'เวียง',
+        amphoe: initialUser.address?.amphoe || 'ฝาง',
+        changwat: initialUser.address?.changwat || 'เชียงใหม่',
     });
 
     const [passwordData, setPasswordData] = useState({
@@ -45,11 +50,15 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
     });
 
     useEffect(() => {
-        // Reset form data and image if the user prop changes
         setFormData({
             firstName: initialUser.name.split(' ')[0] || '',
             lastName: initialUser.name.split(' ')[1] || '',
             phone: initialUser.phone || '',
+            houseNumber: initialUser.address?.houseNumber || '',
+            village: initialUser.address?.village || '',
+            tambon: initialUser.address?.tambon || 'เวียง',
+            amphoe: initialUser.address?.amphoe || 'ฝาง',
+            changwat: initialUser.address?.changwat || 'เชียงใหม่',
         });
         setProfileImage(initialUser.profileImageUrl || defaultProfileImage);
     }, [initialUser]);
@@ -68,6 +77,11 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
             firstName: initialUser.name.split(' ')[0] || '',
             lastName: initialUser.name.split(' ')[1] || '',
             phone: initialUser.phone || '',
+            houseNumber: initialUser.address?.houseNumber || '',
+            village: initialUser.address?.village || '',
+            tambon: initialUser.address?.tambon || 'เวียง',
+            amphoe: initialUser.address?.amphoe || 'ฝาง',
+            changwat: initialUser.address?.changwat || 'เชียงใหม่',
         });
         setIsEditing(false);
     };
@@ -87,6 +101,13 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                 name: fullName,
                 phone: formData.phone,
                 profileImageUrl: isCustomImage ? profileImage : undefined,
+                address: {
+                    houseNumber: formData.houseNumber,
+                    village: formData.village,
+                    tambon: formData.tambon,
+                    amphoe: formData.amphoe,
+                    changwat: formData.changwat,
+                },
             });
 
             const updatedUser = {
@@ -94,6 +115,13 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                 name: fullName,
                 phone: formData.phone,
                 profileImageUrl: isCustomImage ? profileImage : undefined,
+                address: {
+                    houseNumber: formData.houseNumber,
+                    village: formData.village,
+                    tambon: formData.tambon,
+                    amphoe: formData.amphoe,
+                    changwat: formData.changwat,
+                },
             };
 
             onUpdateUser(updatedUser);
@@ -308,6 +336,52 @@ const CommunityProfilePage: React.FC<CommunityProfilePageProps> = ({ user: initi
                                     ) : (
                                         <p className="mt-1 text-lg text-gray-900">{formData.phone || '-'}</p>
                                     )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="houseNumber" className="block text-sm font-medium text-gray-700">บ้านเลขที่</label>
+                                        {isEditing ? (
+                                            <input type="text" name="houseNumber" id="houseNumber" value={formData.houseNumber} onChange={handleProfileChange} className="mt-1 w-full" />
+                                        ) : (
+                                            <p className="mt-1 text-lg text-gray-900">{formData.houseNumber || '-'}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label htmlFor="village" className="block text-sm font-medium text-gray-700">หมู่บ้าน</label>
+                                        {isEditing ? (
+                                            <input type="text" name="village" id="village" value={formData.village} onChange={handleProfileChange} className="mt-1 w-full" />
+                                        ) : (
+                                            <p className="mt-1 text-lg text-gray-900">{formData.village || '-'}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label htmlFor="tambon" className="block text-sm font-medium text-gray-700">ตำบล</label>
+                                        {isEditing ? (
+                                            <input type="text" name="tambon" id="tambon" value={formData.tambon} onChange={handleProfileChange} className="mt-1 w-full" />
+                                        ) : (
+                                            <p className="mt-1 text-lg text-gray-900">{formData.tambon || '-'}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label htmlFor="amphoe" className="block text-sm font-medium text-gray-700">อำเภอ</label>
+                                        {isEditing ? (
+                                            <input type="text" name="amphoe" id="amphoe" value={formData.amphoe} onChange={handleProfileChange} className="mt-1 w-full" />
+                                        ) : (
+                                            <p className="mt-1 text-lg text-gray-900">{formData.amphoe || '-'}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <label htmlFor="changwat" className="block text-sm font-medium text-gray-700">จังหวัด</label>
+                                        {isEditing ? (
+                                            <input type="text" name="changwat" id="changwat" value={formData.changwat} onChange={handleProfileChange} className="mt-1 w-full" />
+                                        ) : (
+                                            <p className="mt-1 text-lg text-gray-900">{formData.changwat || '-'}</p>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {isEditing && (
